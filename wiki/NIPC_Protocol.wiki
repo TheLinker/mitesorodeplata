@@ -7,16 +7,25 @@
 
 ----
 ==Tipo 1: Solicitud de sector:==
-{{{
-Proceso FIle System -> Proceso RAID:
-Proceso FIle System -> Proceso disco:
-Proceso RAID -> Proceso disco:
+
+===Proceso FIle System -> Proceso RAID:===
+
+===Proceso FIle System -> Proceso disco:===
+
+===Proceso RAID -> Proceso disco:===
 
 Type: 1
+
 Payload: sector solicitado
+||Type||PayloadLength||Payload||
+||1||4||SectorSolicitado||
+||1 Byte||2 Bytes||4 Bytes||
 
 Rta:
 
 Type: 1
+
 Payload: sector solicitado + 512 bytes
-}}}
+||Type||PayloadLength||||Payload||
+||1||516||SectorSolicitado||Datos||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
