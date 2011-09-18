@@ -23,7 +23,8 @@ typedef struct fat32_t {
     uint32_t total_sectors;      // 0x20 4
     uint32_t sectors_per_fat;    // 0x24 4
     uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
-    int32_t  free_clusters;
+    int32_t  free_clusters;      // Clusters libres de la FS Info Sector
+    int32_t  eoc_marker;         // Marca usada para fin de cadena de clusters
     uint8_t *boot;
     uint8_t *fs_info;
     uint32_t *fat;
@@ -31,20 +32,6 @@ typedef struct fat32_t {
 
 nipc_socket *socket;
 fat32_t fat;
-
-uint8_t *fat32_getcluster(uint32_t cluster)
-{
-//    if(!sector_buffer) free(sector_buffer);
-//    sector_buffer = calloc(bytes_per_sector, sector_per_cluster);
-//
-////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
-////  LSN=SSA + (CN-2) × SC(0x0D)
-//
-//    fseek(SEEK_SET, sector_per_cluster*bytes_per_sector); ////
-//    fread(sector_buffer,bytes_per_sector,sector_per_cluster,fp); ////
-
-    return NULL;
-}
 
 uint8_t *fat32_getsectors(uint32_t sector, uint32_t cantidad)
 {
@@ -79,6 +66,21 @@ uint8_t *fat32_getsectors(uint32_t sector, uint32_t cantidad)
     }
 
     return buffer;
+}
+
+uint8_t *fat32_getcluster(uint32_t cluster)
+{
+    //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
+    if(cluster<2) return NULL;
+
+////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
+////  LSN=SSA + (CN-2) × SC(0x0D)
+
+    uint32_t logical_sector_number = 0;
+
+    logical_sector_number = fat.system_area_size + (cluster - 2) * fat.sector_per_cluster;
+
+    return fat32_getsectors(logical_sector_number , fat.sector_per_cluster);
 }
 
 
@@ -228,6 +230,17 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     return size;
 }
 
+uint32_t fat32_first_free_cluster()
+{
+    uint32_t i=0;
+
+    for ( i = 2 ; i < fat.bytes_per_sector * fat.sectors_per_fat / sizeof(int32_t) ; i++ )
+        if(fat.fat[i] == 0)
+            return i;
+
+    return -ENOSPC; //Si no hay mas clusters libres, devuelve este error, este error esta zarpado en gato.
+}
+
 int fat32_free_clusters()
 {
     if(fat.free_clusters < 0)
@@ -268,6 +281,8 @@ static void *fat32_init(struct fuse_conn_info *conn)
     memcpy(&(fat.free_clusters), fat.fs_info + 0x1E8, 4);
 
     fat.fat =(uint32_t *) fat32_getsectors(fat.reserved_sectors, fat.sectors_per_fat);
+    memcpy(&(fat.eoc_marker), fat.fat + 0x04, 4);
+
     printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
             fat.bytes_per_sector,
             fat.sector_per_cluster,
@@ -326,6 +341,46 @@ void fat32_handshake(nipc_socket *socket)
     free(packet);
 
     return;
+}
+
+void fat32_add_cluster(int32_t first_cluster)
+{
+    int32_t posicion = first_cluster;
+
+    while(fat.fat[posicion] != fat.eoc_marker)
+    {
+        posicion = fat.fat[posicion];
+    }
+
+    int32_t free_cluster = fat32_first_free_cluster();
+
+    fat.fat[posicion] = free_cluster;
+    fat.fat[free_cluster] = fat.eoc_marker;
+
+    fat.free_clusters--;
+    // Falta hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
+
+}
+
+void fat32_remove_cluster(int32_t first_cluster)
+{
+    int32_t pos_act = first_cluster;
+    int32_t pos_ant = 0;
+
+    while(fat.fat[pos_act] != fat.eoc_marker)
+    {
+        pos_ant = pos_act; 
+        pos_act = fat.fat[pos_act];
+    }
+
+    if (pos_ant == 0)
+        return;
+
+    fat.fat[pos_ant] = fat.eoc_marker;
+    fat.fat[pos_act] = 0;
+
+    fat.free_clusters++;
+    // Faltar hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
 }
 
 int main(int argc, char *argv[])

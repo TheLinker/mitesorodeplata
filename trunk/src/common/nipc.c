@@ -31,7 +31,7 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
     case nipc_req_packet:
         memcpy(buffer+i, packet->payload, 4);
         printf("buffer[%d] : %d\n", i, buffer[i]);
-	i++;
+    	i++;
         break;
     case nipc_handshake:
         next_packet = calloc(sizeof(nipc_packet), 1);
@@ -39,6 +39,7 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
         next_packet->len = 0;
         next_packet->payload = NULL;
         break;
+    //  Faltan agregar los "case" para la escritura en disco     
     }
 }
 
