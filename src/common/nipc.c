@@ -39,7 +39,7 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
         next_packet->len = 0;
         next_packet->payload = NULL;
         break;
-    //  Faltan agregar los "case" para la escritura en disco     
+    //  Faltan agregar los "case" para la escritura en disco
     }
 }
 

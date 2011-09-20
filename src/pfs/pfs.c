@@ -15,27 +15,53 @@ uint16_t server_port = 1500;
 static const char *hello_str = "Hello World!\n"; ////
 static const char *hello_path = "/hello"; ////
 
+typedef union boot_t {
+    uint8_t buffer[512];
+    struct {
+        uint8_t  no_usado[11];
+        uint16_t bytes_per_sector;    // 0x0B 2
+        uint8_t  sectors_per_cluster; // 0x0D 1
+        uint16_t reserved_sectors;    // 0x0E 2
+        uint8_t  fat_count;           // 0x10 1
+        uint8_t  no_usado2[15];
+        uint32_t total_sectors;       // 0x20 4
+        uint32_t sectors_per_fat;     // 0x24 4
+        uint8_t  no_usado3[472];
+    } __attribute__ ((packed));       // para que no alinee los miembros de la estructura (si, estupido GCC)
+} boot_t;
+
+typedef union fsinfo_t {
+    uint8_t buffer[512];
+    struct {
+        uint8_t  no_usado[488];
+        int32_t  free_clusters;      // Clusters libres de la FS Info Sector
+        uint8_t  no_usado2[20];
+    };
+} fsinfo_t;
+
 typedef struct fat32_t {
-    uint16_t bytes_per_sector;   // 0x0B 2
-    uint8_t  sector_per_cluster; // 0x0D 1
-    uint16_t reserved_sectors;   // 0x0E 2
-    uint8_t  fat_count;          // 0x10 1
-    uint32_t total_sectors;      // 0x20 4
-    uint32_t sectors_per_fat;    // 0x24 4
+    boot_t   boot_sector;
+    fsinfo_t fsinfo_sector;
+    uint32_t *fat;               // usar estructuras para la fat es inutil =)
+
     uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
-    int32_t  free_clusters;      // Clusters libres de la FS Info Sector
     int32_t  eoc_marker;         // Marca usada para fin de cadena de clusters
-    uint8_t *boot;
-    uint8_t *fs_info;
-    uint32_t *fat;
 } fat32_t;
 
 nipc_socket *socket;
 fat32_t fat;
 
-uint8_t *fat32_getsectors(uint32_t sector, uint32_t cantidad)
+/**
+ * Obtiene *cantidad* sectores a partir de *sector*
+ * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
+ *
+ * @sector primer sector a pedir
+ * @cantidad cantidad de sectores a partir de *sector* a pedir (inclusive)
+ * @buffer lugar donde guardar la información recibida.
+ * @return codigo de error o 0 si fue todo bien.
+ */
+uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer)
 {
-    uint8_t *buffer=0;
     nipc_packet packet;
     int i;
 
@@ -53,40 +79,48 @@ uint8_t *fat32_getsectors(uint32_t sector, uint32_t cantidad)
 
     free(packet.payload);
 
-    buffer = calloc(fat.bytes_per_sector, cantidad);
-
     //Espera a obtener todos los sectores pedidos
     for (i = 0 ; i < cantidad ; i++)
     {
         nipc_packet *packet = nipc_recv_packet(socket);
         int32_t rta_sector;
         memcpy(&rta_sector, packet->payload, sizeof(int32_t));
-        memcpy(buffer+((rta_sector-sector)*fat.bytes_per_sector), packet->payload+4, fat.bytes_per_sector);
+        memcpy(buffer+((rta_sector-sector)*fat.boot_sector.bytes_per_sector), packet->payload+4, fat.boot_sector.bytes_per_sector);
         free(packet);
     }
 
-    return buffer;
+    return 0;
 }
 
-uint8_t *fat32_getcluster(uint32_t cluster)
+/**
+ * Obtiene un *cluster*
+ * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
+ *
+ * @cluster cluster a pedir
+ * @buffer lugar donde guardar la información recibida.
+ * @return codigo de error o 0 si fue todo bien.
+ */
+uint8_t fat32_getcluster(uint32_t cluster, void *buffer)
 {
     //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
-    if(cluster<2) return NULL;
+    if(cluster<2) return -EINVAL;
 
 ////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
 ////  LSN=SSA + (CN-2) × SC(0x0D)
 
     uint32_t logical_sector_number = 0;
 
-    logical_sector_number = fat.system_area_size + (cluster - 2) * fat.sector_per_cluster;
+    logical_sector_number = fat.system_area_size + (cluster - 2) * fat.boot_sector.sectors_per_cluster;
 
-    return fat32_getsectors(logical_sector_number , fat.sector_per_cluster);
+    fat32_getsectors(logical_sector_number , fat.boot_sector.sectors_per_cluster, buffer);
+
+    return 0;
 }
 
 
 int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    printf("Create\n");
+    printf("Create: path:%s\n", path);
     return 0;
 }
 
@@ -102,43 +136,43 @@ int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 
 int fat32_write (const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-    printf("Write\n");
+    printf("Write: path: %s\n", path);
     return 0;
 }
 
 int fat32_flush (const char *path, struct fuse_file_info *fi)
 {
-    printf("Flush\n");
+    printf("Flush: path: %s\n", path);
     return 0;
 }
 
 int fat32_release (const char *path, struct fuse_file_info *fi)
 {
-    printf("Release\n");
+    printf("Release: path: %s\n", path);
     return 0;
 }
 
 int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 {
-    printf("Ftruncate\n");
+    printf("Ftruncate: path: %s\n", path);
     return 0;
 }
 
 int fat32_unlink (const char *path)
 {
-    printf("Unlink\n");
+    printf("Unlink: path: %s\n", path);
     return 0;
 }
 
 int fat32_rmdir (const char *path)
 {
-    printf("RmDir\n");
+    printf("RmDir: path: %s\n", path);
     return 0;
 }
 
 int fat32_mkdir (const char *path, mode_t mode)
 {
-    printf("MkDir\n");
+    printf("MkDir: path: %s\n", path);
     return 0;
 }
 
@@ -154,7 +188,7 @@ int fat32_mkdir (const char *path, mode_t mode)
 
 int fat32_rename (const char *from, const char *to)
 {
-    printf("Rename\n");
+    printf("Rename: from: %s to: %s\n", from, to);
     return 0;
 }
 
@@ -163,9 +197,8 @@ int fat32_rename (const char *from, const char *to)
 static int fat32_getattr(const char *path, struct stat *stbuf)
 {
     int res = 0;
-    printf("Getattr\n");
+    printf("Getattr: path: %s\n", path);
     memset(stbuf, 0, sizeof(struct stat));
-    printf("%s\n", path);
     if(strcmp(path, "/") == 0) {
         stbuf->st_mode = S_IFDIR | 0755;
         stbuf->st_nlink = 2;
@@ -186,7 +219,7 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 {
     (void) offset;
     (void) fi;
-    printf("Readdir\n");
+    printf("Readdir: path: %s\n", path);
 
     if(strcmp(path, "/") != 0)
         return -ENOENT;
@@ -200,7 +233,7 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int fat32_open(const char *path, struct fuse_file_info *fi)
 {
-    printf("Open\n");
+    printf("Open: path: %s\n", path);
     if(strcmp(path, hello_path) != 0)
         return -ENOENT;
 
@@ -215,7 +248,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 {
     size_t len;
     (void) fi;
-    printf("Read\n");
+    printf("Read: path: %s\n", path);
     if(strcmp(path, hello_path) != 0)
         return -ENOENT;
 
@@ -230,34 +263,44 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     return size;
 }
 
-uint32_t fat32_first_free_cluster()
+/**
+ * Obtiene el primer cluster libre en la tabla fat
+ *
+ * @return primer cluster libre o un numero menor a cero en caso de error
+ */
+int32_t fat32_first_free_cluster()
 {
     uint32_t i=0;
 
-    for ( i = 2 ; i < fat.bytes_per_sector * fat.sectors_per_fat / sizeof(int32_t) ; i++ )
+    for ( i = 2 ; i < fat.boot_sector.bytes_per_sector * fat.boot_sector.sectors_per_fat / sizeof(int32_t) ; i++ )
         if(fat.fat[i] == 0)
             return i;
 
     return -ENOSPC; //Si no hay mas clusters libres, devuelve este error, este error esta zarpado en gato.
 }
 
-int fat32_free_clusters()
+/**
+ * Obtiene la cantidad de clusters libres en la FAT
+ *
+ * @return cantidad de clusteres libres en la FAT
+ */
+uint32_t fat32_free_clusters()
 {
-    if(fat.free_clusters < 0)
+    if(fat.fsinfo_sector.free_clusters < 0)
     {
         int i=0, free_clusters=0;
 
-        for ( i = 2 ; i < fat.bytes_per_sector * fat.sectors_per_fat / sizeof(int32_t) ; i++ )
+        for ( i = 2 ; i < fat.boot_sector.bytes_per_sector * fat.boot_sector.sectors_per_fat / sizeof(int32_t) ; i++ )
             if(fat.fat[i] == 0)
                 free_clusters++;
-        
-        fat.free_clusters = free_clusters;
 
-        //TODO actualizar fs_info_sector del volumen 
+        fat.fsinfo_sector.free_clusters = free_clusters;
+
+        //TODO actualizar fs_info_sector del volumen
 
         return free_clusters;
     } else {
-        return fat.free_clusters;
+        return fat.fsinfo_sector.free_clusters;
     }
 
 }
@@ -266,30 +309,22 @@ static void *fat32_init(struct fuse_conn_info *conn)
 {
     printf("Init\n");
 
-    fat.boot = fat32_getsectors(0,1);
+    fat32_getsectors(0, 1, fat.boot_sector.buffer);
+    fat.system_area_size = fat.boot_sector.reserved_sectors + ( fat.boot_sector.fat_count * fat.boot_sector.sectors_per_fat );
 
-    memcpy(&(fat.bytes_per_sector),   fat.boot + 0x0B, 2);
-    memcpy(&(fat.sector_per_cluster), fat.boot + 0x0D, 1);
-    memcpy(&(fat.reserved_sectors),   fat.boot + 0x0E, 2);
-    memcpy(&(fat.fat_count),          fat.boot + 0x10, 1);
-    memcpy(&(fat.total_sectors),      fat.boot + 0x20, 4);
-    memcpy(&(fat.sectors_per_fat),    fat.boot + 0x24, 4);
+    fat32_getsectors(1, 1, fat.fsinfo_sector.buffer);
 
-    fat.system_area_size = fat.reserved_sectors + ( fat.fat_count * fat.sectors_per_fat );
-
-    fat.fs_info = fat32_getsectors(1,1);
-    memcpy(&(fat.free_clusters), fat.fs_info + 0x1E8, 4);
-
-    fat.fat =(uint32_t *) fat32_getsectors(fat.reserved_sectors, fat.sectors_per_fat);
+    fat.fat = calloc(fat.boot_sector.bytes_per_sector, fat.boot_sector.sectors_per_fat);
+    fat32_getsectors(fat.boot_sector.reserved_sectors, fat.boot_sector.sectors_per_fat, fat.fat);
     memcpy(&(fat.eoc_marker), fat.fat + 0x04, 4);
 
     printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
-            fat.bytes_per_sector,
-            fat.sector_per_cluster,
-            fat.reserved_sectors,
-            fat.fat_count,
-            fat.total_sectors,
-            fat.sectors_per_fat,
+            fat.boot_sector.bytes_per_sector,
+            fat.boot_sector.sectors_per_cluster,
+            fat.boot_sector.reserved_sectors,
+            fat.boot_sector.fat_count,
+            fat.boot_sector.total_sectors,
+            fat.boot_sector.sectors_per_fat,
             fat.system_area_size,
             fat32_free_clusters());
 
@@ -299,8 +334,6 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
 void fat32_destroy(void * foo)
 {
-    //free(fat.boot);
-    //free(fat.fs_info);
     free(fat.fat);
 }
 
@@ -322,6 +355,12 @@ static struct fuse_operations fat32_oper = {
     .rename    = fat32_rename,
 };
 
+/**
+ * Envia un handshake al proceso RAID o DISCO
+ *
+ * @return en caso de ser rechazada la conexion,
+ * envia el mensaje de error y sale del programa
+ */
 void fat32_handshake(nipc_socket *socket)
 {
     nipc_packet *packet = malloc(sizeof(nipc_packet));
@@ -343,6 +382,11 @@ void fat32_handshake(nipc_socket *socket)
     return;
 }
 
+/**
+ * Añade un cluster al final de la cadena donde esta first_cluster
+ *
+ * @first_cluster un cluster perteneciente a la cadena donde se desea agregar otro cluster
+ */
 void fat32_add_cluster(int32_t first_cluster)
 {
     int32_t posicion = first_cluster;
@@ -357,11 +401,18 @@ void fat32_add_cluster(int32_t first_cluster)
     fat.fat[posicion] = free_cluster;
     fat.fat[free_cluster] = fat.eoc_marker;
 
-    fat.free_clusters--;
+    fat.fsinfo_sector.free_clusters--;
     // Falta hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
 
 }
 
+/**
+ * Elimina un cluster al final de la cadena donde esta first_cluster
+ *
+ * NOTA: si como argumento se pasa el ultimo cluster el algoritmo no hace nada
+ *
+ * @first_cluster un cluster perteneciente a la cadena donde se desea eliminar el ultimo cluster
+ */
 void fat32_remove_cluster(int32_t first_cluster)
 {
     int32_t pos_act = first_cluster;
@@ -369,7 +420,7 @@ void fat32_remove_cluster(int32_t first_cluster)
 
     while(fat.fat[pos_act] != fat.eoc_marker)
     {
-        pos_ant = pos_act; 
+        pos_ant = pos_act;
         pos_act = fat.fat[pos_act];
     }
 
@@ -379,7 +430,7 @@ void fat32_remove_cluster(int32_t first_cluster)
     fat.fat[pos_ant] = fat.eoc_marker;
     fat.fat[pos_act] = 0;
 
-    fat.free_clusters++;
+    fat.fsinfo_sector.free_clusters++;
     // Faltar hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
 }
 
@@ -388,7 +439,7 @@ int main(int argc, char *argv[])
     int ret=0;
 
     //En el PPD se asume esto, no se si en el PFS hay que asumirlo tmb
-    fat.bytes_per_sector = 512;
+    fat.boot_sector.bytes_per_sector = 512;
 
     if(!(socket = nipc_init(server_host, server_port)))
     {
