@@ -5,9 +5,10 @@
 
 #define FAT32_VOLUME_NAME "fat32.disk"
 
-nipc_packet *next_packet;
+nipc_packet *next_packet=0;
 uint32_t buffer[2000];
-uint32_t  i=1;
+static uint32_t i=0;
+uint8_t handshake=0;
 
 nipc_socket *nipc_init(uint8_t *host, uint16_t port)
 {
@@ -30,10 +31,10 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
     {
     case nipc_req_packet:
         memcpy(buffer+i, packet->payload, 4);
-        printf("buffer[%d] : %d\n", i, buffer[i]);
-    	i++;
+        i++;
         break;
     case nipc_handshake:
+        handshake=1;
         next_packet = calloc(sizeof(nipc_packet), 1);
         next_packet->type = nipc_handshake;
         next_packet->len = 0;
@@ -45,11 +46,11 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
 
 nipc_packet *nipc_recv_packet(nipc_socket *socket)
 {
-    if (next_packet)
+    if (!handshake)
     {
         nipc_packet *packet = malloc(sizeof(nipc_packet));
-	
-	i--;
+
+        i--;
 
         fseek((FILE *)socket, buffer[i] * 512, SEEK_SET);
 
@@ -58,12 +59,11 @@ nipc_packet *nipc_recv_packet(nipc_socket *socket)
         packet->payload = calloc(516, 1);
         memcpy(packet->payload, buffer+i, 4);
 
-	printf("%d\n", i);
-
         fread((void*)(packet->payload+4), 512, 1, (FILE *) socket);
-	
+
         return packet;
     } else {
+        handshake--;
         return next_packet;
     }
 

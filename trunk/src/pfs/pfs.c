@@ -312,6 +312,9 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fat32_getsectors(0, 1, fat.boot_sector.buffer);
     fat.system_area_size = fat.boot_sector.reserved_sectors + ( fat.boot_sector.fat_count * fat.boot_sector.sectors_per_fat );
 
+    if (fat.boot_sector.bytes_per_sector != 512)
+        printf("Nos dijeron que se suponian 512 bytes por sector, no %d bytes >.<\n", fat.boot_sector.bytes_per_sector);
+
     fat32_getsectors(1, 1, fat.fsinfo_sector.buffer);
 
     fat.fat = calloc(fat.boot_sector.bytes_per_sector, fat.boot_sector.sectors_per_fat);
@@ -372,11 +375,19 @@ void fat32_handshake(nipc_socket *socket)
     free(packet);
 
     packet = nipc_recv_packet(socket);
-    if (!packet->payload)
+
+    if (packet->type)
+    {
+        printf("Error: tipo %d recibido en vez del handshake\n", packet->type);
+        exit(-ECONNREFUSED);
+    }
+
+    if (packet->payload)
     {
         printf("Error: %s\n", packet->payload);
         exit(-ECONNREFUSED);
     }
+
     free(packet);
 
     return;
@@ -438,7 +449,6 @@ int main(int argc, char *argv[])
 {
     int ret=0;
 
-    //En el PPD se asume esto, no se si en el PFS hay que asumirlo tmb
     fat.boot_sector.bytes_per_sector = 512;
 
     if(!(socket = nipc_init(server_host, server_port)))
