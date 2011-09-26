@@ -9,8 +9,9 @@
 
 #include "nipc.h"
 
-uint8_t *server_host = (uint8_t *)"asd.com";
-uint16_t server_port = 1500;
+uint8_t  server_host[1024] = "localhost";
+uint16_t server_port = 1337;
+uint16_t cache_size = 1024;
 
 static const char *hello_str = "Hello World!\n"; ////
 static const char *hello_path = "/hello"; ////
@@ -445,11 +446,58 @@ void fat32_remove_cluster(int32_t first_cluster)
     // Faltar hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
 }
 
+int fat32_config_read()
+{
+	char line[1024], w1[1024], w2[1024];
+	FILE *fp;
+
+	fp = fopen("pfs.conf","r");
+	if( fp == NULL )
+	{
+		printf("No se encuentra el archivo de configuración\n");
+		return 1;
+	}
+
+	while( fgets(line, sizeof(line), fp) )
+	{
+		char* ptr;
+
+		if( line[0] == '/' && line[1] == '/' )
+			continue;
+		if( (ptr = strstr(line, "//")) != NULL )
+			*ptr = '\n'; //Strip comments
+		if( sscanf(line, "%[^:]: %[^\t\r\n]", w1, w2) < 2 )
+			continue;
+
+		//Strip trailing spaces
+		ptr = w2 + strlen(w2);
+		while (--ptr >= w2 && *ptr == ' ');
+		ptr++;
+		*ptr = '\0';
+			
+		if(strcmp(w1,"host")==0)
+			strcpy((char *)server_host, w2);
+		else 
+		if(strcmp(w1,"puerto")==0)
+			server_port = atoi(w2);
+        else
+		if(strcmp(w1,"tamanio_cache")==0)
+			cache_size = atoi(w2);
+		else
+			printf("Configuracion desconocida:'%s'\n", w1);
+	}
+
+	fclose(fp);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
     int ret=0;
 
     fat.boot_sector.bytes_per_sector = 512;
+
+    fat32_config_read();
 
     if(!(socket = nipc_init(server_host, server_port)))
     {
