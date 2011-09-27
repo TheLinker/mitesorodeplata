@@ -38,7 +38,6 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
         next_packet = calloc(sizeof(nipc_packet), 1);
         next_packet->type = nipc_handshake;
         next_packet->len = 0;
-        next_packet->payload = NULL;
         break;
     //  Faltan agregar los "case" para la escritura en disco
     }
@@ -56,7 +55,6 @@ nipc_packet *nipc_recv_packet(nipc_socket *socket)
 
         packet->type = nipc_req_packet;
         packet->len = 516;
-        packet->payload = calloc(516, 1);
         memcpy(packet->payload, buffer+i, 4);
 
         fread((void*)(packet->payload+4), 512, 1, (FILE *) socket);

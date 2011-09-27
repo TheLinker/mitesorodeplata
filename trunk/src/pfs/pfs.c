@@ -68,7 +68,6 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer)
 
     packet.type = nipc_req_packet;
     packet.len = sizeof(int32_t);
-    packet.payload = calloc(sizeof(int32_t), 1);
     memcpy(packet.payload, &sector, sizeof(int32_t));
 
     //Pide los sectores necesarios
@@ -77,8 +76,6 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer)
         nipc_send_packet(&packet, socket);
         *((int32_t *)packet.payload) += 1;
     }
-
-    free(packet.payload);
 
     //Espera a obtener todos los sectores pedidos
     for (i = 0 ; i < cantidad ; i++)
@@ -371,7 +368,6 @@ void fat32_handshake(nipc_socket *socket)
 
     packet->type = nipc_handshake;
     packet->len = 0;
-    packet->payload = NULL;
     nipc_send_packet(packet, socket);
     free(packet);
 
@@ -383,7 +379,7 @@ void fat32_handshake(nipc_socket *socket)
         exit(-ECONNREFUSED);
     }
 
-    if (packet->payload)
+    if (packet->len)
     {
         printf("Error: %s\n", packet->payload);
         exit(-ECONNREFUSED);
