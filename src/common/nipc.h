@@ -14,7 +14,7 @@ enum {
 typedef struct {
     uint8_t  type;
     uint16_t len;
-    uint8_t *payload;
+    uint8_t  payload[1024];
 } nipc_packet;
 
 typedef uint32_t nipc_socket;
