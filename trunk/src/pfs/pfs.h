@@ -1,7 +1,12 @@
 #ifndef __PFS_H_
 #define __PFS_H_
 
+#include "nipc.h"
 nipc_socket *socket;
+
+static uint8_t  server_host[1024] = "localhost";
+static uint16_t server_port = 1337;
+static uint16_t cache_size = 1024;
 
 typedef union boot_t {
     uint8_t buffer[512];
