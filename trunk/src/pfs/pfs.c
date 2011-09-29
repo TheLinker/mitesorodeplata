@@ -37,7 +37,7 @@ typedef union fsinfo_t {
         uint8_t  no_usado[488];
         int32_t  free_clusters;      // Clusters libres de la FS Info Sector
         uint8_t  no_usado2[20];
-    };
+    } __attribute__ ((packed));
 } fsinfo_t;
 
 typedef struct fat32_t {
@@ -47,7 +47,7 @@ typedef struct fat32_t {
 
     uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
     int32_t  eoc_marker;         // Marca usada para fin de cadena de clusters
-} fat32_t;
+} __attribute__ ((packed)) fat32_t;
 
 nipc_socket *socket;
 fat32_t fat;

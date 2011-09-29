@@ -15,7 +15,7 @@ typedef struct {
     uint8_t  type;
     uint16_t len;
     uint8_t  payload[1024];
-} nipc_packet;
+} __attribute__ ((packed)) nipc_packet;
 
 typedef uint32_t nipc_socket;
 
