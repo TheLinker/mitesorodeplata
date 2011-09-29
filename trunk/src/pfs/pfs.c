@@ -8,6 +8,8 @@
 #include <fcntl.h>
 
 #include "nipc.h"
+#include "pfs.h"
+#include "direccionamiento.h"
 
 uint8_t  server_host[1024] = "localhost";
 uint16_t server_port = 1337;
@@ -16,121 +18,11 @@ uint16_t cache_size = 1024;
 static const char *hello_str = "Hello World!\n"; ////
 static const char *hello_path = "/hello"; ////
 
-typedef union boot_t {
-    uint8_t buffer[512];
-    struct {
-        uint8_t  no_usado[11];
-        uint16_t bytes_per_sector;    // 0x0B 2
-        uint8_t  sectors_per_cluster; // 0x0D 1
-        uint16_t reserved_sectors;    // 0x0E 2
-        uint8_t  fat_count;           // 0x10 1
-        uint8_t  no_usado2[15];
-        uint32_t total_sectors;       // 0x20 4
-        uint32_t sectors_per_fat;     // 0x24 4
-        uint8_t  no_usado3[472];
-    } __attribute__ ((packed));       // para que no alinee los miembros de la estructura (si, estupido GCC)
-} boot_t;
-
-typedef union fsinfo_t {
-    uint8_t buffer[512];
-    struct {
-        uint8_t  no_usado[488];
-        int32_t  free_clusters;      // Clusters libres de la FS Info Sector
-        uint8_t  no_usado2[20];
-    } __attribute__ ((packed));
-} fsinfo_t;
-
-typedef struct fat32_t {
-    boot_t   boot_sector;
-    fsinfo_t fsinfo_sector;
-    uint32_t *fat;               // usar estructuras para la fat es inutil =)
-
-    uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
-    int32_t  eoc_marker;         // Marca usada para fin de cadena de clusters
-} __attribute__ ((packed)) fat32_t;
-
-nipc_socket *socket;
-fat32_t fat;
-
-/**
- * Obtiene *cantidad* sectores a partir de *sector*
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
- *
- * @sector primer sector a pedir
- * @cantidad cantidad de sectores a partir de *sector* a pedir (inclusive)
- * @buffer lugar donde guardar la información recibida.
- * @return codigo de error o 0 si fue todo bien.
- */
-uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer)
-{
-    nipc_packet packet;
-    int i;
-
-    packet.type = nipc_req_packet;
-    packet.len = sizeof(int32_t);
-    memcpy(packet.payload, &sector, sizeof(int32_t));
-
-    //Pide los sectores necesarios
-    for (i = 0 ; i < cantidad ; i++)
-    {
-        nipc_send_packet(&packet, socket);
-        *((int32_t *)packet.payload) += 1;
-    }
-
-    //Espera a obtener todos los sectores pedidos
-    for (i = 0 ; i < cantidad ; i++)
-    {
-        nipc_packet *packet = nipc_recv_packet(socket);
-        int32_t rta_sector;
-        memcpy(&rta_sector, packet->payload, sizeof(int32_t));
-        memcpy(buffer+((rta_sector-sector)*fat.boot_sector.bytes_per_sector), packet->payload+4, fat.boot_sector.bytes_per_sector);
-        free(packet);
-    }
-
-    return 0;
-}
-
-/**
- * Obtiene un *cluster*
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
- *
- * @cluster cluster a pedir
- * @buffer lugar donde guardar la información recibida.
- * @return codigo de error o 0 si fue todo bien.
- */
-uint8_t fat32_getcluster(uint32_t cluster, void *buffer)
-{
-    //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
-    if(cluster<2) return -EINVAL;
-
-////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
-////  LSN=SSA + (CN-2) × SC(0x0D)
-
-    uint32_t logical_sector_number = 0;
-
-    logical_sector_number = fat.system_area_size + (cluster - 2) * fat.boot_sector.sectors_per_cluster;
-
-    fat32_getsectors(logical_sector_number , fat.boot_sector.sectors_per_cluster, buffer);
-
-    return 0;
-}
-
-
 int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     printf("Create: path:%s\n", path);
     return 0;
 }
-
-//int fat32_open (const char *path, struct fuse_file_info *fi)
-//{
-//
-//}
-
-//int fat32_read (const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
-//{
-//
-//}
 
 int fat32_write (const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
@@ -174,23 +66,11 @@ int fat32_mkdir (const char *path, mode_t mode)
     return 0;
 }
 
-//int fat32_readdir (const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
-//{
-//
-//}
-
-//int fat32_fgetattr (const char *path, struct stat *stbuf, struct fuse_file_info *fi)
-//{
-//
-//}
-
 int fat32_rename (const char *from, const char *to)
 {
     printf("Rename: from: %s to: %s\n", from, to);
     return 0;
 }
-
-
 
 static int fat32_getattr(const char *path, struct stat *stbuf)
 {
