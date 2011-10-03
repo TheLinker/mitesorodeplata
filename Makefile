@@ -1,27 +1,63 @@
+#Magia, no tocar.
+
 FLAGS      = -Wall -Isrc/common/
 BUILD_PATH = tmp
 BIN_PATH   = bin
 SRC_PATH   = src
 
-all: $(BIN_PATH)/process_file_system
+include pfs.mk
+include praid.mk
 
-$(BUILD_PATH)/nipc.o: $(SRC_PATH)/common/nipc.c $(SRC_PATH)/common/nipc.h
-	gcc $(FLAGS) `pkg-config fuse --cflags` $(SRC_PATH)/common/nipc.c -o $(BUILD_PATH)/nipc.o -c
+all: pfs praid
 
-$(BUILD_PATH)/direccionamiento.o: $(SRC_PATH)/pfs/direccionamiento.c $(SRC_PATH)/pfs/direccionamiento.h $(SRC_PATH)/common/nipc.h
-	gcc $(FLAGS) `pkg-config fuse --cflags` $(SRC_PATH)/pfs/direccionamiento.c -o $(BUILD_PATH)/direccionamiento.o -c
+##############################
+#Reglas para el Proceso File System
+##############################
 
-$(BUILD_PATH)/utils.o: $(SRC_PATH)/pfs/utils.c $(SRC_PATH)/pfs/utils.h $(SRC_PATH)/common/nipc.h
-	gcc $(FLAGS) `pkg-config fuse --cflags` $(SRC_PATH)/pfs/utils.c -o $(BUILD_PATH)/utils.o -c
+pfs: $(PFS_BIN)
 
-$(BUILD_PATH)/pfs.o: $(SRC_PATH)/pfs/pfs.c $(SRC_PATH)/pfs/direccionamiento.h $(SRC_PATH)/common/nipc.h
-	gcc $(FLAGS) `pkg-config fuse --cflags` $(SRC_PATH)/pfs/pfs.c -o $(BUILD_PATH)/pfs.o -c
+PFS_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PFS_SRC) ) ) )
 
-$(BIN_PATH)/process_file_system: $(BUILD_PATH)/pfs.o $(BUILD_PATH)/nipc.o $(BUILD_PATH)/utils.o $(BUILD_PATH)/direccionamiento.o
-	gcc $(FLAGS) `pkg-config fuse --libs` $(BUILD_PATH)/pfs.o $(BUILD_PATH)/nipc.o $(BUILD_PATH)/utils.o $(BUILD_PATH)/direccionamiento.o -o $(BIN_PATH)/process_file_system
+$(PFS_BIN): $(PFS_OBJS) $(PFS_INCLUDES)
+	@echo 'LINKEANDO $@'
+	@gcc $(FLAGS) `pkg-config fuse --libs` $(PFS_OBJS) -o $@
+
+
+
+##############################
+#Reglas para el Proceso RAID 1
+##############################
+
+praid: $(PRAID_BIN)
+
+PRAID_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PRAID_SRC) ) ) )
+
+$(PRAID_BIN): $(PRAID_OBJS) $(PRAID_INCLUDES)
+	@echo 'LINKEANDO $@'
+	@gcc $(FLAGS) `pkg-config fuse --libs` $(PRAID_OBJS) -o $@
+
+
+
+##############################
+#Reglas de compilacion
+##############################
+
+$(BUILD_PATH)/%.o: $(SRC_PATH)/common/%.c $(SRC_PATH)/common/%.h
+	@echo 'COMPILANDO $< -> $@'
+	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+
+$(BUILD_PATH)/%.o: $(SRC_PATH)/pfs/%.c $(PFS_INCLUDES)
+	@echo 'COMPILANDO $< -> $@'
+	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+
+$(BUILD_PATH)/%.o: $(SRC_PATH)/praid1/%.c $(PRAID_INCLUDES)
+	@echo 'COMPILANDO $< -> $@'
+	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+
 
 clean:
-	rm $(BUILD_PATH)/* $(BIN_PATH)/process_file_system
+	@echo 'Limpiando todo'
+	@rm $(BUILD_PATH)/* $(PFS_BIN) $(PRAID_BIN) 2> /dev/null || true
 
-.PHONY: process_file_system clean all
+.PHONY: pfs praid clean all
 
