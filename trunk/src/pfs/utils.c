@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "direccionamiento.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -188,5 +189,62 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
 
     fclose(fp);
     return 0;
+}
+
+/**
+ * Llena el buffer con la entrada numero entry_number a partir de first_cluster.
+ *
+ * NOTA: el buffer tiene que estar asignada memoria.
+ *
+ * @entry_number numero de entrada solicitada a partir de un cluster dado
+ * @first_cluster primer cluster de la cadena
+ * @buffer destino de los 32 bytes de la entrada solicitada
+ * @fs_tmp estructura privada del file system
+ * @return 0 si exito
+ *         -EINVAL en caso de error
+ */
+int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, int8_t *buffer, fs_fat32_t *fs_tmp)
+{
+    int32_t cluster_offset = entry_number / (fs_tmp->boot_sector.bytes_per_sector *
+                                             fs_tmp->boot_sector.sectors_per_cluster / 32);
+
+    int32_t entry_offset = entry_number % (fs_tmp->boot_sector.bytes_per_sector *
+                                           fs_tmp->boot_sector.sectors_per_cluster / 32);
+
+    int32_t cluster = fat32_get_link_n_in_chain(first_cluster, cluster_offset, fs_tmp);
+    if (cluster < 0)
+        return cluster;
+
+    int8_t *cluster_buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
+    fat32_getcluster(cluster, cluster_buffer, fs_tmp);
+    memcpy(buffer, cluster_buffer + (entry_offset * 32), 32);
+    free(cluster_buffer);
+
+    return 0;
+}
+
+/**
+ * Obtiene el numero de cluster en la cadena a partir de first_cluster, desplazado cluster_offset clusters
+ *
+ * @first_cluster primer cluster de la cadena
+ * @cluster_offset posicion relativa del cluster dentro de la lista enlazada
+ * @fs_tmp estructura privada del file system
+ * @return numero de cluster de la cadena a partir de first_cluster, desplazado cluster_offset clusters
+ *         -EINVAL en caso de error
+ */
+int32_t fat32_get_link_n_in_chain(int32_t first_cluster, int32_t cluster_offset, fs_fat32_t *fs_tmp)
+{
+    int32_t cluster = first_cluster;
+
+    while(cluster_offset > 0 && cluster != fs_tmp->eoc_marker)
+    {
+        cluster = fs_tmp->fat[cluster];
+        cluster_offset--;
+    }
+
+    if (cluster_offset > 0)
+        return -EINVAL;
+
+    return cluster;
 }
 

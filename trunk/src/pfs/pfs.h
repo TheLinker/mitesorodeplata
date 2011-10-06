@@ -3,6 +3,10 @@
 
 #include "nipc.h"
 
+#define ATTR_SUBDIRECTORY   0x10
+#define ATTR_ARCHIVE        0x20
+#define ATTR_LONG_FILE_NAME 0x0F
+
 typedef union boot_t {
     uint8_t buffer[512];
     struct {
@@ -42,5 +46,34 @@ typedef struct fs_fat32_t {
     nipc_socket *socket;
 } __attribute__ ((packed)) fs_fat32_t;
 
+//lfn = long file name
+typedef struct lfn_entry_t {
+    uint8_t seq_number;
+    uint16_t lfn_name1[5];
+    uint8_t no_usado[2];
+    uint8_t checksum;
+    uint16_t lfn_name2[6];
+    uint8_t no_usado2[2];
+    uint16_t lfn_name3[2];
+} __attribute__ ((packed)) lfn_entry_t;
+
+typedef struct file_entry_t {
+    uint8_t dos_file_name[8];
+    uint8_t dos_file_ext[3];
+    uint8_t file_attr;
+    uint8_t no_usado[8];
+    uint16_t first_cluster_hi;
+    uint8_t no_usado2[4];
+    uint16_t first_cluster_low;
+    uint32_t file_size;
+} __attribute__ ((packed)) file_entry_t;
+
+typedef struct file_attrs {
+    int16_t *filename[256];
+    int8_t dos_filename[11];
+    int8_t file_type;
+    int32_t first_cluster;
+    int32_t file_size;
+} __attribute__ ((packed)) file_attrs;
 
 #endif //__PFS_H_
