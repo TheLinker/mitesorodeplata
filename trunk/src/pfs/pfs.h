@@ -2,11 +2,6 @@
 #define __PFS_H_
 
 #include "nipc.h"
-nipc_socket *socket;
-
-static uint8_t  server_host[1024] = "localhost";
-static uint16_t server_port = 1337;
-static uint16_t cache_size = 1024;
 
 typedef union boot_t {
     uint8_t buffer[512];
@@ -32,16 +27,20 @@ typedef union fsinfo_t {
     } __attribute__ ((packed));
 } fsinfo_t;
 
-typedef struct fat32_t {
+typedef struct fs_fat32_t {
     boot_t   boot_sector;
     fsinfo_t fsinfo_sector;
     uint32_t *fat;               // usar estructuras para la fat es inutil =)
 
     uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
     int32_t  eoc_marker;         // Marca usada para fin de cadena de clusters
-} __attribute__ ((packed)) fat32_t;
 
-nipc_socket *socket;
-fat32_t fat;
+    uint8_t  server_host[1024];
+    uint16_t server_port;
+    uint16_t cache_size;
+
+    nipc_socket *socket;
+} __attribute__ ((packed)) fs_fat32_t;
+
 
 #endif //__PFS_H_
