@@ -141,35 +141,50 @@ static void *fat32_init(struct fuse_conn_info *conn)
 {
     printf("Init\n");
 
-    fat32_getsectors(0, 1, fat.boot_sector.buffer);
-    fat.system_area_size = fat.boot_sector.reserved_sectors + ( fat.boot_sector.fat_count * fat.boot_sector.sectors_per_fat );
+    fs_fat32_t *fs_tmp = calloc(sizeof(fs_fat32_t), 1);
+    fs_tmp->boot_sector.bytes_per_sector = 512;
 
-    if (fat.boot_sector.bytes_per_sector != 512)
-        printf("Nos dijeron que se suponian 512 bytes por sector, no %d bytes >.<\n", fat.boot_sector.bytes_per_sector);
+    fat32_config_read(fs_tmp);
 
-    fat32_getsectors(1, 1, fat.fsinfo_sector.buffer);
+    if(!(fs_tmp->socket = nipc_init(fs_tmp->server_host, fs_tmp->server_port)))
+    {
+        printf("La conexion al RAID 1 o planificador de disco no esta lista\n");
+        exit(-EADDRNOTAVAIL);
+    }
 
-    fat.fat = calloc(fat.boot_sector.bytes_per_sector, fat.boot_sector.sectors_per_fat);
-    fat32_getsectors(fat.boot_sector.reserved_sectors, fat.boot_sector.sectors_per_fat, fat.fat);
-    memcpy(&(fat.eoc_marker), fat.fat + 0x04, 4);
+    fat32_handshake(fs_tmp->socket);
+
+    fat32_getsectors(0, 1, fs_tmp->boot_sector.buffer, fs_tmp);
+    fs_tmp->system_area_size = fs_tmp->boot_sector.reserved_sectors + ( fs_tmp->boot_sector.fat_count * fs_tmp->boot_sector.sectors_per_fat );
+
+    if (fs_tmp->boot_sector.bytes_per_sector != 512)
+        printf("Nos dijeron que se suponian 512 bytes por sector, no %d bytes >.<\n", fs_tmp->boot_sector.bytes_per_sector);
+
+    fat32_getsectors(1, 1, fs_tmp->fsinfo_sector.buffer, fs_tmp);
+
+    fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
+    fat32_getsectors(fs_tmp->boot_sector.reserved_sectors, fs_tmp->boot_sector.sectors_per_fat, fs_tmp->fat, fs_tmp);
+    memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
 
     printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
-            fat.boot_sector.bytes_per_sector,
-            fat.boot_sector.sectors_per_cluster,
-            fat.boot_sector.reserved_sectors,
-            fat.boot_sector.fat_count,
-            fat.boot_sector.total_sectors,
-            fat.boot_sector.sectors_per_fat,
-            fat.system_area_size,
-            fat32_free_clusters());
+            fs_tmp->boot_sector.bytes_per_sector,
+            fs_tmp->boot_sector.sectors_per_cluster,
+            fs_tmp->boot_sector.reserved_sectors,
+            fs_tmp->boot_sector.fat_count,
+            fs_tmp->boot_sector.total_sectors,
+            fs_tmp->boot_sector.sectors_per_fat,
+            fs_tmp->system_area_size,
+            fat32_free_clusters(fs_tmp));
 
-    return NULL;
+    return fs_tmp;
 
 }
 
-void fat32_destroy(void * foo)
+void fat32_destroy(void * foo) //foo es private_data que devuelve el init
 {
-    free(fat.fat);
+    nipc_close(((fs_fat32_t *)foo)->socket);
+    free(((fs_fat32_t *)foo)->fat);
+    free(foo);
 }
 
 static struct fuse_operations fat32_oper = {
@@ -194,21 +209,7 @@ int main(int argc, char *argv[])
 {
     int ret=0;
 
-    fat.boot_sector.bytes_per_sector = 512;
-
-    fat32_config_read();
-
-    if(!(socket = nipc_init(server_host, server_port)))
-    {
-        printf("La conexion al RAID 1 o planificador de disco no esta lista\n");
-        exit(-EADDRNOTAVAIL);
-    }
-
-    fat32_handshake(socket);
-
     ret = fuse_main(argc, argv, &fat32_oper, NULL);
-
-    nipc_close(socket);
 
     return ret;
 }
