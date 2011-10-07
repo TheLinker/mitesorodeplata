@@ -1,35 +1,140 @@
-#include<sys/types.h>
-#include<sys/ipc.h>
-#include<sys/msg.h>
+//#include<sys/types.h>
+//#include<sys/ipc.h>
+//#include<string.h>
+//#include<stdint.h>
 #include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
 #include<unistd.h>
-#include<stdint.h>
+#include<pthread.h>
+#include<sys/msg.h>
+#include<stdlib.h>
+#include<signal.h>
+#include "nipc.h"
 
-
-#define SIZEBUF 512
+#define SIZEBUF 1024
 
 struct mensaje {
-	uint32_t tipo_msg;
+	uint32_t type_msg;
 	uint32_t sector_msg;
 };
 
-struct pedid{
-	uint8_t tipo;
+typedef struct pedido{
+	uint8_t type_pedido;
 	uint32_t sector;
 	struct pedido *sgte;
-};
-typedef struct pedid pedido;
+} __attribute__ ((packed)) pedido;
 
-struct disc{
+typedef struct disco{
 	uint32_t id_disco;
 	uint32_t cantidad_pedidos;
 	pedido *pedidos;
 	struct disco *sgte;
-};
-typedef struct disc disco;
+} __attribute__ ((packed)) disco;
+
 struct disco *discos;
+
+void agregarPedidoLectura();
+void agregarPedidoEscritura();
+void agregarDisco();
+void listarPedidosDiscos();
+uint32_t menorCantidadPedidos();
+void distribuirPedidoLectura();
+void distribuirPedidoEscritura();
+uint32_t hayPedidosLectura();
+uint32_t hayPedidosEscritura();
+void estado();
+void eliminarCola();
+void *distribuirPedidos();
+
+int main(int argc, char *argv[])
+{
+	char opcion;
+	discos = NULL;
+	pthread_t hilo1;
+	
+	while(1){
+	printf("\n\n\n-------------------------------------");
+	printf("\n-------------------------------------");
+	printf("\n1. Agregar pedido lectura");
+	printf("\n2. Agregar pedido escritura");
+	printf("\n3. Agregar disco");
+	printf("\n4. Listar pedidos en discos");
+	printf("\n5. Distribuir Pedido Lectura");
+	printf("\n6. Distribuir Pedido Escritura");
+	printf("\n7. Estado de colas");
+	printf("\n8. AUTO: distribuirPedidos");
+	printf("\n9. Salir");
+	
+	printf("\nIngrese opcion: ");
+	opcion = getchar();
+	getchar();
+	if(opcion == '1')
+	{
+		printf("\n	Agregar pedido de lectura");
+		if (discos != NULL)
+			agregarPedidoLectura();
+		else
+			printf("\n\nNo hay discos");		
+	}
+	if(opcion == '2')
+	{
+		printf("\n	Agregar pedido de Escritura");
+		if (discos != NULL)
+			agregarPedidoEscritura();
+		else
+			printf("\n\nNo hay discos");		
+	}
+	if(opcion == '3')
+	{
+		printf("\n	Agregar disco");
+		agregarDisco(discos);
+	}
+	if(opcion == '4')
+	{
+		printf("\n	Listar pedidos en discos");
+		listarPedidosDiscos(&discos);
+	}
+	if(opcion == '5')
+	{
+		printf("\n	Distribuir Pedido Lectura");
+		if (discos != NULL && hayPedidosLectura(&discos)!=0)
+			distribuirPedidoLectura(&discos);
+		else
+			printf("\n\nNo hay discos o pedidos");
+	}
+	if(opcion == '6')
+	{
+		printf("\n	Distribuir Pedido Escritura");
+		if (discos != NULL && hayPedidosEscritura(&discos)!=0)
+			distribuirPedidoEscritura(&discos);
+		else
+			printf("\n\nNo hay discos o pedidos");
+	}
+	if(opcion == '7')
+	{
+		printf("\n	Estado de cola");
+		estado();
+		
+	}
+	if(opcion == '8')
+	{
+		printf("\n	AUTO: distribuirPedidos");
+		
+		int ret1;
+		ret1=pthread_create(&hilo1,NULL,distribuirPedidos,&discos);
+		//pthread_join(hilo1,NULL);
+		
+	}
+	if(opcion == '9')
+	{
+		printf("\n	Salir\n\n");
+		eliminarCola(&discos);
+		pthread_kill(hilo1,SIGKILL);
+		
+		exit(EXIT_SUCCESS);
+	}
+
+}
+}
 
 void agregarPedidoLectura()
 {
@@ -47,12 +152,12 @@ void agregarPedidoLectura()
 	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector_msg );
 	//scanf("%d",&(&buf_msg)->sector_msg);
 	
-	if(((&buf_msg)->sector_msg)==NULL){
-		puts("No hay sector");
+	if(((&buf_msg)->sector_msg)<0){
+		perror("No hay sector");
 		exit(EXIT_FAILURE);
 	}
 
-	buf_msg.tipo_msg=1; //getpid();
+	buf_msg.type_msg=1; //getpid();
 	size_msg=sizeof((&buf_msg)->sector_msg);
 
 	if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
@@ -78,12 +183,12 @@ void agregarPedidoEscritura()
 	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector_msg );
 	//scanf("%d",&(&buf_msg)->sector_msg);
 	
-	if(((&buf_msg)->sector_msg)==NULL){
+	if(((&buf_msg)->sector_msg)<0){
 		puts("No hay sector");
 		exit(EXIT_FAILURE);
 	}
 
-	buf_msg.tipo_msg=2; //getpid();
+	buf_msg.type_msg=2; //getpid();
 	size_msg=sizeof((&buf_msg)->sector_msg);
 
 	if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
@@ -120,7 +225,7 @@ void listarPedidosDiscos()
 		aux_pedido = aux_disco->pedidos;	
 		while(aux_pedido!=NULL)
 		{
-			printf("\n\tTipo %d, Sector %d", aux_pedido->tipo, aux_pedido->sector);
+			printf("\n\ttype_pedido %d, Sector %d", aux_pedido->type_pedido, aux_pedido->sector);
 			aux_pedido=aux_pedido->sgte;		
 		}
 		aux_disco=aux_disco->sgte;
@@ -159,9 +264,9 @@ void distribuirPedidoLectura()
 	
 	if (size_msg>0)
 	{
-		printf("\n\nLeyendo cola: %d",id_cola);
-		printf("\nTipo mensaje: %d", (&buf_msg)->tipo_msg);
-		printf("\nMensaje: %d", (&buf_msg)->sector_msg);
+		//printf("\n\nLeyendo cola: %d",id_cola);
+		//printf("\ntype_pedido mensaje: %d", (&buf_msg)->type_msg);
+		//printf("\nMensaje: %d", (&buf_msg)->sector_msg);
 
 		disco *aux;
 		aux=discos;
@@ -176,7 +281,7 @@ void distribuirPedidoLectura()
 		}
 		pedido *nuevoPedido;
 		nuevoPedido = (pedido *)malloc(sizeof(pedido));
-		nuevoPedido->tipo=(&buf_msg)->tipo_msg;
+		nuevoPedido->type_pedido=(&buf_msg)->type_msg;
 		nuevoPedido->sector = (&buf_msg)->sector_msg;
 
 		if (encontrado==1)
@@ -218,9 +323,9 @@ void distribuirPedidoEscritura()
 	
 	if (size_msg>0)
 	{
-		printf("\n\nLeyendo cola: %d",id_cola);
-		printf("\nTipo mensaje: %d", (&buf_msg)->tipo_msg);
-		printf("\nMensaje: %d", (&buf_msg)->sector_msg);
+		//printf("\n\nLeyendo cola: %d",id_cola);
+		//printf("\ntype_pedido mensaje: %d", (&buf_msg)->type_msg);
+		//printf("\nMensaje: %d", (&buf_msg)->sector_msg);
 		
 		disco *aux;
 		aux=discos;
@@ -228,7 +333,7 @@ void distribuirPedidoEscritura()
 		{
 			pedido *nuevoPedido;
 			nuevoPedido = (pedido *)malloc(sizeof(pedido));
-			nuevoPedido->tipo = (&buf_msg)->tipo_msg;
+			nuevoPedido->type_pedido = (&buf_msg)->type_msg;
 			nuevoPedido->sector = (&buf_msg)->sector_msg;
 			nuevoPedido->sgte = aux->pedidos;
 			aux->pedidos = nuevoPedido;
@@ -244,7 +349,7 @@ void distribuirPedidoEscritura()
 
 }
 
-msgqnum_t hayPedidosLectura()
+uint32_t hayPedidosLectura()
 {
 	uint32_t id_cola;
 	key_t clave =111;
@@ -261,7 +366,8 @@ msgqnum_t hayPedidosLectura()
 	}
 	return cola.msg_qnum;
 }
-msgqnum_t hayPedidosEscritura()
+
+uint32_t hayPedidosEscritura()
 {
 	uint32_t id_cola;
 	key_t clave =222;
@@ -321,83 +427,17 @@ void eliminarCola()
 	free(aux);
 }
 
-
-
-
-int main(int argc, char *argv[])
-{
-	char opcion;
-	discos = NULL;
-	
-	while(1){
-	printf("\n\n\n-------------------------------------");
-	printf("\n-------------------------------------");
-	printf("\n1. Agregar pedido lectura");
-	printf("\n2. Agregar pedido escritura");
-	printf("\n3. Agregar disco");
-	printf("\n4. Listar pedidos en discos");
-	printf("\n5. Distribuir Pedido Lectura");
-	printf("\n6. Distribuir Pedido Escritura");
-	printf("\n7. Estado de colas");
-	printf("\n8. ");
-	printf("\n9. Salir");
-	
-	printf("\nIngrese opcion: ");
-	opcion = getchar();
-	getchar();
-	if(opcion == '1')
+void *distribuirPedidos()
+{	while(1)
 	{
-		printf("\n	Agregar pedido de lectura");
-		agregarPedidoLectura();
+		while(hayPedidosEscritura()!=0 || hayPedidosLectura()!=0)
+		{
+			if (hayPedidosEscritura()!=0)
+				distribuirPedidoEscritura();
+			else		
+				if (hayPedidosLectura()!=0)
+					distribuirPedidoLectura();
+		}
+		sleep(5);
 	}
-	if(opcion == '2')
-	{
-		printf("\n	Agregar pedido de Escritura");
-		agregarPedidoEscritura();
-	}
-	if(opcion == '3')
-	{
-		printf("\n	Agregar disco");
-		agregarDisco();
-	}
-	if(opcion == '4')
-	{
-		printf("\n	Listar pedidos en discos");
-		listarPedidosDiscos();
-	}
-	if(opcion == '5')
-	{
-		printf("\n	Distribuir Pedido Lectura");
-		if (discos != NULL && hayPedidosLectura()!=0)
-			distribuirPedidoLectura();
-		else
-			printf("\n\nNo hay discos o pedidos");
-	}
-	if(opcion == '6')
-	{
-		printf("\n	Distribuir Pedido Escritura");
-		if (discos != NULL && hayPedidosEscritura()!=0)
-			distribuirPedidoEscritura();
-		else
-			printf("\n\nNo hay discos o pedidos");
-	}
-	if(opcion == '7')
-	{
-		printf("\n	Estado de cola");
-		estado();
-		
-	}
-	if(opcion == '8')
-	{
-		printf("\n	");
-		//listarPedidosDiscos();
-	}
-	if(opcion == '9')
-	{
-		printf("\n	Salir\n\n");
-		eliminarCola();
-		exit(EXIT_SUCCESS);
-	}
-
-}
 }
