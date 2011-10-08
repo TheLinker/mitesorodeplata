@@ -152,11 +152,6 @@ void agregarPedidoLectura()
 	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector_msg );
 	//scanf("%d",&(&buf_msg)->sector_msg);
 	
-	if(((&buf_msg)->sector_msg)<0){
-		perror("No hay sector");
-		exit(EXIT_FAILURE);
-	}
-
 	buf_msg.type_msg=1; //getpid();
 	size_msg=sizeof((&buf_msg)->sector_msg);
 
@@ -183,11 +178,6 @@ void agregarPedidoEscritura()
 	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector_msg );
 	//scanf("%d",&(&buf_msg)->sector_msg);
 	
-	if(((&buf_msg)->sector_msg)<0){
-		puts("No hay sector");
-		exit(EXIT_FAILURE);
-	}
-
 	buf_msg.type_msg=2; //getpid();
 	size_msg=sizeof((&buf_msg)->sector_msg);
 
