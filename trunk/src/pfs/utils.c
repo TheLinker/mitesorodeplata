@@ -203,7 +203,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
  * @return 0 si exito
  *         -EINVAL en caso de error
  */
-int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, int8_t *buffer, fs_fat32_t *fs_tmp)
+int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, uint8_t *buffer, fs_fat32_t *fs_tmp)
 {
     int32_t cluster_offset = entry_number / (fs_tmp->boot_sector.bytes_per_sector *
                                              fs_tmp->boot_sector.sectors_per_cluster / 32);
@@ -246,5 +246,51 @@ int32_t fat32_get_link_n_in_chain(int32_t first_cluster, int32_t cluster_offset,
         return -EINVAL;
 
     return cluster;
+}
+
+file_attrs *fat32_get_file_list(int32_t first_cluster, fs_fat32_t *fs_tmp)
+{
+    uint8_t directory_entry[32];
+    file_attrs *ret_list=0;
+    uint32_t current_entry=0;
+    uint16_t *file_name;
+    uint16_t *dos_file_name;
+
+    fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
+
+    while ( directory_entry[0] != AVAIL_ENTRY )
+    {
+        switch( ((file_entry_t *)directory_entry)->file_attr )
+        {
+            case ATTR_LONG_FILE_NAME:
+                if(directory_entry[0] && DELETED_LFN)
+                    break;
+
+                //orden de la entrada de nombre largo en el nombre largo
+                int8_t orden_lfn = (directory_entry[0] && 0x0F);
+
+                if(directory_entry[0] && LAST_LFN_ENTRY)
+                {
+                    //si el bit 6 (0x40) esta seteado, entonces el orden me da la cantidad de lfns totales.
+                    file_name = calloc(13 * sizeof(uint16_t), orden_lfn);
+                }
+
+                memcpy(file_name+(26*(orden_lfn-1)+22), ((lfn_entry_t *)directory_entry)->lfn_name3, 2 * sizeof(uint16_t));
+                memcpy(file_name+(26*(orden_lfn-1)+10), ((lfn_entry_t *)directory_entry)->lfn_name2, 6 * sizeof(uint16_t));
+                memcpy(file_name+(26*(orden_lfn-1)), ((lfn_entry_t *)directory_entry)->lfn_name1, 5 * sizeof(uint16_t));
+
+                //TODO SEGUIR
+
+            break;
+        }
+
+        fat32_get_entry(++current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
+    }
+
+    int i=0;
+    for(i=0;i<32;i++)
+        printf("%d: %X%c", i, directory_entry[i], ((i+1)%16)?'\t':'\n');
+
+    return ret_list;
 }
 

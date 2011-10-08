@@ -3,10 +3,6 @@
 
 #include "nipc.h"
 
-#define ATTR_SUBDIRECTORY   0x10
-#define ATTR_ARCHIVE        0x20
-#define ATTR_LONG_FILE_NAME 0x0F
-
 typedef union boot_t {
     uint8_t buffer[512];
     struct {
@@ -67,6 +63,16 @@ typedef struct file_entry_t {
     uint16_t first_cluster_low;
     uint32_t file_size;
 } __attribute__ ((packed)) file_entry_t;
+
+#define ATTR_SUBDIRECTORY   0x10
+#define ATTR_ARCHIVE        0x20
+#define ATTR_LONG_FILE_NAME 0x0F
+
+#define LAST_LFN_ENTRY 0x40
+#define DELETED_LFN    0x80
+
+#define DELETED_FILE   0xE5
+#define AVAIL_ENTRY    0x00
 
 typedef struct file_attrs {
     int16_t *filename[256];
