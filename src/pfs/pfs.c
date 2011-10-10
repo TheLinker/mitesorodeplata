@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "pfs_utils.h"
 #include "utils.h"
 #include "pfs.h"
 #include "direccionamiento.h"
@@ -165,8 +166,6 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getsectors(fs_tmp->boot_sector.reserved_sectors, fs_tmp->boot_sector.sectors_per_fat, fs_tmp->fat, fs_tmp);
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
-
-    fat32_get_file_list(2, fs_tmp);
 
     printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
             fs_tmp->boot_sector.bytes_per_sector,
