@@ -1,6 +1,7 @@
 #Magia, no tocar.
 
 FLAGS      = -Wall -Isrc/common/
+LIBFLAGS   = -licui18n -licuuc
 BUILD_PATH = tmp
 BIN_PATH   = bin
 SRC_PATH   = src
@@ -20,7 +21,7 @@ PFS_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PFS_SRC) 
 
 $(PFS_BIN): $(PFS_OBJS) $(PFS_INCLUDES)
 	@echo 'LINKEANDO $@'
-	@gcc $(FLAGS) `pkg-config fuse --libs` $(PFS_OBJS) -o $@
+	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PFS_OBJS) -o $@
 
 
 
@@ -34,7 +35,7 @@ PRAID_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PRAID_S
 
 $(PRAID_BIN): $(PRAID_OBJS) $(PRAID_INCLUDES)
 	@echo 'LINKEANDO $@'
-	@gcc $(FLAGS) `pkg-config fuse --libs` $(PRAID_OBJS) -o $@
+	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PRAID_OBJS) -o $@
 
 
 

@@ -1,3 +1,4 @@
+#include "pfs_utils.h"
 #include "utils.h"
 #include "direccionamiento.h"
 #include <string.h>
@@ -248,13 +249,24 @@ int32_t fat32_get_link_n_in_chain(int32_t first_cluster, int32_t cluster_offset,
     return cluster;
 }
 
-file_attrs *fat32_get_file_list(int32_t first_cluster, fs_fat32_t *fs_tmp)
+/**
+ * Obtiene una lista de archivos (file_attrs *ret_list) a partir de del cluster first_cluster.
+ *
+ * @first_cluster primer cluster en la cadena.
+ * @ret_list si != NULL: 'buffer' donde almacenar cada entrada de archivo.
+ *                       Debe estar asignado con tamaño suficiente para contener todas las entradas.
+ *           si == NULL: la funcion solo devuelve la cantidad de entradas de directorio encontradas.
+ * @fs_tmp estructura privada del file system.
+ * @return cantidad de entradas de directorio halladas.
+ */
+uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat32_t *fs_tmp)
 {
     uint8_t directory_entry[32];
-    file_attrs *ret_list=0;
+    file_attrs nuevo_archivo;
+    memset(&nuevo_archivo, '\0', sizeof(file_attrs));
+    uint32_t cantidad_entradas=0;
     uint32_t current_entry=0;
-    uint16_t *file_name;
-    uint16_t *dos_file_name;
+    uint8_t  checksum=0;
 
     fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
 
@@ -263,34 +275,68 @@ file_attrs *fat32_get_file_list(int32_t first_cluster, fs_fat32_t *fs_tmp)
         switch( ((file_entry_t *)directory_entry)->file_attr )
         {
             case ATTR_LONG_FILE_NAME:
-                if(directory_entry[0] && DELETED_LFN)
+                if(!ret_list) break;
+
+                if(directory_entry[0] & DELETED_LFN)
                     break;
 
                 //orden de la entrada de nombre largo en el nombre largo
-                int8_t orden_lfn = (directory_entry[0] && 0x0F);
+                int8_t orden_lfn = (directory_entry[0] & 0x0F);
 
-                if(directory_entry[0] && LAST_LFN_ENTRY)
+                if(directory_entry[0] & LAST_LFN_ENTRY)
                 {
                     //si el bit 6 (0x40) esta seteado, entonces el orden me da la cantidad de lfns totales.
-                    file_name = calloc(13 * sizeof(uint16_t), orden_lfn);
+                    checksum = ((lfn_entry_t *)directory_entry)->checksum;
                 }
 
-                memcpy(file_name+(26*(orden_lfn-1)+22), ((lfn_entry_t *)directory_entry)->lfn_name3, 2 * sizeof(uint16_t));
-                memcpy(file_name+(26*(orden_lfn-1)+10), ((lfn_entry_t *)directory_entry)->lfn_name2, 6 * sizeof(uint16_t));
-                memcpy(file_name+(26*(orden_lfn-1)), ((lfn_entry_t *)directory_entry)->lfn_name1, 5 * sizeof(uint16_t));
+                if(checksum != ((lfn_entry_t *)directory_entry)->checksum)
+                    printf("El checksum anterior (0x%.2X) no coincide con el nuevo (0x%.2X) - Entrada: %d Cluster: %d\n",
+                            checksum, 
+                            ((lfn_entry_t *)directory_entry)->checksum,
+                            current_entry,
+                            first_cluster);
 
-                //TODO SEGUIR
+                //esto es para meter los 3 pedazos de nombre esparcidos alrededor del lfn y reconstruir el nombre largo.
+                memcpy(nuevo_archivo.filename+(13*(orden_lfn-1)+11), ((lfn_entry_t *)directory_entry)->lfn_name3, 2 * sizeof(uint16_t));
+                memcpy(nuevo_archivo.filename+(13*(orden_lfn-1)+5), ((lfn_entry_t *)directory_entry)->lfn_name2, 6 * sizeof(uint16_t));
+                memcpy(nuevo_archivo.filename+(13*(orden_lfn-1)), ((lfn_entry_t *)directory_entry)->lfn_name1, 5 * sizeof(uint16_t));
 
-            break;
+                break;
+
+            case ATTR_SUBDIRECTORY:
+            case ATTR_ARCHIVE:
+                if(directory_entry[0] == DELETED_FILE)
+                    break;
+
+                //si llegamos hasta aca, la entrada es un archivo valido
+                cantidad_entradas++;
+
+                if(!ret_list) break;
+
+                if(directory_entry[0] == 0x05) directory_entry[0] = 0xE5;
+
+                nuevo_archivo.filename_len = unicode_strlen(nuevo_archivo.filename);
+                memcpy(&(nuevo_archivo.dos_filename), directory_entry, 11);
+                memcpy(&(nuevo_archivo.file_type), &(((file_entry_t *)directory_entry)->file_attr), 1);
+                memcpy(&(nuevo_archivo.file_size), &(((file_entry_t *)directory_entry)->file_size), 4);
+
+                uint16_t cluster_hi=0, cluster_lo=0;
+                memcpy(&cluster_hi, &(((file_entry_t *)directory_entry)->first_cluster_hi), 2);
+                memcpy(&cluster_lo, &(((file_entry_t *)directory_entry)->first_cluster_low), 2);
+                nuevo_archivo.first_cluster = cluster_hi * 0x100 + cluster_lo;
+
+                memcpy(ret_list+cantidad_entradas-1,&nuevo_archivo,sizeof(file_attrs));
+
+                memset(&nuevo_archivo, '\0', sizeof(file_attrs));
+
+                break;
         }
 
-        fat32_get_entry(++current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
+        current_entry++;
+        fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
     }
 
-    int i=0;
-    for(i=0;i<32;i++)
-        printf("%d: %X%c", i, directory_entry[i], ((i+1)%16)?'\t':'\n');
-
-    return ret_list;
+    printf("cantidad entradas: %d\n", cantidad_entradas);
+    return cantidad_entradas;
 }
 
