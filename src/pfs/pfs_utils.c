@@ -264,6 +264,8 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
     uint8_t directory_entry[32];
     file_attrs nuevo_archivo;
     memset(&nuevo_archivo, '\0', sizeof(file_attrs));
+    uint16_t utf16_filename[256];
+    uint32_t utf16_filename_len = 0;
     uint32_t cantidad_entradas=0;
     uint32_t current_entry=0;
     uint8_t  checksum=0;
@@ -281,13 +283,10 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
                     break;
 
                 //orden de la entrada de nombre largo en el nombre largo
-                int8_t orden_lfn = (directory_entry[0] & 0x0F);
+                int8_t orden_lfn = (directory_entry[0] & 0x1F);
 
                 if(directory_entry[0] & LAST_LFN_ENTRY)
-                {
-                    //si el bit 6 (0x40) esta seteado, entonces el orden me da la cantidad de lfns totales.
                     checksum = ((lfn_entry_t *)directory_entry)->checksum;
-                }
 
                 if(checksum != ((lfn_entry_t *)directory_entry)->checksum)
                     printf("El checksum anterior (0x%.2X) no coincide con el nuevo (0x%.2X) - Entrada: %d Cluster: %d\n",
@@ -297,9 +296,9 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
                             first_cluster);
 
                 //esto es para meter los 3 pedazos de nombre esparcidos alrededor del lfn y reconstruir el nombre largo.
-                memcpy(nuevo_archivo.filename+(13*(orden_lfn-1)+11), ((lfn_entry_t *)directory_entry)->lfn_name3, 2 * sizeof(uint16_t));
-                memcpy(nuevo_archivo.filename+(13*(orden_lfn-1)+5), ((lfn_entry_t *)directory_entry)->lfn_name2, 6 * sizeof(uint16_t));
-                memcpy(nuevo_archivo.filename+(13*(orden_lfn-1)), ((lfn_entry_t *)directory_entry)->lfn_name1, 5 * sizeof(uint16_t));
+                memcpy(utf16_filename+(13*(orden_lfn-1)+11), ((lfn_entry_t *)directory_entry)->lfn_name3, 2 * sizeof(uint16_t));
+                memcpy(utf16_filename+(13*(orden_lfn-1)+5), ((lfn_entry_t *)directory_entry)->lfn_name2, 6 * sizeof(uint16_t));
+                memcpy(utf16_filename+(13*(orden_lfn-1)), ((lfn_entry_t *)directory_entry)->lfn_name1, 5 * sizeof(uint16_t));
 
                 break;
 
@@ -315,7 +314,13 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
 
                 if(directory_entry[0] == 0x05) directory_entry[0] = 0xE5;
 
-                nuevo_archivo.filename_len = unicode_strlen(nuevo_archivo.filename);
+                utf16_filename_len = unicode_strlen(utf16_filename);
+
+                unicode_utf16_to_utf8_inbuffer(utf16_filename, utf16_filename_len * sizeof(uint16_t),
+                                               (uint8_t *)&(nuevo_archivo.filename), NULL);
+
+                nuevo_archivo.filename_len = strlen((char *) nuevo_archivo.filename);
+
                 memcpy(&(nuevo_archivo.dos_filename), directory_entry, 11);
                 memcpy(&(nuevo_archivo.file_type), &(((file_entry_t *)directory_entry)->file_attr), 1);
                 memcpy(&(nuevo_archivo.file_size), &(((file_entry_t *)directory_entry)->file_size), 4);

@@ -75,8 +75,8 @@ typedef struct file_entry_t {
 #define AVAIL_ENTRY         0x00
 
 typedef struct file_attrs {
-    uint16_t filename[256];
-    uint8_t  filename_len;
+    uint8_t  filename[512];
+    int32_t  filename_len;
     uint8_t  dos_filename[11];
     uint8_t  file_type;
     uint32_t first_cluster;
