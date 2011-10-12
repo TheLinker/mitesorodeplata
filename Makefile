@@ -8,8 +8,9 @@ SRC_PATH   = src
 
 include pfs.mk
 include praid.mk
+include ppd.mk
 
-all: pfs praid
+all: pfs praid ppd
 
 ##############################
 #Reglas para el Proceso File System
@@ -24,7 +25,6 @@ $(PFS_BIN): $(PFS_OBJS) $(PFS_INCLUDES)
 	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PFS_OBJS) -o $@
 
 
-
 ##############################
 #Reglas para el Proceso RAID 1
 ##############################
@@ -37,6 +37,18 @@ $(PRAID_BIN): $(PRAID_OBJS) $(PRAID_INCLUDES)
 	@echo 'LINKEANDO $@'
 	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PRAID_OBJS) -o $@
 
+
+##############################
+#Reglas para el Proceso Planificador de Disco
+##############################
+
+ppd: $(PPD_BIN)
+
+PPD_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PPD_SRC) ) ) )
+
+$(PPD_BIN): $(PPD_OBJS) $(PPD_INCLUDES)
+	@echo 'LINKEANDO $@'
+	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PPD_OBJS) -o $@
 
 
 ##############################
@@ -55,10 +67,14 @@ $(BUILD_PATH)/%.o: $(SRC_PATH)/praid1/%.c $(PRAID_INCLUDES)
 	@echo 'COMPILANDO $< -> $@'
 	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
 
+$(BUILD_PATH)/%.o: $(SRC_PATH)/ppd/%.c $(PPD_INCLUDES)
+	@echo 'COMPILANDO $< -> $@'
+	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+
 
 clean:
 	@echo 'Limpiando todo'
 	@rm $(BUILD_PATH)/* $(PFS_BIN) $(PRAID_BIN) 2> /dev/null || true
 
-.PHONY: pfs praid clean all
+.PHONY: pfs praid ppd clean all
 
