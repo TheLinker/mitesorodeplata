@@ -10,7 +10,7 @@ int main()
 	dirMap = abrirArchivoV();
 	//conectar()
 	//CREAR DOS HILOS, UNO PARA LOS PEDIDOS OTRO PARA LA CONSOLA
-	esucharPedidos(/*dirmap, payload, payloadDescriptor */);
+	escucharPedidos(/*dirmap, payload, payloadDescriptor */);
 	//atenderConsola()    ###Crear hilo para consola###
 	return 1;
 }
