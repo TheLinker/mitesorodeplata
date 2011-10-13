@@ -27,8 +27,7 @@ void nipc_close(nipc_socket *socket)
 
 void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
 {
-    switch (packet->type)
-    {
+    switch (packet->type) {
     case nipc_req_packet:
         memcpy(buffer+i, packet->payload, 4);
         i++;
@@ -45,8 +44,7 @@ void nipc_send_packet(nipc_packet *packet, nipc_socket *socket)
 
 nipc_packet *nipc_recv_packet(nipc_socket *socket)
 {
-    if (!handshake)
-    {
+    if (!handshake) {
         nipc_packet *packet = malloc(sizeof(nipc_packet));
 
         i--;

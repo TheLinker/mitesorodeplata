@@ -156,3 +156,32 @@ void string_split3( uint8_t *str, uint8_t delimitor, uint8_t **result ){
 
     result[elementIndex + 1] = NULL;
 }
+
+uint8_t** string_split4( const uint8_t *str, int8_t *delimitor ){
+    uint8_t *tmp_str = calloc(strlen((char *)str), 1);
+    memcpy(tmp_str, str, strlen((char *)str));
+
+    uint8_t  *pch;
+    uint8_t **array;
+    int elementsAmount = 1;
+
+    array = calloc(elementsAmount, sizeof(uint8_t*) );
+
+    pch =(uint8_t *) strtok ((char *)tmp_str, (char *)delimitor);
+    while( pch ) {
+        array[elementsAmount] = calloc(strlen((char *)pch), 1);
+        memcpy(array[elementsAmount], pch, strlen((char *)pch));
+        elementsAmount++;
+        void *tmp = realloc(array, elementsAmount * sizeof(uint8_t*) + 1);
+        if (!tmp)
+            exit(-1);
+        array = tmp;
+        pch =(uint8_t *) strtok (NULL, (char *)delimitor);
+    }
+
+    free(tmp_str);
+
+    array[elementsAmount] = NULL;
+    return array;
+}
+
