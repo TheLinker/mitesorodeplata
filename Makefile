@@ -1,6 +1,6 @@
 #Magia, no tocar.
 
-FLAGS      = -Wall -Isrc/common/
+FLAGS      = -Wall -Isrc/common/ -Wno-unused-label
 LIBFLAGS   = -licui18n -licuuc
 BUILD_PATH = tmp
 BIN_PATH   = bin

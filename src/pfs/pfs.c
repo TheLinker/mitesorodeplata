@@ -94,6 +94,8 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 {
     (void) offset;
     (void) fi;
+
+    //fs_fat32_t *fs_tmp = (fs_fat32_t *) fuse_get_context();
     printf("Readdir: path: %s\n", path);
 
     if(strcmp(path, "/") != 0)
@@ -147,8 +149,7 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fat32_config_read(fs_tmp);
 
-    if(!(fs_tmp->socket = nipc_init(fs_tmp->server_host, fs_tmp->server_port)))
-    {
+    if(!(fs_tmp->socket = nipc_init(fs_tmp->server_host, fs_tmp->server_port))) {
         printf("La conexion al RAID 1 o planificador de disco no esta lista\n");
         exit(-EADDRNOTAVAIL);
     }
@@ -166,6 +167,17 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getsectors(fs_tmp->boot_sector.reserved_sectors, fs_tmp->boot_sector.sectors_per_fat, fs_tmp->fat, fs_tmp);
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
+
+    /* prueba del fat32_get_file_from_path */
+    file_attrs file;
+    const uint8_t *arch = (const uint8_t *)"//prueba/./../prueba//./una_prueba_grosa/.";
+    int32_t ret = fat32_get_file_from_path(arch, &file, fs_tmp);
+    if (ret>0) {
+        printf("La definicion del archivo: %s esta en el cluster: %d\n", arch, ret);
+        printf("filename: %s file_type: 0x%X first_cluster: %d file_size: %d \n", file.filename, file.file_type, file.first_cluster, file.file_size);
+    } else
+        printf("error: %d ocurrido.\n", ret);
+    /**/
 
     printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
             fs_tmp->boot_sector.bytes_per_sector,

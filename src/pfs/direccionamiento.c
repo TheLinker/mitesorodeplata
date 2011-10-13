@@ -24,15 +24,13 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
     memcpy(packet.payload, &sector, sizeof(int32_t));
 
     //Pide los sectores necesarios
-    for (i = 0 ; i < cantidad ; i++)
-    {
+    for (i = 0 ; i < cantidad ; i++) {
         nipc_send_packet(&packet, fs_tmp->socket);
         *((int32_t *)packet.payload) += 1;
     }
 
     //Espera a obtener todos los sectores pedidos
-    for (i = 0 ; i < cantidad ; i++)
-    {
+    for (i = 0 ; i < cantidad ; i++) {
         nipc_packet *packet = nipc_recv_packet(fs_tmp->socket);
         int32_t rta_sector;
         memcpy(&rta_sector, packet->payload, sizeof(int32_t));

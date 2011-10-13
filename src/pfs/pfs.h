@@ -77,7 +77,8 @@ typedef struct file_entry_t {
 typedef struct file_attrs {
     uint8_t  filename[512];
     int32_t  filename_len;
-    uint8_t  dos_filename[11];
+    uint8_t  dos_filename[8];
+    uint8_t  dos_fileext[3];
     uint8_t  file_type;
     uint32_t first_cluster;
     uint32_t file_size;

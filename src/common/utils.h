@@ -45,4 +45,6 @@
 
     void string_split3( uint8_t *str, uint8_t delimitor, uint8_t **result );
 
+    uint8_t** string_split4( const uint8_t *str, int8_t *delimitor );
+
 #endif /* UTILS_H_ */

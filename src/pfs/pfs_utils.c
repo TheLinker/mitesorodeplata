@@ -14,8 +14,7 @@
  */
 uint32_t fat32_free_clusters(fs_fat32_t *fs_tmp)
 {
-    if(fs_tmp->fsinfo_sector.free_clusters < 0)
-    {
+    if(fs_tmp->fsinfo_sector.free_clusters < 0) {
         int i=0, free_clusters=0;
 
         for ( i = 2 ; i < fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_fat / sizeof(int32_t) ; i++ )
@@ -67,14 +66,12 @@ void fat32_handshake(nipc_socket *socket)
 
     packet = nipc_recv_packet(socket);
 
-    if (packet->type)
-    {
+    if (packet->type) {
         printf("Error: tipo %d recibido en vez del handshake\n", packet->type);
         exit(-ECONNREFUSED);
     }
 
-    if (packet->len)
-    {
+    if (packet->len) {
         printf("Error: %s\n", packet->payload);
         exit(-ECONNREFUSED);
     }
@@ -94,8 +91,7 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
 {
     int32_t posicion = first_cluster;
 
-    while(fs_tmp->fat[posicion] != fs_tmp->eoc_marker)
-    {
+    while(fs_tmp->fat[posicion] != fs_tmp->eoc_marker) {
         posicion = fs_tmp->fat[posicion];
     }
 
@@ -122,8 +118,7 @@ void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     int32_t pos_act = first_cluster;
     int32_t pos_ant = 0;
 
-    while(fs_tmp->fat[pos_act] != fs_tmp->eoc_marker)
-    {
+    while(fs_tmp->fat[pos_act] != fs_tmp->eoc_marker) {
         pos_ant = pos_act;
         pos_act = fs_tmp->fat[pos_act];
     }
@@ -153,14 +148,12 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
     fs_tmp->cache_size = 1024;
 
     fp = fopen("pfs.conf","r");
-    if( fp == NULL )
-    {
+    if( fp == NULL ) {
         printf("No se encuentra el archivo de configuración\n");
         return 1;
     }
 
-    while( fgets(line, sizeof(line), fp) )
-    {
+    while( fgets(line, sizeof(line), fp) ) {
         char* ptr;
 
         if( line[0] == '/' && line[1] == '/' )
@@ -175,7 +168,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
         while (--ptr >= w2 && *ptr == ' ');
         ptr++;
         *ptr = '\0';
-            
+
         if(strcmp(w1,"host")==0)
             strcpy((char *)(fs_tmp->server_host), w2);
         else 
@@ -237,8 +230,7 @@ int32_t fat32_get_link_n_in_chain(int32_t first_cluster, int32_t cluster_offset,
 {
     int32_t cluster = first_cluster;
 
-    while(cluster_offset > 0 && cluster != fs_tmp->eoc_marker)
-    {
+    while(cluster_offset > 0 && cluster != fs_tmp->eoc_marker) {
         cluster = fs_tmp->fat[cluster];
         cluster_offset--;
     }
@@ -272,10 +264,8 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
 
     fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
 
-    while ( directory_entry[0] != AVAIL_ENTRY )
-    {
-        switch( ((file_entry_t *)directory_entry)->file_attr )
-        {
+    while ( directory_entry[0] != AVAIL_ENTRY ) {
+        switch( ((file_entry_t *)directory_entry)->file_attr ) {
             case ATTR_LONG_FILE_NAME:
                 if(!ret_list) break;
 
@@ -321,7 +311,16 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
 
                 nuevo_archivo.filename_len = strlen((char *) nuevo_archivo.filename);
 
-                memcpy(&(nuevo_archivo.dos_filename), directory_entry, 11);
+                memcpy(&(nuevo_archivo.dos_filename), directory_entry, 8);
+                memcpy(&(nuevo_archivo.dos_fileext), directory_entry+8, 3);
+
+                //reemplazamos los espacios por NULL, asi puedo hacer la comparacion con el path
+                int i;
+                for(i=0;i<8;i++)
+                    if (nuevo_archivo.dos_filename[i] == 0x20) nuevo_archivo.dos_filename[i] = 0x00;
+                for(i=0;i<3;i++)
+                    if (nuevo_archivo.dos_fileext[i] == 0x20) nuevo_archivo.dos_fileext[i] = 0x00;
+
                 memcpy(&(nuevo_archivo.file_type), &(((file_entry_t *)directory_entry)->file_attr), 1);
                 memcpy(&(nuevo_archivo.file_size), &(((file_entry_t *)directory_entry)->file_size), 4);
 
@@ -332,6 +331,8 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
 
                 memcpy(ret_list+cantidad_entradas-1,&nuevo_archivo,sizeof(file_attrs));
 
+                memset(utf16_filename, '\0', sizeof(utf16_filename));
+                utf16_filename_len = 0;
                 memset(&nuevo_archivo, '\0', sizeof(file_attrs));
 
                 break;
@@ -341,7 +342,110 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
         fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
     }
 
-    printf("cantidad entradas: %d\n", cantidad_entradas);
     return cantidad_entradas;
+}
+
+/**
+ * Obtiene la informacion del archivo (o directorio) a partir del path. y devuelve el primer cluster
+ * del directorio contenedor.
+ *
+ * @path path absoluto del archivo o directorio.
+ * @ret_attrs buffer donde va a ir la estructura con la info del archivo o directorio.
+ * @fs_tmp estructura privada del file system.
+ * @return >0 primer cluster del directorio contenedor.
+ *         -EINVAL argumento(s) invalidos.
+ *         -ENOTDIR uno de los 'directorios' en el path no es un directorio.
+ *         -ENOENT archivo o directorio inexistente.
+ */
+int32_t fat32_get_file_from_path(const uint8_t *path, file_attrs *ret_attrs, fs_fat32_t *fs_tmp)
+{
+    if(!ret_attrs)
+        return -EINVAL;
+
+    int32_t ret_val=0;
+    uint8_t **token_array = string_split4( path, (int8_t *) "/" );
+    int32_t file_list_len = 0;
+    file_attrs *file_list = 0;
+    int i=0, j=0;
+    int32_t cluster_actual = 2;
+
+    //Parece ser que con string_split4 no es taaaan necesario el path absoluto.
+    //Voy a seguir haciendo pruebas....
+//    if(token_array[0] != '\0') {
+//        printf("el path '%s' no es absoluto!!", path);
+//        ret_val = -EINVAL;
+//        goto error_2;
+//    }
+    
+    for ( i = 1 ; token_array[i] ; i++ ) {
+        if(token_array[i][0] == '\0')
+            continue;
+
+        file_list_len = fat32_get_file_list(cluster_actual, NULL, fs_tmp);
+        file_list = calloc(sizeof(file_attrs), file_list_len);
+        fat32_get_file_list(cluster_actual, file_list, fs_tmp);
+
+        j = fat32_get_entry_from_name(token_array[i], file_list, file_list_len );
+
+        if( j < 0 ) {
+            ret_val = j;
+            goto error_1;
+        }
+ 
+        //ultima entrada el path
+        if(!token_array[i+1]) {
+            ret_val = cluster_actual;
+            goto salida_exitosa;
+        }
+
+        //si no es un directorio
+        if((file_list[j].file_type & ATTR_SUBDIRECTORY) != ATTR_SUBDIRECTORY) {
+            ret_val = -ENOTDIR;
+            goto error_1;
+        }
+
+        //obtenemos el primer cluster del dir.
+        if(!(cluster_actual = file_list[j].first_cluster))
+            cluster_actual = 2;
+
+        free(file_list);
+    }
+
+salida_exitosa:
+    memcpy(ret_attrs, &file_list[j], sizeof(file_attrs));
+
+error_1:
+    free(file_list);
+
+error_2:
+    for ( i = 0 ; token_array[i] ; i++ ) free(token_array[i]);
+    free(token_array);
+
+    return ret_val;
+}
+
+/**
+ * Obtiene el indice en la lista de archivos, a partir del nombre.
+ * Obs: No se que hacer con el nombre DOS.
+ *
+ * @name Nombre del archivo a buscar.
+ * @file_list lista de archivos a hacer la búsqueda.
+ * @filfile_list_len cantidad de archivos en la lista.
+ * @return >=0 indice en la lista del archivo buscado.
+ *         -ENOENT archivo o directorio inexistente.
+ */
+int32_t fat32_get_entry_from_name(uint8_t *name, file_attrs *file_list, int32_t file_list_len)
+{
+    int i=0;
+    for (i=0;i<file_list_len;i++)
+        if(!strcmp((char *)file_list[i].filename, (char *) name)) //Encontrado!!
+            return i;
+
+    for (i=0;i<file_list_len;i++)
+        //por ahora lo dejo asi, despues haria falta una función que convierta nombre largo -> DOS y viceversa.
+        if(!strcmp((char *)file_list[i].dos_filename, (char *) name)) //Encontrado!!
+            return i;
+
+    return -ENOENT;
 }
 
