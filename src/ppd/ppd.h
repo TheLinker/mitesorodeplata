@@ -3,6 +3,7 @@
 #define TAM_SECT 512
 #define TAM_PAG 4096
 
+
 char comando[15], param[15], buffer[512];
 char * pathArch;
 void * dirMap, * dirSect;
@@ -19,8 +20,10 @@ void leerPedido(int sect, FILE * dirArch);
 
 void escribirPedido(char param[15], int sect, FILE * dirArch);
 
-void * abrirArchivoV(void);
+FILE * abrirArchivoV(char * pathArch);
 
 void * paginaMap (int sect, FILE * dirArch);
+
+
 
 #endif /* PPD_H_ */
