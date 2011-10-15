@@ -2,18 +2,22 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+#include "getconfig.h"
 #include "ppd.h"
+
+config_t vecConfig;
 
 int main()
 {
-	//getconfig()
-	dirMap = abrirArchivoV();
+	vecConfig = getconfig("config.txt");
+	dirMap = abrirArchivoV(vecConfig.rutadisco);
 	//conectar()
 	//CREAR DOS HILOS, UNO PARA LOS PEDIDOS OTRO PARA LA CONSOLA
-	escucharPedidos(/*dirmap, payload, payloadDescriptor */);
-	//atenderConsola()    ###Crear hilo para consola###
+	escucharPedidos();
+	//atenderConsola()
 	return 1;
 }
+
 
 void escucharPedidos(void)
 {
@@ -60,6 +64,7 @@ void atenderPedido(void)
 	}
 }
 
+
 void leerPedido(int sect, FILE * dirArch)
 {
 
@@ -81,6 +86,7 @@ void leerPedido(int sect, FILE * dirArch)
 
 }
 
+
 void escribirPedido(char param[15], int sect, FILE * dirArch)
 {
 	//validar numero de sector
@@ -92,16 +98,17 @@ void escribirPedido(char param[15], int sect, FILE * dirArch)
 
 }
 
-void * abrirArchivoV(void)			//Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
+FILE * abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
 {
 	if (NULL == (dirArch = fopen(pathArch, "w+")))
 	{
+		printf("%s\n",pathArch);
 		printf("Error al abrir el archivo de mapeo");
 	}
 	else
 	{
-			printf("El archivo se abrio correctemte");
-			return dirMap;
+			printf("El archivo se abrio correctamente\n");
+			return dirArch;
 	}
 return 0;
 }
@@ -110,7 +117,7 @@ void * paginaMap(int sect, FILE * dirArch)
 {
 	res = div(sect, 8);
 	offset = (res.quot * 512);
-	dirMap = mmap(NULL,TAM_PAG, PROT_WRITE, MAP_SHARED, dirArch , offset);
+	dirMap = mmap(NULL,TAM_PAG, PROT_WRITE, MAP_SHARED, (int) dirArch , offset);
 
-	return dirMap;
+	return dirArch;
 }
