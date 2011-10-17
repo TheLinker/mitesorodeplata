@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "getconfig.h"
-#define TAM_LINE 1000
+#define TAM_LINE 100
 
 config_t getconfig(char * archivoConfig)
 {
@@ -16,7 +16,7 @@ config_t getconfig(char * archivoConfig)
 
 	if (NULL == (archConf = fopen(archivoConfig, "r")))
 	{
-		printf("No existe archivo config.txt");
+		printf("No existe archivo config.txt\n");
 	}
 	else
 	{
