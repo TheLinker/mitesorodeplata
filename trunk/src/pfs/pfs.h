@@ -2,6 +2,7 @@
 #define __PFS_H_
 
 #include "nipc.h"
+#define BLOCK_SIZE 1024
 
 typedef union boot_t {
     uint8_t buffer[512];

@@ -449,3 +449,21 @@ int32_t fat32_get_entry_from_name(uint8_t *name, file_attrs *file_list, int32_t 
     return -ENOENT;
 }
 
+/**
+ * Obtiene el nombre de archivo a partir de sus atributos (file).
+ * Ya sea, nombre largo o nombre DOS(8.3), y lo almacena en ret_name.
+ *
+ * @file atributos del archivo.
+ * @ret_name buffer donde se almacena el nombre
+ */
+void fat32_build_name(file_attrs *file, int8_t *ret_name)
+{
+    if(file->filename[0]) {
+        memcpy(ret_name, file->filename, file->filename_len);
+    } else {
+        strncpy((char *)ret_name, (char *)file->dos_filename, 8);
+        int8_t *fin_cadena = (int8_t *)strchr((char *)ret_name, '\0');
+        if (ret_name[0] != '.') *fin_cadena = '.';
+        strncpy((char *)(fin_cadena + 1),(char *) file->dos_fileext, 3);
+    }
+}

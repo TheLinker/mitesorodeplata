@@ -71,22 +71,37 @@ int fat32_rename (const char *from, const char *to)
 
 static int fat32_getattr(const char *path, struct stat *stbuf)
 {
-    int res = 0;
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
     printf("Getattr: path: %s\n", path);
     memset(stbuf, 0, sizeof(struct stat));
-    if(strcmp(path, "/") == 0) {
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-    }
-    else if(strcmp(path, hello_path) == 0) {
-        stbuf->st_mode = S_IFREG | 0444;
-        stbuf->st_nlink = 1;
-        stbuf->st_size = strlen(hello_str);
-    }
-    else
-        res = -ENOENT;
 
-    return res;
+    if(memcmp(path, "/", 2) == 0) {
+        stbuf->st_mode = S_IFDIR | S_IRWXU | S_IRWXG | S_IRWXO;
+        stbuf->st_nlink = 2;
+        stbuf->st_uid = context->uid; /* user ID of owner */
+        stbuf->st_gid = context->gid; /* group ID of owner */
+        return 0;
+    }    
+
+    file_attrs ret_attrs;
+    int32_t ret = fat32_get_file_from_path((const uint8_t *) path, &ret_attrs, fs_tmp);
+    if(ret<0) return ret;
+
+    stbuf->st_mode = S_IRWXU | S_IRWXG | S_IRWXO; /* protection */
+    stbuf->st_nlink = 1; /* number of hard links */
+    stbuf->st_uid = context->uid; /* user ID of owner */
+    stbuf->st_gid = context->gid; /* group ID of owner */
+    stbuf->st_size = ret_attrs.file_size; /* total size, in bytes */
+    stbuf->st_blksize = BLOCK_SIZE; /* blocksize for filesystem I/O */
+    stbuf->st_blocks = (ret_attrs.file_size / BLOCK_SIZE) + 1; /* number of blocks allocated */
+
+    if (ret_attrs.file_type == ATTR_SUBDIRECTORY)
+        stbuf->st_mode |= S_IFDIR;
+    else stbuf->st_mode |= S_IFREG;
+
+    return 0;
 }
 
 static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
@@ -94,17 +109,58 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 {
     (void) offset;
     (void) fi;
+    int32_t primer_cluster = 0;
 
-    //fs_fat32_t *fs_tmp = (fs_fat32_t *) fuse_get_context();
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
     printf("Readdir: path: %s\n", path);
 
-    if(strcmp(path, "/") != 0)
-        return -ENOENT;
+    if(path[0] != '/')
+        return -EINVAL;
 
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-    filler(buf, hello_path + 1, NULL, 0);
+    if(memcmp(path, "/", 2) == 0) {
+        filler(buf, ".", NULL, 0);
+        filler(buf, "..", NULL, 0);
+        primer_cluster = 2;
+    } else {
+        file_attrs ret_attrs;
+        int32_t ret = fat32_get_file_from_path((const uint8_t *) path, &ret_attrs, fs_tmp);
+        if(ret<0) return ret;
 
+        primer_cluster = ret_attrs.first_cluster;
+    }
+
+    int32_t cantidad_arch = fat32_get_file_list(primer_cluster, NULL, fs_tmp);
+    file_attrs *lista = calloc(sizeof(file_attrs), cantidad_arch);
+    fat32_get_file_list(primer_cluster, lista, fs_tmp);
+
+    int8_t filename[512];
+
+    int32_t i;
+    for( i = 0 ; i < cantidad_arch ; i++ ) {
+        memset(filename, '\0', sizeof(filename));
+        fat32_build_name(lista+i, filename);
+
+        struct stat var_stat = {
+            .st_mode = S_IRWXU | S_IRWXG | S_IRWXO, /* protection */
+            .st_nlink = 1, /* number of hard links */
+            .st_uid = context->uid, /* user ID of owner */
+            .st_gid = context->gid, /* group ID of owner */
+            .st_size = lista[i].file_size, /* total size, in bytes */
+            .st_blksize = BLOCK_SIZE, /* blocksize for filesystem I/O */
+            .st_blocks = (lista[i].file_size / BLOCK_SIZE) + 1 /* number of blocks allocated */
+        };
+
+        if (lista[i].file_type == ATTR_SUBDIRECTORY)
+            var_stat.st_mode |= S_IFDIR;
+        else var_stat.st_mode |= S_IFREG;
+
+        filler(buf,(char *) filename, &var_stat, 0 );
+
+    }
+
+    free(lista);
     return 0;
 }
 
@@ -167,17 +223,6 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getsectors(fs_tmp->boot_sector.reserved_sectors, fs_tmp->boot_sector.sectors_per_fat, fs_tmp->fat, fs_tmp);
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
-
-    /* prueba del fat32_get_file_from_path */
-    file_attrs file;
-    const uint8_t *arch = (const uint8_t *)"//prueba/./../prueba//./una_prueba_grosa/.";
-    int32_t ret = fat32_get_file_from_path(arch, &file, fs_tmp);
-    if (ret>0) {
-        printf("La definicion del archivo: %s esta en el cluster: %d\n", arch, ret);
-        printf("filename: %s file_type: 0x%X first_cluster: %d file_size: %d \n", file.filename, file.file_type, file.first_cluster, file.file_size);
-    } else
-        printf("error: %d ocurrido.\n", ret);
-    /**/
 
     printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
             fs_tmp->boot_sector.bytes_per_sector,
