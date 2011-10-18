@@ -27,6 +27,7 @@ typedef struct
 	int				pistas;
 	int				cabezas;
 	int				sectores;
+	int				posactual;
 	int				tiempolec;
 	int				tiempoesc;
 	int				rpm;

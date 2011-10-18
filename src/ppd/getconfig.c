@@ -106,6 +106,7 @@ config_t getconfig(char * archivoConfig)
 	 	vecConfig->pistas = -1;
 	 	vecConfig->cabezas = -1;
 	 	vecConfig->sectores = -1;
+	 	vecConfig->posactual = 0;
 	 	vecConfig->tiempolec = -1;
 	 	vecConfig->tiempoesc = -1;
 	 	vecConfig->rpm = -1;

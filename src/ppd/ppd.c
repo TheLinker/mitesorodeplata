@@ -5,6 +5,7 @@
 #include "getconfig.h"
 #include "ppd.h"
 
+
 config_t vecConfig;
 
 int main()
@@ -14,7 +15,7 @@ int main()
 	//conectar()
 	//CREAR DOS HILOS, UNO PARA LOS PEDIDOS OTRO PARA LA CONSOLA
 	escucharPedidos();
-	//atenderConsola()
+	//escucharConsola()
 	return 1;
 }
 
@@ -59,10 +60,46 @@ void atenderPedido(void)
 		}
 		else
 		{
-			printf("Ha ingresado un comando invalido");
+			printf("Ha ingresado un comando invalido\n");
 		}
 	}
 }
+
+void escucharConsola()
+{
+	//while que escuche consola
+	atenderConsola(/*se le pasa lo que llega desde la consola*/);
+}
+
+void atenderConsola()
+{
+	if(strcmp(comando,"info") == 0)
+		{
+			funcInfo();
+		}
+		else
+		{
+			if(strcmp(comando,"clean") == 0)
+			{
+				funcClean();
+			}
+			else
+			{
+			if(strcmp(comando,"trace") == 0)
+			{
+				funcTrace();
+			}
+			else
+			{
+				printf("Ha ingresado un comando invalido desde la consola\n");
+			}
+			}
+
+		}
+}
+
+
+//---------------Funciones PPD------------------//
 
 
 void leerPedido(int sect, FILE * dirArch)
@@ -75,12 +112,12 @@ void leerPedido(int sect, FILE * dirArch)
 		dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
 		memcpy(buffer, dirSect, TAM_SECT);
 		if(0 != munmap(dirMap,TAM_PAG))
-			printf("Fallo la eliminacion del mapeo");
+			printf("Fallo la eliminacion del mapeo\n");
 		//mando el buffer por el protocolo al raid
 	}
 	else
 	{
-		printf("El sector no es valido");
+		printf("El sector no es valido\n");
 	}
 
 
@@ -103,7 +140,7 @@ FILE * abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se 
 	if (NULL == (dirArch = fopen(pathArch, "w+")))
 	{
 		printf("%s\n",pathArch);
-		printf("Error al abrir el archivo de mapeo");
+		printf("Error al abrir el archivo de mapeo\n");
 	}
 	else
 	{
@@ -113,6 +150,8 @@ FILE * abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se 
 return 0;
 }
 
+//---------------Funciones Aux PPD------------------//
+
 void * paginaMap(int sect, FILE * dirArch)
 {
 	res = div(sect, 8);
@@ -120,4 +159,25 @@ void * paginaMap(int sect, FILE * dirArch)
 	dirMap = mmap(NULL,TAM_PAG, PROT_WRITE, MAP_SHARED, (int) dirArch , offset);
 
 	return dirArch;
+}
+
+//---------------Funciones Consola------------------//
+
+
+void funcInfo()
+{
+
+	return;
+}
+
+void funcClean()
+{
+
+	return;
+}
+
+void funcTrace()
+{
+
+	return;
 }
