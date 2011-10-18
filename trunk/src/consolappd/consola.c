@@ -99,7 +99,7 @@ void conectarPpd(void)
 	return;
 }
 
-void funcInfo(void)
+void funcInfo()
 {
 
 	return;
