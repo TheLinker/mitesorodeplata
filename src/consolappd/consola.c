@@ -1,3 +1,8 @@
+#include <stdio.h>   
+#include <sys/types.h>   
+#include <sys/socket.h>   
+#include <sys/un.h>   
+#include <stdlib.h>
 #include "consola.h"
 
 //NO TRABAJAMOS CON NIPC
@@ -5,7 +10,45 @@
 int main ()
 {
 	//inicializo una estructura nipc para la comunicacion
-	//conectarseAlPdd
+	
+   /** ---------------------------------------------ME CONECTO AL PPD----------------------------------------------------
+   
+    int clienteConsola, lengthClienteConsola, resultadoConexion; 
+    struct sockaddr_un direccionServidorPpd; 
+    struct sockaddr* punteroServidorPpd; 
+     
+    punteroServidorPpd = ( struct sockaddr* ) &direccionServidorPpd; 
+    lengthClienteConsola = sizeof (direccionServidorPpd ); 
+    
+    clienteConsola = socket ( AF_UNIX, SOCK_STREAM, 0 );    /* creo socket UNIX*/   
+     
+    direccionServidorPpd.sun_family = AF_UNIX; 
+     
+    /* tipo de dominio server */    
+    //strcpy ( direccionServidorPpd.sun_path, "fichero" );  /* nombre server */ //ver tema fichero
+
+    printf("%s",direccionServidorPpd.sun_path); 
+     
+    do        
+    {       
+     
+        resultadoConexion = connect ( clienteConsola, punteroServidorPpd, lengthClienteConsola );         
+        if ( resultadoConexion == -1 ) 
+            sleep (1);   /* reintento */  
+ 
+    }   while ( resultadoConexion == -1 );   //hasta que se conecte al Ppd  
+     
+    //leeFichero ( cliente );     /* lee el fichero */
+
+    close ( clienteConsola ); 
+     
+    /* cierra el socket */    
+        exit (0);     /* buen fin */   
+
+    return 0; 
+   
+   /** ---------------------------------------------FIN CONEXION AL PPD----------------------------------------------------
+   
 	while(1)
 	{
 		if(0 == atenderComando(/* estructura nipc ,  el tengo q pasarle el socket por el q se comunican */))
