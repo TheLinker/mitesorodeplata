@@ -1,12 +1,11 @@
-/*
- * Getconfig.h
- *
- *  Created on: Oct 7, 2011
- *      Author: lucas
- */
 
 #ifndef GETCONFIG_H_
 #define GETCONFIG_H_
+
+#include <stdlib.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
 FILE * archConf;
 

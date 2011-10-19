@@ -1,12 +1,3 @@
-#include <stdio.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <stdlib.h>
-#include <signal.h>  
-#include <sys/types.h>   
-#include <sys/socket.h>  
-#include <sys/un.h>   
-#include "getconfig.h"
 #include "ppd.h"
 
 
@@ -27,8 +18,17 @@ int main()
 
 void escucharPedidos(void)
 {
-  //HACER UN WHILE Q ESCUCHE PEDIDOS
-	atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
+	//HACER UN WHILE Q ESCUCHE PEDIDOS
+	nipc_packet msj;
+	msjprueba(&msj);
+
+	if(0 == strcmp(vecConfig.algplan, "cscan"))
+		insertCscan(msj, vecConfig.posactual);
+	else
+		insertFifo(msj);
+
+
+	//atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
 
 return;
 }
@@ -52,14 +52,14 @@ void atenderPedido(void)
 	//    ### HAY Q DEFINIR LOS VALORES PARA LEER Y ESCRIBIR Y DEJAR EL SWITCH DE ARRIBA ###
 
 	//recv()   ###Queda esperando a q lleguen pedidos###
-	if(strcmp(comando,"leer") == 0)
+	if(0 == strcmp(comando,"leer"))
 	{
 		//pasar lo q me mandan como parametro a un int
 		leerSect(sect, dirArch);
 	}
 	else
 	{
-		if(strcmp(comando,"escribir") == 0)
+		if(0 == strcmp(comando,"escribir"))
 		{
 			escribirSect(param, sect, dirArch);
 		}
@@ -73,71 +73,71 @@ void atenderPedido(void)
 void escucharConsola()
 {
 	//while que escuche consola
-   
-   int servidorPpd, clienteConsola, lengthServidorPpd, lengthClienteConsola;
-   struct sockaddr_un direccionServidorPpd;
-   struct sockaddr_un direccionClienteConsola;
-   struct sockaddr* punteroServidorPpd;
-   struct sockaddr* punteroClienteConsola;
-  
-   signal ( SIGCHLD, SIG_IGN );
-  
-   punteroServidorPpd = ( struct sockaddr* ) &direccionServidorPpd;
-   lengthServidorPpd = sizeof ( direccionServidorPpd );
-   punteroClienteConsola = ( struct sockaddr* ) &direccionClienteConsola;
-   lengthClienteConsola = sizeof ( direccionClienteConsola );
-   
-   servidorPpd = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );                    /* creo socket unix */   
-      
-   direccionServidorPpd.sun_family = AF_UNIX;    /* tipo de dominio */
-  
-   //strcpy ( direccionServidorPpd.sun_path, "fichero" );   /* nombre */   
-   //unlink ( "fichero" );
-   bind ( servidorPpd, punteroServidorPpd, lengthServidorPpd );   /* crea el fichero */ /* o sea, nombra el socket */   
-      
-   printf ("\n a la escucha de la consola \n");
-   listen ( servidorPpd, 1 ); //cantidad de consolas a conectarse
-      
-   while (1)
-   {        
-       clienteConsola = accept ( servidorPpd, punteroServidorPpd, &lengthServidorPpd );                /* acepta la conexion cliente */        
-       printf ("\n Se conecto la consola \n");
-       
-       if ( fork() == 0 )  /* crea proceso hijo */          
-       {            
-             
-           close ( clienteConsola );        /* cierra el socket */            
-              
-           exit ( 0 );
-       }        
-       else
-       {
-    
-           close ( clienteConsola );      /* cierra el descriptor cliente */        
- 
-       }
-  
-   }        /* en el padre */    
-   
 
-	atenderConsola(/*se le pasa lo que llega desde la consola*/);
+	   int servidorPpd, clienteConsola, lengthServidorPpd, lengthClienteConsola;
+	   struct sockaddr_un direccionServidorPpd;
+	   struct sockaddr_un direccionClienteConsola;
+	   struct sockaddr* punteroServidorPpd;
+	   struct sockaddr* punteroClienteConsola;
+
+	   signal ( SIGCHLD, SIG_IGN );
+
+	   punteroServidorPpd = ( struct sockaddr* ) &direccionServidorPpd;
+	   lengthServidorPpd = sizeof ( direccionServidorPpd );
+	   punteroClienteConsola = ( struct sockaddr* ) &direccionClienteConsola;
+	   lengthClienteConsola = sizeof ( direccionClienteConsola );
+
+	   servidorPpd = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );                    /* creo socket unix */
+
+	   direccionServidorPpd.sun_family = AF_UNIX;    /* tipo de dominio */
+
+	   //strcpy ( direccionServidorPpd.sun_path, "fichero" );   /* nombre */
+	   //unlink ( "fichero" );
+	   bind ( servidorPpd, punteroServidorPpd, lengthServidorPpd );   /* crea el fichero */ /* o sea, nombra el socket */
+
+	   printf ("\n a la escucha de la consola \n");
+	   listen ( servidorPpd, 1 ); //cantidad de consolas a conectarse
+
+	   while (1)
+	   {
+	       clienteConsola = accept ( servidorPpd, punteroServidorPpd, &lengthServidorPpd );                /* acepta la conexion cliente */
+	       printf ("\n Se conecto la consola \n");
+
+	       if ( fork() == 0 )  /* crea proceso hijo */
+	       {
+
+	           close ( clienteConsola );        /* cierra el socket */
+
+	           exit ( 0 );
+	       }
+	       else
+	       {
+
+	           close ( clienteConsola );      /* cierra el descriptor cliente */
+
+	       }
+
+	   }        /* en el padre */
+
+
+		atenderConsola(/*se le pasa lo que llega desde la consola*/);
 }
 
 void atenderConsola()
 {
-	if(strcmp(comando,"info") == 0)
+	if(0 == strcmp(comando,"info"))
 		{
 			funcInfo();
 		}
 		else
 		{
-			if(strcmp(comando,"clean") == 0)
+			if(0 == strcmp(comando,"clean"))
 			{
 				funcClean();
 			}
 			else
 			{
-			if(strcmp(comando,"trace") == 0)
+			if(0 == strcmp(comando,"trace"))
 			{
 				funcTrace();
 			}
@@ -176,7 +176,7 @@ void leerSect(int sect, FILE * dirArch)
 }
 
 
-void escribirSect(char param[TAM_SECT], int sect, FILE * dirArch)
+void escribirSect(char param[15], int sect, FILE * dirArch)
 {
 	//validar numero de sector
 	//buscar en el puntero del archivo la direccion donde arrancaria el sector
@@ -251,3 +251,12 @@ void funcTrace(/*char * parametros*/)
 	return;
 }
 
+//------------Prueba-----------------//
+
+void msjprueba(nipc_packet * msj)
+{
+	msj->len = 1024;
+	memset(msj->payload, 'X', 1024);
+	msj->type = 2;
+
+}
