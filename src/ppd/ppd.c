@@ -14,7 +14,7 @@ int main()
 	vecConfig = getconfig("config.txt");
 	dirMap = abrirArchivoV(vecConfig.rutadisco);
 	//conectar()
-	//CREAR DOS HILOS, UNO PARA LOS PEDIDOS OTRO PARA LA CONSOLA
+	//CREAR TRES HILOS, UNO PARA ESCUCHAR PEDIDOS Y ENCOLARLOS, OTRO PARA ATENDER LOS PEDIDOS Y OTRO PARA LA CONSOLA
 	escucharPedidos();
 	//escucharConsola()
 	return 1;
@@ -183,17 +183,20 @@ void funcClean(/*char * parametros*/)
 	//ultSec = atoi(strultSec);
 	//memset(bufferConsola, '\0', TAM_SECT);
 	//while(primsec <= ultsec)
-	//	escribirSect(bufferConsola, int sect, FILE * dirArch);
+	//{
+	//	escribirSect(bufferConsola, primsec, dirArch);
+	//	primsec++;
+	//}
 
 	strcpy(bufferConsola, "Se han limpiado correctamente los sectores");
 	//send(socket,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
-void funcTrace()
+void funcTrace(/*char * parametros*/)
 {
-
+	//int cantparam = 0;
+	//simular el disco
 	return;
 }
-
 

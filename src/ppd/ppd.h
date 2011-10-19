@@ -35,6 +35,6 @@ void funcTrace(void);
 
 int my_itoa(int val, char* buf);
 
-
+void errorparam(void);
 
 #endif /* PPD_H_ */
