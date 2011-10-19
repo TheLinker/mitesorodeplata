@@ -10,9 +10,17 @@
 #define TAM_COMANDO 100
 
 int atenderComando(void);
-void funcInfo(void);
+
 void conectarPpd(void);
+
+void funcInfo(void);
+
 void funcClean(void);
+
 void funcTrace(void);
+
+int errParamClean(void);
+
+int errParamTrace(void);
 
 #endif
