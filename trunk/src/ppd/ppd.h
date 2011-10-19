@@ -15,6 +15,7 @@
 
 #define TAM_SECT 512
 #define TAM_PAG 4096
+#define PROTOCOLO 0  
 
 char comando[15], param[15], buffer[512];
 char * pathArch;
