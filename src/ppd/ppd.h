@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include "getconfig.h"
 #include "planDisco.h"
+#include <signal.h>   
+#include <sys/types.h>   
+#include <sys/socket.h>   
+#include <sys/un.h> 
 #include "../common/nipc.h"
 
 #define TAM_SECT 512
