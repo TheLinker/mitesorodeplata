@@ -41,6 +41,15 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
     return 0;
 }
 
+uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
+{
+    int i=0;
+    for( i = 0 ; i < cantidad ; i++, block++)
+        fat32_getsectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + i * BLOCK_SIZE, fs_tmp);
+
+    return 0;
+}
+
 /**
  * Obtiene un *cluster*
  * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
@@ -58,11 +67,13 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp)
 ////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
 ////  LSN=SSA + (CN-2) × SC(0x0D)
 
-    uint32_t logical_sector_number = 0;
+    uint32_t block_number = 0;
 
-    logical_sector_number = fs_tmp->system_area_size + (cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster;
+    block_number = (fs_tmp->system_area_size + (cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) / SECTORS_PER_BLOCK;
 
-    fat32_getsectors(logical_sector_number , fs_tmp->boot_sector.sectors_per_cluster, buffer, fs_tmp);
+    fat32_getblock(block_number,
+                   fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
+                   buffer, fs_tmp);
 
     return 0;
 }

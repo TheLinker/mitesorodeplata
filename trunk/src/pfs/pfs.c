@@ -92,7 +92,7 @@ static int fat32_getattr(const char *path, struct stat *stbuf)
         stbuf->st_uid = context->uid; /* user ID of owner */
         stbuf->st_gid = context->gid; /* group ID of owner */
         return 0;
-    }    
+    }
 
     file_attrs ret_attrs;
     int32_t ret = fat32_get_file_from_path((const uint8_t *) path, &ret_attrs, fs_tmp);
@@ -240,13 +240,16 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fat32_handshake(fs_tmp->socket);
 
-    fat32_getsectors(0, 1, fs_tmp->boot_sector.buffer, fs_tmp);
+    int8_t block[BLOCK_SIZE];
+
+    fat32_getblock(0, 1, block, fs_tmp);
+    memcpy(fs_tmp->boot_sector.buffer, block, fs_tmp->boot_sector.bytes_per_sector);
     fs_tmp->system_area_size = fs_tmp->boot_sector.reserved_sectors + ( fs_tmp->boot_sector.fat_count * fs_tmp->boot_sector.sectors_per_fat );
 
     if (fs_tmp->boot_sector.bytes_per_sector != 512)
         printf("Nos dijeron que se suponian 512 bytes por sector, no %d bytes >.<\n", fs_tmp->boot_sector.bytes_per_sector);
 
-    fat32_getsectors(1, 1, fs_tmp->fsinfo_sector.buffer, fs_tmp);
+    memcpy(fs_tmp->fsinfo_sector.buffer, block + fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.bytes_per_sector);
 
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getsectors(fs_tmp->boot_sector.reserved_sectors, fs_tmp->boot_sector.sectors_per_fat, fs_tmp->fat, fs_tmp);
