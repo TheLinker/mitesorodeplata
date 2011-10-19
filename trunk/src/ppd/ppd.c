@@ -27,6 +27,7 @@ int main()
 
 void escucharPedidos(void)
 {
+  //HACER UN WHILE Q ESCUCHE PEDIDOS
 	atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
 
 return;
