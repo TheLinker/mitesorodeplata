@@ -146,6 +146,8 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
     memcpy((char *) (fs_tmp->server_host), "localhost", 10);
     fs_tmp->server_port = 1337;
     fs_tmp->cache_size = 1024;
+    memcpy((char *) (fs_tmp->log_path), "/tmp/pfs.log", 13);
+    fs_tmp->log_mode = LOG_OUTPUT_CONSOLEANDFILE;
 
     fp = fopen("pfs.conf","r");
     if( fp == NULL ) {
@@ -177,6 +179,24 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
         else
         if(strcmp(w1,"tamanio_cache")==0)
             fs_tmp->cache_size = atoi(w2);
+        else
+        if(strcmp(w1,"log_path")==0)
+            strcpy(fs_tmp->log_path, w2);
+        else
+        if(strcmp(w1,"log_mode")==0)
+        {
+            if(strcmp(w1,"none") == 0)
+                fs_tmp->log_mode = LOG_OUTPUT_NONE;
+            else
+            if(strcmp(w1,"console") == 0)
+                fs_tmp->log_mode = LOG_OUTPUT_CONSOLE;
+            else
+            if(strcmp(w1,"file") == 0)
+                fs_tmp->log_mode = LOG_OUTPUT_FILE;
+            else
+            if(strcmp(w1,"file+console") == 0)
+                fs_tmp->log_mode = LOG_OUTPUT_CONSOLEANDFILE;
+        }
         else
             printf("Configuracion desconocida:'%s'\n", w1);
     }
