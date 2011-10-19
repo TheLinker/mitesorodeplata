@@ -256,7 +256,7 @@ void funcTrace(/*char * parametros*/)
 void msjprueba(nipc_packet * msj)
 {
 	msj->len = 1024;
-	memset(msj->payload, 'X', 1024);
+	strcpy(msj->payload, "1234,hola como estas vos...");
 	msj->type = 2;
 
 }
