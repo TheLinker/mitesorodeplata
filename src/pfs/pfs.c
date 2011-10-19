@@ -74,7 +74,7 @@ static int fat32_getattr(const char *path, struct stat *stbuf)
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    printf("Getattr: path: %s\n", path);
+    log_info(fs_tmp->log, "un_thread", "Getattr: path: %s", path);
     memset(stbuf, 0, sizeof(struct stat));
 
     if(memcmp(path, "/", 2) == 0) {
@@ -114,7 +114,7 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    printf("Readdir: path: %s\n", path);
+    log_info(fs_tmp->log, "un_thread", "Readdir: path: %s", path);
 
     if(path[0] != '/')
         return -EINVAL;
@@ -205,6 +205,8 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fat32_config_read(fs_tmp);
 
+    fs_tmp->log = log_new( fs_tmp->log_path, "process_file_system", fs_tmp->log_mode );
+
     if(!(fs_tmp->socket = nipc_init(fs_tmp->server_host, fs_tmp->server_port))) {
         printf("La conexion al RAID 1 o planificador de disco no esta lista\n");
         exit(-EADDRNOTAVAIL);
@@ -224,15 +226,15 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fat32_getsectors(fs_tmp->boot_sector.reserved_sectors, fs_tmp->boot_sector.sectors_per_fat, fs_tmp->fat, fs_tmp);
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
 
-    printf("BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -\n",
-            fs_tmp->boot_sector.bytes_per_sector,
-            fs_tmp->boot_sector.sectors_per_cluster,
-            fs_tmp->boot_sector.reserved_sectors,
-            fs_tmp->boot_sector.fat_count,
-            fs_tmp->boot_sector.total_sectors,
-            fs_tmp->boot_sector.sectors_per_fat,
-            fs_tmp->system_area_size,
-            fat32_free_clusters(fs_tmp));
+    log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -",
+                                       fs_tmp->boot_sector.bytes_per_sector,
+                                       fs_tmp->boot_sector.sectors_per_cluster,
+                                       fs_tmp->boot_sector.reserved_sectors,
+                                       fs_tmp->boot_sector.fat_count,
+                                       fs_tmp->boot_sector.total_sectors,
+                                       fs_tmp->boot_sector.sectors_per_fat,
+                                       fs_tmp->system_area_size,
+                                       fat32_free_clusters(fs_tmp));
 
     return fs_tmp;
 
@@ -241,6 +243,9 @@ static void *fat32_init(struct fuse_conn_info *conn)
 void fat32_destroy(void * foo) //foo es private_data que devuelve el init
 {
     nipc_close(((fs_fat32_t *)foo)->socket);
+
+    log_delete(((fs_fat32_t *)foo)->log);
+
     free(((fs_fat32_t *)foo)->fat);
     free(foo);
 }

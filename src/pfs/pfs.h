@@ -2,6 +2,7 @@
 #define __PFS_H_
 
 #include "nipc.h"
+#include "log.h"
 #define BLOCK_SIZE 1024
 
 typedef union boot_t {
@@ -41,6 +42,10 @@ typedef struct fs_fat32_t {
     uint16_t cache_size;
 
     nipc_socket *socket;
+
+    char        log_path[1024];
+    log_output  log_mode;
+    log_t      *log;
 } __attribute__ ((packed)) fs_fat32_t;
 
 //lfn = long file name
