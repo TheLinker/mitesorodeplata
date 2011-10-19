@@ -7,6 +7,7 @@
 
 
 config_t vecConfig;
+char * bufferConsola;
 
 int main()
 {
@@ -50,13 +51,13 @@ void atenderPedido(void)
 	if(strcmp(comando,"leer") == 0)
 	{
 		//pasar lo q me mandan como parametro a un int
-		leerPedido(sect, dirArch);
+		leerSect(sect, dirArch);
 	}
 	else
 	{
 		if(strcmp(comando,"escribir") == 0)
 		{
-			escribirPedido(param, sect, dirArch);
+			escribirSect(param, sect, dirArch);
 		}
 		else
 		{
@@ -102,7 +103,7 @@ void atenderConsola()
 //---------------Funciones PPD------------------//
 
 
-void leerPedido(int sect, FILE * dirArch)
+void leerSect(int sect, FILE * dirArch)
 {
 
 	if( (0 >= sect) && (cantSect <= sect))
@@ -124,7 +125,7 @@ void leerPedido(int sect, FILE * dirArch)
 }
 
 
-void escribirPedido(char param[15], int sect, FILE * dirArch)
+void escribirSect(char param[TAM_SECT], int sect, FILE * dirArch)
 {
 	//validar numero de sector
 	//buscar en el puntero del archivo la direccion donde arrancaria el sector
@@ -166,13 +167,26 @@ void * paginaMap(int sect, FILE * dirArch)
 
 void funcInfo()
 {
-
+	sprintf(bufferConsola, "%d", vecConfig.posactual);
+	//send(socket,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
-void funcClean()
+void funcClean(/*char * parametros*/)
 {
+	//char * strprimSec, * strultSec;
+	//int primSec, ultSec;
 
+	//strprimSec = strtok(parametros, ",");
+	//strultSec = strtok(NULL, "\0");
+	//primSec = atoi(strprimSec);
+	//ultSec = atoi(strultSec);
+	//memset(bufferConsola, '\0', TAM_SECT);
+	//while(primsec <= ultsec)
+	//	escribirSect(bufferConsola, int sect, FILE * dirArch);
+
+	strcpy(bufferConsola, "Se han limpiado correctamente los sectores");
+	//send(socket,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
@@ -181,3 +195,5 @@ void funcTrace()
 
 	return;
 }
+
+
