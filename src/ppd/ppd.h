@@ -15,9 +15,9 @@ void escucharPedidos(void);
 
 void atenderPedido(void);
 
-void leerPedido(int sect, FILE * dirArch);
+void leerSect(int sect, FILE * dirArch);
 
-void escribirPedido(char param[15], int sect, FILE * dirArch);
+void escribirSect(char param[TAM_SECT], int sect, FILE * dirArch);
 
 FILE * abrirArchivoV(char * pathArch);
 
@@ -33,6 +33,7 @@ void funcClean(void);
 
 void funcTrace(void);
 
+int my_itoa(int val, char* buf);
 
 
 
