@@ -1,0 +1,38 @@
+=Documentación Proceso File System=
+
+Resumen de estructuras y decisiones tomadas en el desarrollo del Proceso File System
+
+==Donde está todo==
+
+*PFS.C* : Proceso File System, con las implementaciones de las funciones de FUSE. Hasta el momento se encuentran funcionales:
+
+fat32_getattr
+fat32_readdir
+
+*PFS.h" : Definiciones de los tipos de datos, labels y otros males
+
+
+
+==Resumen de estructuras==
+
+===
+
+
+==Decisiones Tomadas==
+
+
+
+
+Add your content here.
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
+
+
+
+===Notas===
