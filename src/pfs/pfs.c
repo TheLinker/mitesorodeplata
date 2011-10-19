@@ -35,7 +35,16 @@ int fat32_flush (const char *path, struct fuse_file_info *fi)
 
 int fat32_release (const char *path, struct fuse_file_info *fi)
 {
-    printf("Release: path: %s\n", path);
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    log_info(fs_tmp->log, "un_thread", "Release: path: %s", path);
+
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    memset(&(fs_tmp->open_files[fi->fh]), '\0', sizeof(file_descriptor));
+
     return 0;
 }
 
@@ -166,12 +175,29 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int fat32_open(const char *path, struct fuse_file_info *fi)
 {
-    printf("Open: path: %s\n", path);
-    if(strcmp(path, hello_path) != 0)
-        return -ENOENT;
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    if((fi->flags & 3) != O_RDONLY)
-        return -EACCES;
+    log_info(fs_tmp->log, "un_thread", "Open: path: %s", path);
+
+    file_attrs ret_attrs;
+
+    int32_t ret = fat32_get_file_from_path((const uint8_t *) path, &ret_attrs, fs_tmp);
+    if(ret<0) return ret;
+
+    ret = fat32_get_free_file_entry(fs_tmp->open_files);
+    if(ret<0) return ret;
+
+    memcpy(fs_tmp->open_files[ret].path, path, strlen(path));
+    fat32_build_name(&ret_attrs, fs_tmp->open_files[ret].filename);
+    fs_tmp->open_files[ret].file_size = ret_attrs.file_size;
+    fs_tmp->open_files[ret].file_pos = (fi->flags & O_APPEND)?0:ret_attrs.file_size-1;
+    fs_tmp->open_files[ret].first_cluster = ret_attrs.first_cluster;
+    fs_tmp->open_files[ret].busy = TRUE;
+
+    //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
+    fi->fh = ret;
+    log_info(fs_tmp->log, "un_thread", " ret_val: %d\n", ret);
 
     return 0;
 }

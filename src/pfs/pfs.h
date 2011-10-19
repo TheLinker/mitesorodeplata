@@ -3,6 +3,7 @@
 
 #include "nipc.h"
 #include "log.h"
+#include "pfs_files.h"
 #define BLOCK_SIZE 1024
 
 typedef union boot_t {
@@ -42,6 +43,8 @@ typedef struct fs_fat32_t {
     uint16_t cache_size;
 
     nipc_socket *socket;
+
+    struct file_descriptor open_files[MAX_OPEN_FILES];
 
     char        log_path[1024];
     log_output  log_mode;
