@@ -1,5 +1,14 @@
 #ifndef PPD_H_
 #define PPD_H_
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <stdlib.h>
+#include "getconfig.h"
+#include "planDisco.h"
+#include "../common/nipc.h"
+
 #define TAM_SECT 512
 #define TAM_PAG 4096
 
@@ -36,5 +45,7 @@ void funcTrace(void);
 int my_itoa(int val, char* buf);
 
 void errorparam(void);
+
+void msjprueba(nipc_packet *);
 
 #endif /* PPD_H_ */
