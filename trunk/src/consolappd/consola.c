@@ -53,7 +53,7 @@ int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada
 	{
 		//payloadDescriptor = INFO;
 		sprintf(comando, "%s()", funcion);
-		//if(!(bytesEnvRec = enviayrecibemsj( estructura nipc , comando)))
+		//if(!(bytesEnvRec = enviar( estructura nipc , comando)))
 			//return cantEnv;
 		funcInfo(/* estructura nipc */);
 
@@ -67,10 +67,13 @@ int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada
 			return cantEnv;
 		}
 		//payloadDescriptor = CLEAN;
+		//if (0 == errParamClean(parametros)){
 		sprintf(comando, "%s(%s)", funcion, parametros);
-		//if(!(cantEnv = enviayrecibemsj( estructura nipc , comando)))
+		//if(!(cantEnv = enviar( estructura nipc , comando)))
 			//return cantEnv;
 		funcClean(/* estructura nipc */);
+		//}else
+		//printf("El ingreso de parametros a sido invalido");
 
 	}else
 
@@ -81,12 +84,14 @@ int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada
 			//errParam();
 			return cantEnv;
 		}
-		//payloadDescriptor = CLEAN;
+		//payloadDescriptor = TRACE;
+		//if(0 == errParamTrace(parametros)){
 		sprintf(comando, "%s(%s)", funcion, parametros);
-		//if(!(cantEnv = enviayrecibemsj( estructura nipc , comando)))
+		//if(!(cantEnv = enviar( estructura nipc , comando)))
 			//return cantEnv;
 		funcTrace(/* estructura nipc */);
-
+		//}else
+		//printf("El ingreso de parametros a sido invalido");
 	}
 
 	return cantEnv;
@@ -115,4 +120,16 @@ void funcTrace(void)
 {
 
 	return;
+}
+
+int errParamClean(/*parametros*/)
+{
+
+	return 0;
+}
+
+int errParamTrace(/*parametros*/)
+{
+
+	return 0;
 }
