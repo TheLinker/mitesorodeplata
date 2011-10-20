@@ -23,6 +23,8 @@ int main ()
 	/* tipo de dominio server */
 	strcpy ( direccionServidor.sun_path, "fichero" );  /* nombre server */
 
+
+
 	do
 	{
 		resultado = connect ( cliente, punteroServidor, lengthCliente );
@@ -32,7 +34,9 @@ int main ()
 
 	}   while ( resultado == -1 );
 
-	puts("INGRESE COMANDO: "); gets(comando); //ingreso info, clean o trace
+	printf("INGRESE COMANDO: ");
+
+	fgets(comando, TAM_COMANDO, stdin); //ingreso info, clean o trace
 
 	if(send(cliente, comando, sizeof(comando), 0) == -1)	//envio al proceso ppd el comando que contiene el dato(info,clean o trace)
 	{
