@@ -74,56 +74,46 @@ void escucharConsola()
 {
 	//while que escuche consola
 
-	   int servidorPpd, clienteConsola, lengthServidorPpd, lengthClienteConsola;
-	   struct sockaddr_un direccionServidorPpd;
-	   struct sockaddr_un direccionClienteConsola;
-	   struct sockaddr* punteroServidorPpd;
-	   struct sockaddr* punteroClienteConsola;
+	int servidor, cliente, lengthServidor, lengthCliente;
+	struct sockaddr_un direccionServidor;
+	struct sockaddr_un direccionCliente;
+	struct sockaddr* punteroServidor;
+	struct sockaddr* punteroCliente;
+	char comando[10];
 
-	   signal ( SIGCHLD, SIG_IGN );
+	signal ( SIGCHLD, SIG_IGN );
 
-	   punteroServidorPpd = ( struct sockaddr* ) &direccionServidorPpd;
-	   lengthServidorPpd = sizeof ( direccionServidorPpd );
-	   punteroClienteConsola = ( struct sockaddr* ) &direccionClienteConsola;
-	   lengthClienteConsola = sizeof ( direccionClienteConsola );
+	punteroServidor = ( struct sockaddr* ) &direccionServidor;
+	lengthServidor = sizeof ( direccionServidor );
+	punteroCliente = ( struct sockaddr* ) &direccionCliente;
+	lengthCliente = sizeof ( direccionCliente );
+	servidor = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );
 
-	   servidorPpd = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );                    /* creo socket unix */
+	direccionServidor.sun_family = AF_UNIX;    /* tipo de dominio */
 
-	   direccionServidorPpd.sun_family = AF_UNIX;    /* tipo de dominio */
+	strcpy ( direccionServidor.sun_path, "fichero" );   /* nombre */
+	unlink ( "fichero" );
+	bind ( servidor, punteroServidor, lengthServidor );   /* crea el fichero */
 
-	   //strcpy ( direccionServidorPpd.sun_path, "fichero" );   /* nombre */
-	   //unlink ( "fichero" );
-	   bind ( servidorPpd, punteroServidorPpd, lengthServidorPpd );   /* crea el fichero */ /* o sea, nombra el socket */
+	puts ("\n estoy a la esperaaaaa \n");
+	listen ( servidor, 5 );
 
-	   printf ("\n a la escucha de la consola \n");
-	   listen ( servidorPpd, 1 ); //cantidad de consolas a conectarse
+	cliente = accept ( servidor, punteroServidor, &lengthServidor );
+	puts ("\n acepto la conexion \n");
 
-	   while (1)
-	   {
-	       clienteConsola = accept ( servidorPpd, punteroServidorPpd, &lengthServidorPpd );                /* acepta la conexion cliente */
-	       printf ("\n Se conecto la consola \n");
+	if(recv(cliente,comando,sizeof(comando),0)==-1) // recivimos lo que nos envia el cliente
+	{
+		printf("error recibiendo");
+		exit(0);
+	}
 
-	       if ( fork() == 0 )  /* crea proceso hijo */
-	       {
+	atenderConsola(comando);
 
-	           close ( clienteConsola );        /* cierra el socket */
+	close ( cliente );
 
-	           exit ( 0 );
-	       }
-	       else
-	       {
-
-	           close ( clienteConsola );      /* cierra el descriptor cliente */
-
-	       }
-
-	   }        /* en el padre */
-
-
-		atenderConsola(/*se le pasa lo que llega desde la consola*/);
 }
 
-void atenderConsola()
+void atenderConsola(char comando[10])
 {
 	if(0 == strcmp(comando,"info"))
 		{
