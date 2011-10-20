@@ -79,7 +79,7 @@ void escucharConsola()
 	struct sockaddr_un direccionCliente;
 	struct sockaddr* punteroServidor;
 	struct sockaddr* punteroCliente;
-	char comando[10];
+
 
 	signal ( SIGCHLD, SIG_IGN );
 
@@ -92,7 +92,7 @@ void escucharConsola()
 	direccionServidor.sun_family = AF_UNIX;    /* tipo de dominio */
 
 	strcpy ( direccionServidor.sun_path, "fichero" );   /* nombre */
-	unlink ( "fichero" );
+	unlink( "fichero" );
 	bind ( servidor, punteroServidor, lengthServidor );   /* crea el fichero */
 
 	puts ("\n estoy a la esperaaaaa \n");
@@ -109,11 +109,11 @@ void escucharConsola()
 
 	atenderConsola(comando);
 
-	close ( cliente );
+	close( cliente );
 
 }
 
-void atenderConsola(char comando[10])
+void atenderConsola(char comando[15])
 {
 	if(0 == strcmp(comando,"info"))
 		{
