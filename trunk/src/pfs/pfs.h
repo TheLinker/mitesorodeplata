@@ -1,7 +1,7 @@
 #ifndef __PFS_H_
 #define __PFS_H_
 
-#include "nipc.h"
+#include "ex_nipc.h"
 #include "log.h"
 #include "pfs_files.h"
 
