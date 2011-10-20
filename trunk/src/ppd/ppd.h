@@ -39,7 +39,7 @@ void * paginaMap (int sect, FILE * dirArch);
 
 void escucharConsola(void);
 
-void atenderConsola(void);
+void atenderConsola(char comando[15]);
 
 void funcInfo(void);
 
