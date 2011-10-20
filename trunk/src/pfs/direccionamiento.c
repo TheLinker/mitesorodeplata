@@ -5,14 +5,14 @@
 #include <errno.h>
 
 /**
- * Obtiene *cantidad* sectores a partir de *sector*
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
+ * Obtiene una *cantidad* sectores a partir de un *sector* dado como base.
+ * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
  *
- * @sector primer sector a pedir
- * @cantidad cantidad de sectores a partir de *sector* a pedir (inclusive)
- * @buffer lugar donde guardar la información recibida.
- * @fs_tmp estructura privada del file system
- * @return codigo de error o 0 si fue todo bien.
+ * @sector:     Primer sector a pedir.
+ * @Vcantidad:  Cantidad de sectores a pedir a partir de *sector*(inclusive).
+ * @buffer:     Lugar donde se almacena la información recibida.
+ * @fs_tmp:     Estructura privada del file system // Ver Wiki.
+ * @return      Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
 {
@@ -23,13 +23,13 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
     packet.len = sizeof(int32_t);
     memcpy(packet.payload, &sector, sizeof(int32_t));
 
-    //Pide los sectores necesarios
+    //Pide los sectores necesarios.
     for (i = 0 ; i < cantidad ; i++) {
         nipc_send_packet(&packet, fs_tmp->socket);
         *((int32_t *)packet.payload) += 1;
     }
 
-    //Espera a obtener todos los sectores pedidos
+    //Espera a obtener todos los sectores pedidos.
     for (i = 0 ; i < cantidad ; i++) {
         nipc_packet *packet = nipc_recv_packet(fs_tmp->socket);
         int32_t rta_sector;
@@ -51,13 +51,13 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32
 }
 
 /**
- * Obtiene un *cluster*
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos
+ * Obtiene un *cluster*.
+ * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
  *
- * @cluster cluster a pedir
- * @buffer lugar donde guardar la información recibida.
- * @fs_tmp estructura privada del file system
- * @return codigo de error o 0 si fue todo bien.
+ * @cluster: Cluster a pedir.
+ * @buffer:  Lugar donde se almacena la información recibida.
+ * @fs_tmp:  Estructura privada del file system// Ver Wiki.
+ * @return:  Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp)
 {
