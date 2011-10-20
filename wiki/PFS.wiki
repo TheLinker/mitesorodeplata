@@ -1,3 +1,4 @@
+#labels FileSystem,FAT,32
 =Documentación Proceso File System=
 
 Resumen de estructuras y decisiones tomadas en el desarrollo del Proceso File System
@@ -8,7 +9,7 @@ El nombre del sistema de archivos *FAT* (_File Allocation Table_) proviene del u
 
 Con el objeto de limitar el tamaño de la tabla, el espacio en disco cedido a los archivos es administrado en forma de _clusters_ . El número de bits utilizado para identificar cada cluster es de 28 bits en FAT 32.
 
-Archivos de nombre largo : de 0 hasta 255 caracteres UTF-16
+
 
 ==Estructuras de nuestra FAT32 (según este TP)==
 
@@ -17,8 +18,19 @@ Archivos de nombre largo : de 0 hasta 255 caracteres UTF-16
 || *Contenido* || Boot Sector | FS information sector | Otros sectores Reservados || Tabla FAT #1 || Data Region ||
 || *size in sectors* || (número de *sectores reservados*) || Nro. de FATs(1) x (sectores por FAT) || Nro. de Clusters x Sectores por Cluster ||
 
-1) Los *sectores reservados*:
+1) Los *Sectores Reservados*:
    El primero de estos es el *Boot Sector* (_Partition Boot Record_), localizado en el sector 0. Contiene información básica del file system, punteros a otras secciones, el BIOS parameter block y el código del OS Boot loader. El segundo sector reservado es el _File Information Sector_ en el sector 1 y un _Backup Boot Sector_ en el sector 6. A pesar de que solo éstos tres sectores se encuentran usados, los primeros 32 están reservados.
+
+2) La *Región FAT*:
+   En nuestro TP, solo utilizamos una tabla pero normalmente existen 2, para chequeo de redundancia. La tabla funciona como un mapa de la _Data Region_, en donde se indican aquellos clústers que están siendo usados por archivos y directorios.
+
+3) La *Data Region*:
+   Es aquí donde los datos de los archivos y los directorios (el root en FAT32 se encuentra aquí también) se encuentran almacenados y es por esto que esta región ocupa la gran parte de la partición.
+
+   El tamaño de los archivos y de los subdirectorios puede ser incrementado arbitrariamente, siempre y cuando hayan clústers libres, simplemente al agregar más eslabones a la cadena del archivo en la FAT.
+
+   El primer clúster de la _data region_ es el cluster 2, donde comienza la *Root Directory Table*.
+
 
 ==Donde está todo==
 
@@ -54,3 +66,8 @@ Add your content here.  Format your content with:
 
 
 ===Notas===
+
+# Archivos de nombre largo : de 0 hasta 255 caracteres UTF-16
+
+# FAT usa formato *Little Endian* para las entradas en el header (sectores reservados) y para las entradas de la FAT. La notación *Little Endian" implica que 
+se guarda *primero* el byte menos significativo.
