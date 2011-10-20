@@ -6,52 +6,52 @@ int main ()
 {
 	/	//inicializo una estructura nipc para la comunicacion
 
-	   /** ---------------------------------------------ME CONECTO AL PPD----------------------------------------------------
+	   /** ---------------------------------------------ME CONECTO AL PPD---------*/
 
-	    int clienteConsola, lengthClienteConsola, resultadoConexion;
-	    struct sockaddr_un direccionServidorPpd;
-	    struct sockaddr* punteroServidorPpd;
+	int cliente, lengthCliente, resultado;
+	struct sockaddr_un direccionServidor;
+	struct sockaddr* punteroServidor;
+	char comando[10];
 
-	    punteroServidorPpd = ( struct sockaddr* ) &direccionServidorPpd;
-	    lengthClienteConsola = sizeof (direccionServidorPpd );
+	punteroServidor = ( struct sockaddr* ) &direccionServidor;
+	lengthCliente = sizeof (direccionServidor );
 
-	    clienteConsola = socket ( AF_UNIX, SOCK_STREAM, 0 );    /* creo socket UNIX*/
+	cliente = socket ( AF_UNIX, SOCK_STREAM, 0 );	/* creo socket UNIX*/
 
-	    direccionServidorPpd.sun_family = AF_UNIX;
+	direccionServidor.sun_family = AF_UNIX;
 
-	    /* tipo de dominio server */
-	    //strcpy ( direccionServidorPpd.sun_path, "fichero" );  /* nombre server */ //ver tema fichero
+	/* tipo de dominio server */
+	strcpy ( direccionServidor.sun_path, "fichero" );  /* nombre server */
 
-	    printf("%s",direccionServidorPpd.sun_path);
+	do
+	{
+		resultado = connect ( cliente, punteroServidor, lengthCliente );
 
-	    do
-	    {
+		if ( resultado == -1 )
+			sleep (1);   /* reintento */
 
-	        resultadoConexion = connect ( clienteConsola, punteroServidorPpd, lengthClienteConsola );
-	        if ( resultadoConexion == -1 )
-	            sleep (1);   /* reintento */
+	}   while ( resultado == -1 );
 
-	    }   while ( resultadoConexion == -1 );   //hasta que se conecte al Ppd
+	puts("INGRESE COMANDO: "); gets(comando); //ingreso info, clean o trace
 
-	    //leeFichero ( cliente );     /* lee el fichero */
+	if(send(cliente, comando, sizeof(comando), 0) == -1)	//envio al proceso ppd el comando que contiene el dato(info,clean o trace)
+	{
+		printf("error enviando");
+		exit(0);
+	}
 
-	    close ( clienteConsola );
+	close ( cliente );  //hay que cerrarlo el socket en este momento????????
 
-	    /* cierra el socket */
-	        exit (0);     /* buen fin */
+/*--------------------------------------------------------------------------------*/
 
-	    return 0;
-
-	   /** ---------------------------------------------FIN CONEXION AL PPD----------------------------------------------------
-
-		while(1)
+	while(1)
+	{
+		if(0 == atenderComando(/* estructura nipc ,  el tengo q pasarle el socket por el q se comunican */))
 		{
-			if(0 == atenderComando(/* estructura nipc ,  el tengo q pasarle el socket por el q se comunican */))
-			{
-				conectarPpd();
-			}
+			conectarPpd();
 		}
-		return 0;
+	}
+	return 0;
 }
 
 
