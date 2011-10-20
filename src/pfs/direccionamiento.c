@@ -1,5 +1,5 @@
 #include "direccionamiento.h"
-#include "nipc.h"
+#include "ex_nipc.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -45,7 +45,7 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32
 {
     int i=0;
     for( i = 0 ; i < cantidad ; i++, block++)
-        fat32_getsectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + i * BLOCK_SIZE, fs_tmp);
+        fat32_getsectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
 
     return 0;
 }

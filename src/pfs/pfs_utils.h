@@ -2,7 +2,7 @@
 #define __UTILS_H_
 
 #include <stdint.h>
-#include "nipc.h"
+#include "ex_nipc.h"
 #include "pfs.h"
 
 uint32_t fat32_free_clusters(fs_fat32_t *fs_tmp);
