@@ -1,6 +1,5 @@
 #include<string.h>
 #include<stdio.h>
-//nose que pasa
 #include<stdlib.h>
 #include<unistd.h>
 #include<pthread.h>
@@ -10,85 +9,192 @@
 #include<netinet/in.h>
 #include<arpa/inet.h>
 
-#include "sock.h"
+#include "../common/nipc.h"
 #include "praid1.h"
 #include "praid_func.h"
 
-#define SOCKET_MAX_BUFFER 100
 
 int main(int argc, char *argv[])
 {
   disco *discos=NULL;
+  pfs *pedidos_pfs=NULL;
+  pfs *aux_pfs;
   fd_set set_socket;
-  nipc_socket *sock_raid;
-  nipc_socket sock_ppd;
+  nipc_socket sock_raid,sock_new;
+  sock_raid = create_socket("127.0.0.1",50003);
   
-    
-  sock_raid = createSocket("127.0.0.1",50003);
+  printf("\n Socket RAID: %d\n\n",sock_raid);
   
+  uint32_t max_sock;
+  nipc_packet mensaje;
+  struct sockaddr_in *addr_ppd = malloc(sizeof(struct sockaddr_in));
+  uint32_t clilen;  
   
-  printf("\n\n pasooo   %d\n\n",*sock_raid);
-  
-  getchar();
-  int max_sock = *sock_raid;
-  
-  while(sock_raid >0)
+  while(1)
   {
     FD_ZERO(&set_socket);
-    nipc_packet mensaje;
-    struct sockaddr_in *addr_ppd = malloc(sizeof(struct sockaddr_in));
-    int clilen;
+        
+    FD_SET(sock_raid, &set_socket);
     
-    FD_SET(*sock_raid, &set_socket);
-    select(max_sock+1, &set_socket, NULL, NULL, NULL);
+    max_sock = sock_raid;
     
-    if(FD_ISSET(*sock_raid, &set_socket)>0)
+    aux_pfs=pedidos_pfs;
+    while(aux_pfs!=NULL)
     {
-      if( (sock_ppd=accept(*sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
-	printf("\nERROR en la conexion  %d\n",sock_ppd);
-      else
+      if(aux_pfs->sock > max_sock)
+	max_sock = aux_pfs->sock;
+      FD_SET (aux_pfs->sock, &set_socket);
+      aux_pfs=aux_pfs->sgte;
+    }
+    
+    select(max_sock+1, &set_socket, NULL, NULL, NULL);  
+      
+    aux_pfs=pedidos_pfs;
+    while(aux_pfs != NULL)
+    {
+      if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
       {
-	uint32_t fin;
-	fin=recv(sock_ppd,mensaje.buffer,sizeof(mensaje.buffer),0);
-	//printf("\nNueva conexion TYPE: %c",mensaje.type);
-	//printf("\nNueva conexion LEN: %d",mensaje.len);
-	//printf("\nNueva conexion PAYLOAD: %s",mensaje.payload);
+	//printf("\nYa esta en la conexion  %d\n",sock_new);
+//--------------	
+	if(recv_socket(&mensaje,sock_new)>0)
+	{
+	  if(mensaje.type == nipc_handshake)
+	    printf("\nBASTA DE HANDSHAKE!!!!\n");
+	  if(mensaje.type == nipc_req_read)
+	  {
+	    if(mensaje.len == 4)
+	    {
+	      printf("\nPedido de lectura del FS: %d",mensaje.payload.sector);
+	      distribuirPedidoLectura(&discos,mensaje);
+	      printf("\n-------------------------------");
+	    }
+	    else
+	    {
+	      printf("\nMANDASTE CUALQUIER COSA");
+	    }
+	  }
+	  if(mensaje.type == nipc_req_write)
+	  {
+	    if(mensaje.len != 4)
+	    {
+	      printf("\nPedido de escritura del FS: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
+	      //distribuirPedidoEscritura(&discos);
+	      printf("\n-------------------------------");
+	    }
+	    else
+	    {
+	      printf("\nnMANDASTE CUALQUIER COSA");
+	    }
+	  }
+	  if(mensaje.type == nipc_error)
+	  {
+	    printf("\nERROR: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
+	  }
+	}
+	else
+	{
+	  //murio el socket
+	  pfs *anterior=NULL;
+	  aux_pfs=pedidos_pfs;
+	  while(aux_pfs != NULL &&  aux_pfs->sock != sock_new)
+	  {
+	    anterior=aux_pfs;
+	    aux_pfs=aux_pfs->sgte;
+	  }
+	  if(anterior==NULL)
+	    pedidos_pfs = pedidos_pfs->sgte;
+	  else
+	    anterior->sgte=anterior->sgte->sgte;
+	  free(aux_pfs);
+	  
+	}
 	
+//	----------------
+      }
+      aux_pfs = aux_pfs->sgte;
+    }
+    
+    if(FD_ISSET(sock_raid, &set_socket)>0)
+    {
+      if( (sock_new=accept(sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
+	printf("\nERROR en la conexion  %d\n",sock_new);
+      else
+      if(recv_socket(&mensaje,sock_new)>0)
+      {
 	if(mensaje.type == nipc_handshake)
 	{
 	  if(mensaje.len != 0)
 	  {
-	    printf("\nNueva conexion PPD: %s",mensaje.payload);
-	    agregarDisco(&discos);
-	    listarPedidosDiscos(&discos);
+	    printf("\nNueva conexion PPD: %s",mensaje.payload.contenido);
+	    char id_disco[20];
+	    memcpy(&id_disco,mensaje.payload.contenido,20);
+	    agregarDisco(&discos,id_disco,sock_new);//crea hilo
+	    //listarPedidosDiscos(&discos);
+	    
 	    printf("\n-------------------------------");
-	    printf("\n-------------------------------");
-	    printf("\n-------------------------------");
-	    FD_SET(sock_ppd, &set_socket);
 	  }
 	  else
 	  {
-	    printf("\nNueva conexion PFS: %d",sock_ppd);
+	    if(discos!=NULL)
+	    {
+	      printf("\nNueva conexion PFS: %d",sock_new);
+	      pfs *nuevo_pfs;
+	      nuevo_pfs = (pfs *)malloc(sizeof(pfs));
+	      nuevo_pfs->sock=sock_new;
+	      nuevo_pfs->sgte = pedidos_pfs;
+	      pedidos_pfs = nuevo_pfs;
+	      FD_SET (nuevo_pfs->sock, &set_socket);
+	    }
+	    else
+	    {
+	      //ENVIAR ERROR DE CONEXION
+	      printf("No hay discos conectados!");
+	    }
 	  }
 	}
 	if(mensaje.type == nipc_req_read)
 	{
-	  if(mensaje.payload != '\0')
+	  if(mensaje.len == 4)
 	  {
-	    printf("\nRespues lectura PPD: %d",sock_ppd);
-	    agregarDisco(&discos);
+	    printf("\nPedido de lectura del FS: %d",mensaje.payload.sector);
+	    //agregarPedidoLectura();
+	    //distribuirPedidoLectura(&discos);
+	    
+	    printf("\n-------------------------------");
 	  }
 	  else
 	  {
-	    printf("\nRespues lectura PPD: %d",sock_ppd);
+	    printf("\nRespuesta lectura: %s",mensaje.payload.contenido);
 	  }
 	}
+	if(mensaje.type == nipc_req_write)
+	{
+	  if(mensaje.len != 4)
+	  {
+	    printf("\nPedido de escritura del FS: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
+	    //agregarPedidoEscritura();
+	    //distribuirPedidoEscritura(&discos);
+	    
+	    printf("\n-------------------------------");
+	  }
+	  else
+	  {
+	    printf("\nRespuesta lectura: %d",mensaje.payload.sector);
+	  }
+	}
+	if(mensaje.type == nipc_error)
+	{
+	  printf("\nERROR: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
+	}
       }
-      
     }
   }
-   exit(EXIT_SUCCESS);
+  printf("\n\n POR ALGO SALIII \n\n");
+  exit(EXIT_SUCCESS);
 }
+
+
+
 
 
 

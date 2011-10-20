@@ -7,7 +7,7 @@
 #include<signal.h>
 #include "praid_func.h"
 #include "praid1.h"
-
+#include "../common/nipc.h"
 
 /**
  * Crea un nuevo pedido de lectura
@@ -17,16 +17,16 @@ void agregarPedidoLectura()
 {
 	uint32_t id_cola, size_msg;
 	key_t clave = 111;
-	struct mensaje buf_msg;
+	struct mensajeCola buf_msg;
 	if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
 			perror("msgget:create");
 			exit(EXIT_FAILURE);
 		}
-	(&buf_msg)->sector_msg = 64;
-	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector_msg );
+	(&buf_msg)->sector = 64;
+	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector );
 	//scanf("%d",&(&buf_msg)->sector_msg);
-	buf_msg.type_msg=1; //getpid();
-	size_msg=sizeof((&buf_msg)->sector_msg);
+	buf_msg.type=1; //getpid();
+	size_msg=sizeof((&buf_msg)->sector);
 	if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
 		perror("msgsnd"); 
 		exit(EXIT_FAILURE);
@@ -42,16 +42,16 @@ void agregarPedidoEscritura()
 {
 	uint32_t id_cola, size_msg;
 	key_t clave = 222;
-	struct mensaje buf_msg;
+	struct mensajeCola buf_msg;
 	if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
 			perror("msgget:create");
 			exit(EXIT_FAILURE);
 		}
-	(&buf_msg)->sector_msg = 32;
-	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector_msg );
+	(&buf_msg)->sector = 32;
+	printf("\n\nIngrese Sector: %d",(&buf_msg)->sector );
 	//scanf("%d",&(&buf_msg)->sector_msg);
-	buf_msg.type_msg=2; //getpid();
-	size_msg=sizeof((&buf_msg)->sector_msg);
+	buf_msg.type=2; //getpid();
+	size_msg=sizeof((&buf_msg)->sector);
 
 	if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
 		perror("msgsnd"); 
@@ -64,15 +64,19 @@ void agregarPedidoEscritura()
  * Agrega un nuevo disco al RAID
  *
  */
-void agregarDisco(disco **discos)
+void agregarDisco(disco **discos, char id_disco[20], uint32_t sock_new)
 {
 	disco *nuevoDisco;
 	nuevoDisco = (disco *)malloc(sizeof(disco));
-	nuevoDisco->id_disco=12;
+	memcpy(nuevoDisco->id,id_disco,strlen((char *)id_disco));
+	nuevoDisco->sock=sock_new;
+	if(pthread_create(&nuevoDisco->hilo,NULL,(void *)esperaRespuestas,(void *)nuevoDisco->sock)!=0)
+	     printf("Error en la creacion del hilo");
 	nuevoDisco->cantidad_pedidos = 0;
 	nuevoDisco->pedidos = NULL;
 	nuevoDisco->sgte = *discos;
 	*discos = nuevoDisco;
+
 }
 
 /**
@@ -86,7 +90,7 @@ void listarPedidosDiscos(disco **discos)
 	aux_disco=*discos;
 	while(aux_disco != NULL)	
 	{
-		printf("\n\nDisco %d, Cantidad %d", aux_disco->id_disco, aux_disco->cantidad_pedidos);
+		printf("\n\nDisco %s, Cantidad %d", aux_disco->id, aux_disco->cantidad_pedidos);
 		pedido *aux_pedido;
 		aux_pedido = aux_disco->pedidos;	
 		while(aux_pedido!=NULL)
@@ -121,53 +125,46 @@ uint32_t menorCantidadPedidos(disco *discos)
  * Distribulle un pedido de lectura de la cola de mensajes
  *
  */
-void distribuirPedidoLectura(disco **discos)
+void distribuirPedidoLectura(disco **discos,nipc_packet mensaje)
 {
 	uint16_t encontrado = 0;
-	uint32_t id_cola, size_msg, menorPedido;
-	key_t clave = 111;
-	struct mensaje buf_msg;
+	uint32_t menorPedido;
 	menorPedido =  menorCantidadPedidos(*discos);
-	if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
-			perror("msgget:create");
-			exit(EXIT_FAILURE);
-		}
-	size_msg = msgrcv(id_cola, &buf_msg, SIZEBUF,0,0);
-	if (size_msg>0)
+	disco *aux;
+	aux=*discos;
+	while((aux != NULL) && encontrado == 0)
 	{
-		disco *aux;
-		aux=*discos;
-		while((aux != NULL) && encontrado == 0)
-		{
-			if (aux->cantidad_pedidos == menorPedido)
-				encontrado = 1;
-			else
-				aux = aux->sgte;
-		}
-		pedido *nuevoPedido;
-		nuevoPedido = (pedido *)malloc(sizeof(pedido));
-		nuevoPedido->type_pedido=(&buf_msg)->type_msg;
-		nuevoPedido->sector = (&buf_msg)->sector_msg;
-
-		if (encontrado==1)
-		{
-			nuevoPedido->sgte = aux->pedidos;
-			aux->pedidos = nuevoPedido;
-			aux->cantidad_pedidos++;
-		}
+		if (aux->cantidad_pedidos == menorPedido)
+			encontrado = 1;
 		else
-		{
-			aux=*discos;			
-			nuevoPedido->sgte = aux->pedidos;
-			aux->pedidos = nuevoPedido;
-			aux->cantidad_pedidos++;
-		}
+			aux = aux->sgte;
+	}
+	pedido *nuevoPedido;
+	nuevoPedido = (pedido *)malloc(sizeof(pedido));
+	nuevoPedido->type_pedido=mensaje.type;
+	nuevoPedido->sector = mensaje.payload.sector;
+	if (encontrado==1)
+	{
+		nuevoPedido->sgte = aux->pedidos;
+		aux->pedidos = nuevoPedido;
+		aux->cantidad_pedidos++;
 	}
 	else
 	{
-		perror("msgrcv");
+		aux=*discos;
+		nuevoPedido->sgte = aux->pedidos;
+		aux->pedidos = nuevoPedido;
+		aux->cantidad_pedidos++;
+	}
+	
+	if(send_socket(&mensaje,aux->sock)<0)
+	{
+		printf("\nError send");
 		exit(EXIT_FAILURE);
 	}
+	else
+	printf("\nLectura en disco: %s",aux->id);
+	
 }
 
 /**
@@ -178,7 +175,7 @@ void distribuirPedidoEscritura(disco **discos)
 {
 	uint32_t id_cola, size_msg;
 	key_t clave = 222;
-	struct mensaje buf_msg;
+	struct mensajeCola buf_msg;
 	if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
 			perror("msgget:create");
 			exit(EXIT_FAILURE);
@@ -192,8 +189,8 @@ void distribuirPedidoEscritura(disco **discos)
 		{
 			pedido *nuevoPedido;
 			nuevoPedido = (pedido *)malloc(sizeof(pedido));
-			nuevoPedido->type_pedido = (&buf_msg)->type_msg;
-			nuevoPedido->sector = (&buf_msg)->sector_msg;
+			nuevoPedido->type_pedido = (&buf_msg)->type;
+			nuevoPedido->sector = (&buf_msg)->sector;
 			nuevoPedido->sgte = aux->pedidos;
 			aux->pedidos = nuevoPedido;
 			aux=aux->sgte;
@@ -297,15 +294,34 @@ void eliminarCola(disco **discos)
 /**
  * Distriubuye constantemente los pedidos que alla en la cola
  *
- *
-void *distribuirPedidos(disco **discos)
+ */
+void *esperaRespuestas(uint32_t sock)
 {
-	while(hayPedidosEscritura()!=0 || hayPedidosLectura()!=0)
-	{
-		if (hayPedidosEscritura()!=0)
-			distribuirPedidoEscritura(&discos);
-		else		
-			if (hayPedidosLectura()!=0)
-				distribuirPedidoLectura(&discos);
-	}
-}*/
+  nipc_packet mensaje;
+  while(1)
+  {
+    if(recv_socket(&mensaje,sock)>0)
+    {
+      printf("\n\nEl mensaje recivido es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+      uint32_t id_cola, size_msg;
+      key_t clave = 111;
+      struct mensajeCola buf_msg;
+      if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
+	      perror("msgget:create");
+	      exit(EXIT_FAILURE);
+      }
+      buf_msg.type=mensaje.type;
+      (&buf_msg)->sector = mensaje.payload.sector;
+      memcpy((&buf_msg)->contenido, mensaje.payload.contenido,strlen(mensaje.payload.contenido));
+      
+      size_msg=516;
+      if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
+	      perror("msgsnd"); 
+	      exit(EXIT_FAILURE);
+      }else
+	      printf("\nMensaje publicado");
+    }
+  }
+  
+  return (void *)1;
+}

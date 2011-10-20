@@ -4,9 +4,11 @@
 #include <errno.h>
 #include <unistd.h>
 
+
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
+
 
 #include "nipc.h"
 
@@ -16,7 +18,7 @@
  * @nipc_socket estructura del socket del protocolo NIPC
  * @return el descriptor del socket creado
  */
-nipc_socket createSocket(char *host, uint16_t port)
+nipc_socket create_socket(char *host, uint16_t port)
 {
     nipc_socket sock_new;
     struct sockaddr_in addr_raid;
@@ -51,28 +53,28 @@ nipc_socket createSocket(char *host, uint16_t port)
  * Envia un paquete con socket indicado
  *
  */
-uint32_t recvSocket(nipc_packet *packet, nipc_socket sock)
+uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 {
-	uint32_t Leido = 0;
-	uint32_t Aux = 0;
+	uint32_t leido = 0;
+	uint32_t aux = 0;
 	/*
 	* Comprobacion de que los parametros de entrada son correctos
 	*/
-	if ((sock == -1) || (packet == NULL) || (sizeof(packet->buffer) < 1))
+	if ((sock == -1) || (packet == NULL))
 		return -1;
 	/*
 	* Mientras no hayamos leido todos los datos solicitados
 	*/
-	while (Leido < packet->len)
+	while (leido < 519)
 	{
-		Aux = recv (sock, packet->buffer + Leido, sizeof(packet->buffer) - Leido,0);
-		if (Aux > 0)
+		aux = recv (sock, packet->buffer + leido, 519 - leido,0);
+		if (aux > 0)
 		{
 			/* 
 			* Si hemos conseguido leer datos, incrementamos la variable
 			* que contiene los datos leidos hasta el momento
 			*/
-			Leido = Leido + Aux;
+			leido = leido + aux;
 		}
 		else
 		{
@@ -80,9 +82,9 @@ uint32_t recvSocket(nipc_packet *packet, nipc_socket sock)
 			* Si read devuelve 0, es que se ha cerrado el socket. Devolvemos
 			* los caracteres leidos hasta ese momento
 			*/
-			if (Aux == 0) 
-				return Leido;
-			if (Aux == -1)
+			if (aux == 0) 
+				return leido;
+			if (aux == -1)
 			{
 				/*
 				* En caso de error, la variable errno nos indica el tipo
@@ -112,7 +114,7 @@ uint32_t recvSocket(nipc_packet *packet, nipc_socket sock)
 	/*
 	* Se devuelve el total de los caracteres leidos
 	*/
-	return Leido;
+	return leido;
 }
 
 /**
@@ -121,31 +123,31 @@ uint32_t recvSocket(nipc_packet *packet, nipc_socket sock)
  * @nipc_packet estructura del protocolo NIPC
  * @return el paquete recivido
  */
-uint32_t sendSocket(nipc_packet *packet, nipc_socket sock)
+uint32_t send_socket(nipc_packet *packet, nipc_socket sock)
 {
-	uint32_t Escrito = 0;
-	uint32_t Aux = 0;
+	uint32_t escrito = 0;
+	uint32_t aux = 0;
 
 	/*
 	* Comprobacion de los parametros de entrada
 	*/
-	if ((sock == -1) || (packet == NULL) || (packet->len < 1))
+	if ((sock == -1) || (packet == NULL))
 		return -1;
 	
 	/*
 	* Bucle hasta que hayamos escrito todos los caracteres que nos han
 	* indicado.
 	*/
-	while (Escrito < packet->len)
+	while (escrito < 519)
 	{
-		Aux = send(sock, packet->buffer + Escrito, packet->len - Escrito,0);
-		if (Aux > 0)
+		aux = send(sock, packet->buffer + escrito, 519 - escrito,0);
+		if (aux > 0)
 		{
 			/*
 			* Si hemos conseguido escribir caracteres, se actualiza la
-			* variable Escrito
+			* variable escrito
 			*/
-			Escrito = Escrito + Aux;
+			escrito = escrito + aux;
 		}
 		else
 		{
@@ -154,8 +156,8 @@ uint32_t sendSocket(nipc_packet *packet, nipc_socket sock)
 			* leidos.
 			* Si ha habido error, devolvemos -1
 			*/
-			if (Aux == 0)
-				return Escrito;
+			if (aux == 0)
+				return escrito;
 			else
 				return -1;
 		}
@@ -163,5 +165,5 @@ uint32_t sendSocket(nipc_packet *packet, nipc_socket sock)
 	/*
 	* Devolvemos el total de caracteres leidos
 	*/
-	return Escrito;
+	return escrito;
 }
