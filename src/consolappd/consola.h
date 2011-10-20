@@ -5,6 +5,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include "consola.h"
 
 #define TAM_COMANDO 100

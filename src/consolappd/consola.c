@@ -4,7 +4,7 @@
 
 int main ()
 {
-	/	//inicializo una estructura nipc para la comunicacion
+		//inicializo una estructura nipc para la comunicacion
 
 	   /** ---------------------------------------------ME CONECTO AL PPD---------*/
 
@@ -28,7 +28,7 @@ int main ()
 		resultado = connect ( cliente, punteroServidor, lengthCliente );
 
 		if ( resultado == -1 )
-			sleep (1);   /* reintento */
+			sleep(1);   /* reintento */
 
 	}   while ( resultado == -1 );
 
