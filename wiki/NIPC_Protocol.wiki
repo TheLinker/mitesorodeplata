@@ -3,8 +3,73 @@
 =Protocolo NIPC=
 
 ----
+----
 ==Tipo 0: es el handshake, esta en el TP.==
 
+===Proceso FIle System -> Proceso RAID:===
+
+===Proceso FIle System -> Proceso disco:===
+
+Type: 0
+
+Payload: Vacio
+
+||Type||PayloadLength||||Payload||
+||0||0||0||Vacio||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
+
+*RESPUESTA OK*:
+
+Type: 0
+
+Payload: Vacio
+
+||Type||PayloadLength||||Payload||
+||0||0||0||Vacio||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
+
+*RESPUESTA FALLO*:
+
+Type: 0
+
+Payload: Descripcion error
+
+||Type||PayloadLength||||Payload||
+||0||sizeof(payload)||0||Descripcion error||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
+
+
+===Proceso disco -> Proceso RAID:===
+
+Type: 0
+Payload: Identificador disco
+||Type||PayloadLength||||Payload||
+||0||sizeof(payload)||0||Identificador disco||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
+
+*RESPUESTA OK*:
+
+Type: 0
+
+Payload: Vacio
+
+||Type||PayloadLength||||Payload||
+||0||0||0||Vacio||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
+
+*RESPUESTA FALLO*:
+
+Type: 0
+
+Payload: Descripcion error
+
+||Type||PayloadLength||||Payload||
+||0||sizeof(payload)||0||Descripcion error||
+||1 Byte||2 Bytes||4 Bytes||512 Bytes||
+
+
+
+----
 ----
 ==Tipo 1: Solicitud de sector:==
 
@@ -21,7 +86,7 @@ Payload: sector solicitado
 ||1||4||SectorSolicitado||
 ||1 Byte||2 Bytes||4 Bytes||
 
-Rta:
+*RESPUESTA OK*:
 
 Type: 1
 
