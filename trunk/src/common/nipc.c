@@ -3,19 +3,15 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-
-
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
-
-
 #include "nipc.h"
 
 /**
- * Inicia un socket
+ * Inicia un socket para escuchar nuevas conexiones
  *
- * @nipc_socket estructura del socket del protocolo NIPC
+ * @nipc_socket descriptor del socket del protocolo NIPC
  * @return el descriptor del socket creado
  */
 nipc_socket create_socket(char *host, uint16_t port)
@@ -50,38 +46,31 @@ nipc_socket create_socket(char *host, uint16_t port)
 }
 
 /**
- * Envia un paquete con socket indicado
+ * Recive un paquete del socket indicado
  *
+ * @return cantidad de caracteres recividos, en caso de ser 0 informa que el socket ha sido cerrado
  */
 uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 {
 	uint32_t leido = 0;
 	uint32_t aux = 0;
-	/*
-	* Comprobacion de que los parametros de entrada son correctos
-	*/
+	//* Comprobacion de que los parametros de entrada son correctos
 	if ((sock == -1) || (packet == NULL))
 		return -1;
-	/*
-	* Mientras no hayamos leido todos los datos solicitados
-	*/
+	//* Mientras no hayamos leido todos los datos solicitados
 	while (leido < 519)
 	{
 		aux = recv (sock, packet->buffer + leido, 519 - leido,0);
 		if (aux > 0)
 		{
-			/* 
-			* Si hemos conseguido leer datos, incrementamos la variable
-			* que contiene los datos leidos hasta el momento
-			*/
+			//* Si hemos conseguido leer datos, incrementamos la variable
+			//* que contiene los datos leidos hasta el momento
 			leido = leido + aux;
 		}
 		else
 		{
-			/*
-			* Si read devuelve 0, es que se ha cerrado el socket. Devolvemos
-			* los caracteres leidos hasta ese momento
-			*/
+			//* Si read devuelve 0, es que se ha cerrado el socket
+			//* Devolvemos los caracteres leidos hasta ese momento
 			if (aux == 0) 
 				return leido;
 			if (aux == -1)
@@ -111,59 +100,39 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 			}
 		}
 	}
-	/*
-	* Se devuelve el total de los caracteres leidos
-	*/
 	return leido;
 }
 
 /**
- * Recive un paquete en el socket especificado
+ * Envia un paquete en el socket especificado
  *
- * @nipc_packet estructura del protocolo NIPC
- * @return el paquete recivido
+ * @return cantidad de caracteres enviados
  */
 uint32_t send_socket(nipc_packet *packet, nipc_socket sock)
 {
 	uint32_t escrito = 0;
 	uint32_t aux = 0;
-
-	/*
-	* Comprobacion de los parametros de entrada
-	*/
+	//* Comprobacion de los parametros de entrada
 	if ((sock == -1) || (packet == NULL))
 		return -1;
-	
-	/*
-	* Bucle hasta que hayamos escrito todos los caracteres que nos han
-	* indicado.
-	*/
+	//* Bucle hasta que hayamos escrito todos los caracteres que nos han indicado.
 	while (escrito < 519)
 	{
 		aux = send(sock, packet->buffer + escrito, 519 - escrito,0);
 		if (aux > 0)
 		{
-			/*
-			* Si hemos conseguido escribir caracteres, se actualiza la
-			* variable escrito
-			*/
+			//* Si hemos conseguido escribir caracteres, se actualiza la variable escrito
 			escrito = escrito + aux;
 		}
 		else
 		{
-			/*
-			* Si se ha cerrado el socket, devolvemos el numero de caracteres
-			* leidos.
-			* Si ha habido error, devolvemos -1
-			*/
+			//* Si se ha cerrado el socket, devolvemos el numero de caracteres leidos.
+			//* Si ha habido error, devolvemos -1
 			if (aux == 0)
 				return escrito;
 			else
 				return -1;
 		}
 	}
-	/*
-	* Devolvemos el total de caracteres leidos
-	*/
 	return escrito;
 }

@@ -8,11 +8,9 @@
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
-
 #include "../common/nipc.h"
 #include "praid1.h"
 #include "praid_func.h"
-
 
 int main(int argc, char *argv[])
 {

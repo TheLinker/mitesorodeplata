@@ -64,7 +64,7 @@ void agregarPedidoEscritura()
  * Agrega un nuevo disco al RAID
  *
  */
-void agregarDisco(disco **discos, char id_disco[20], uint32_t sock_new)
+void agregarDisco(disco **discos, char id_disco[20], nipc_socket sock_new)
 {
 	disco *nuevoDisco;
 	nuevoDisco = (disco *)malloc(sizeof(disco));
@@ -292,7 +292,8 @@ void eliminarCola(disco **discos)
 }
 
 /**
- * Distriubuye constantemente los pedidos que alla en la cola
+ * Funcion para hilos de PPDs
+ * Escucha constante de respuestas del PPD y la pone en una cola de mensajes
  *
  */
 void *esperaRespuestas(uint32_t sock)
@@ -322,6 +323,5 @@ void *esperaRespuestas(uint32_t sock)
 	      printf("\nMensaje publicado");
     }
   }
-  
   return (void *)1;
 }
