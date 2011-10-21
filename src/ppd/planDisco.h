@@ -18,13 +18,11 @@ typedef struct
 	struct cola_t *		sig;
 } cola_t;
 
-void nnCscan(nipc_packet, int);
-
-void insertCscan(cola_t * newptr, cola_t* headprt, cola_t* saltoptr, int posCab);
+void insertCscan(nipc_packet, cola_t*, cola_t*, int);
 
 void insertOrd (cola_t * colaptr, cola_t * newptr);
 
-void insertFifo(nipc_packet);
+void insertFifo(nipc_packet, cola_t *);
 
 void msjtocol(nipc_packet msj, cola_t * newptr);
 

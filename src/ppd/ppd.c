@@ -18,16 +18,16 @@ int main()
 
 void escucharPedidos(void)
 {
-	//inicializar la cola de pedidos initCol(cola);
-	//HACER UN WHILE Q ESCUCHE PEDIDOS
-	nipc_packet msj;
-
-	msjprueba(&msj);
+	cola_t *headprt = NULL, *saltoptr = NULL;
+	nipc_packet msj; /*PRUEBA*/
+	msjprueba(&msj); /*PRUEBA*/
 
 	if(0 == strcmp(vecConfig.algplan, "cscan"))
-		nnCscan(msj, vecConfig.posactual);
+		//HACER UN WHILE Q ESCUCHE PEDIDOS
+		insertCscan(msj, headprt, saltoptr, vecConfig.posactual);
 	else
-		insertFifo(msj);
+		//HACER UN WHILE Q ESCUCHE PEDIDOS
+		insertFifo(msj, headprt);
 
 
 	//atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
