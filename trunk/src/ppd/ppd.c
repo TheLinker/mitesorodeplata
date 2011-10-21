@@ -8,7 +8,7 @@ int main()
 {
 	vecConfig = getconfig("config.txt");
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
-	//conectar()
+	conectarConPraid();
 	//CREAR TRES HILOS, UNO PARA ESCUCHAR PEDIDOS Y ENCOLARLOS, OTRO PARA ATENDER LOS PEDIDOS Y OTRO PARA LA CONSOLA
 	escucharPedidos();
 	escucharConsola();
@@ -16,6 +16,40 @@ int main()
 	return 1;
 }
 
+void conectarConPraid();  //ver tipos de datos 
+{
+  nipc_socket create_socket();  // ver tipos de datos
+}
+
+nipc_socket create_socket(char *host, uint16_t port)
+{
+	nipc_socket ppd;
+  struct sockaddr_in addr_ppd;
+  uint32_t i = 1;
+
+	if ( (ppd = socket(AF_INET,SOCK_STREAM,0)) <0 )
+  {
+    printf("ERROR AL CREAR EL SOCKET");
+    exit(1);
+  }
+
+	addr_ppd.sin_family = AF_INET;
+  addr_ppd.sin_port=htons(50003);  //cambiar puerto
+  addr_ppd.sin_addr.s_addr=inet_addr("127.0.0.1");
+
+	if( connect(ppd, (struct sockaddr *) &addr_ppd, sizeof(add_ppd)) <0 )
+	{
+		printf("ERROR EN LA CONEXION");
+		exit(1);
+	}	
+
+	//recv();
+
+	//send();
+
+	return ppd;
+
+}
 
 void escucharPedidos(void)
 {
@@ -29,9 +63,6 @@ void escucharPedidos(void)
 	else
 		//HACER UN WHILE Q ESCUCHE PEDIDOS
 		insertFifo(msj, headprt);
-
-
-
 
 return;
 }
@@ -96,10 +127,20 @@ void escucharConsola()
 
 	strcpy ( direccionServidor.sun_path, "fichero" );   /* nombre */
 	unlink( "fichero" );
-	bind ( servidor, punteroServidor, lengthServidor );   /* crea el fichero */
+   
+	if (bind ( servidor, punteroServidor, lengthServidor )) <0)   /* crea el fichero */
+  {   
+       printf("ERROR BIND");
+       exit(1);
+  }  
 
 	puts ("\n Estoy a la espera \n");
-	listen ( servidor, 1 );
+   
+	if (listen ( servidor, 1 ) <0 )
+  {  
+       printf("ERROR LISTEN");
+       exit(1);
+  }  
 
 	do	//verifico que se quede esperando la conexion en caso de error
 
