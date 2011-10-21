@@ -12,7 +12,10 @@
 #include <sys/types.h>   
 #include <sys/socket.h>   
 #include <sys/un.h> 
+#include <pthread.h>
 #include "../common/nipc.h"
+#include "../common/utils.h"
+
 
 #define TAM_SECT 512
 #define TAM_PAG 4096
@@ -53,5 +56,7 @@ int my_itoa(int val, char* buf);
 void errorparam(void);
 
 void msjprueba(nipc_packet *);
+
+void conectarConPraid();
 
 #endif /* PPD_H_ */

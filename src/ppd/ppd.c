@@ -6,44 +6,56 @@ char * bufferConsola;
 
 int main()
 {
+	pthread_t thConsola,thEscucharPedidos, thAtenderpedidos;
+	char* mensaje = NULL;
+	int  thidConsola, thidEscucharPedidos, thidAtenderpedidos;
+
 	vecConfig = getconfig("config.txt");
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
+
 	conectarConPraid();
-	//CREAR TRES HILOS, UNO PARA ESCUCHAR PEDIDOS Y ENCOLARLOS, OTRO PARA ATENDER LOS PEDIDOS Y OTRO PARA LA CONSOLA
-	escucharPedidos();
-	escucharConsola();
+
+	thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
+	thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *) escucharPedidos, (void*) mensaje);
+	thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, (void*) mensaje);
+
+	//escucharPedidos();
+	//escucharConsola();
 	//atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
 	return 1;
 }
 
-void conectarConPraid();  //ver tipos de datos 
+void conectarConPraid()  //ver tipos de datos
 {
-  nipc_socket create_socket();  // ver tipos de datos
+	char * host;
+	uint16_t port;
+
+	nipc_socket create_socket(host, port);  // ver tipos de datos
 }
 
 nipc_socket create_socket(char *host, uint16_t port)
 {
 	nipc_socket ppd;
-  struct sockaddr_in addr_ppd;
-  
+	struct sockaddr_in addr_ppd;
+
 	if ( (ppd = socket(AF_INET,SOCK_STREAM,0)) <0 )
-  {
+	{
     printf("ERROR AL CREAR EL SOCKET");
     exit(1);
-  }
+	}
 
 	addr_ppd.sin_family = AF_INET;
-  addr_ppd.sin_port=htons(50003);  //cambiar puerto
-  addr_ppd.sin_addr.s_addr=inet_addr("127.0.0.1");
+	addr_ppd.sin_port=htons(50003);  //cambiar puerto
+	addr_ppd.sin_addr.s_addr=inet_addr("127.0.0.1");
 
-	if( connect(ppd, (struct sockaddr *) &addr_ppd, sizeof(add_ppd)) <0 )
+	if( connect(ppd, (struct sockaddr *) &addr_ppd, sizeof(addr_ppd)) <0 )
 	{
 		printf("ERROR EN LA CONEXION");
 		exit(1);
 	}	
 
 	//recv();
-
+	//thidEscucharPedidos = pthread_create( &tAtenderpedidos, NULL, escucharPedidos, (void*) mensaje);
 	//send();
 
 	return ppd;
@@ -127,7 +139,7 @@ void escucharConsola()
 	strcpy ( direccionServidor.sun_path, "fichero" );   /* nombre */
 	unlink( "fichero" );
    
-	if (bind ( servidor, punteroServidor, lengthServidor )) <0)   /* crea el fichero */
+	if (bind ( servidor, punteroServidor, lengthServidor ) <0)   /* crea el fichero */
   {   
        printf("ERROR BIND");
        exit(1);
