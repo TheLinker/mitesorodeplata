@@ -3,6 +3,10 @@
 
 config_t vecConfig;
 char * bufferConsola;
+int posCabAct;
+cola_t *headprt = NULL, *saltoptr = NULL;
+size_t len = 100;
+FILE * dirArch;
 
 int main()
 {
@@ -12,6 +16,7 @@ int main()
 
 	vecConfig = getconfig("config.txt");
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
+	posCabAct = vecConfig.posactual;
 
 	conectarConPraid();
 
@@ -27,10 +32,7 @@ int main()
 
 void conectarConPraid()  //ver tipos de datos
 {
-	char * host;
-	uint16_t port;
-
-	create_socket(host, port);  // ver tipos de datos
+	create_socket(vecConfig.ippraid,vecConfig.puertopraid);  // ver tipos de datos
 }
 
 nipc_socket create_socket(char *host, uint16_t port)
@@ -64,7 +66,6 @@ nipc_socket create_socket(char *host, uint16_t port)
 
 void escucharPedidos(void)
 {
-	cola_t *headprt = NULL, *saltoptr = NULL;
 	nipc_packet msj; /*PRUEBA*/
 	msjprueba(&msj); /*PRUEBA*/
 
@@ -80,39 +81,25 @@ return;
 
 void atenderPedido(void)
 {
+	ped_t ped;
 
-	//switch(payloadDescriptor)   TODO
-	//{
-		//case LEER:
-			//leerPedido(sect);
-			//break;
-		//case ESCRIBIR:
-			//escribirPedido(sect, payload);
-			//break;
-		//default:
-			//printf("Error comando PPD";
-			//break;
-	//}
+	ped = desencolar(headprt, saltoptr);
 
-	//    ### HAY Q DEFINIR LOS VALORES PARA LEER Y ESCRIBIR Y DEJAR EL SWITCH DE ARRIBA ###
-
-	//recv()   ###Queda esperando a q lleguen pedidos###
-	if(0 == strcmp(comando,"leer"))
+	switch(ped.oper)
 	{
-		//pasar lo q me mandan como parametro a un int
-		leerSect(sect, dirArch);
+		case nipc_req_read:
+			leerSect(ped.sect);
+			break;
+		case nipc_req_write:
+			escribirSect(ped.sect, ped.buffer);
+			break;
+
+		default:
+			printf("Error comando PPD");
+			break;
+
 	}
-	else
-	{
-		if(0 == strcmp(comando,"escribir"))
-		{
-			escribirSect(buffer, sect, dirArch);
-		}
-		else
-		{
-			printf("Ha ingresado un comando invalido\n");
-		}
-	}
+
 }
 
 void escucharConsola()
@@ -209,7 +196,7 @@ void atenderConsola(char comando[30])
 //---------------Funciones PPD------------------//
 
 
-void leerSect(int sect, FILE * dirArch)
+void leerSect(int sect)
 {
 	div_t res;
 
@@ -232,7 +219,7 @@ void leerSect(int sect, FILE * dirArch)
 }
 
 
-void escribirSect(char buffer[512], int sect, FILE * dirArch)
+void escribirSect(int sect, char buffer[512])
 {
 	div_t res;
 
@@ -286,7 +273,7 @@ void * paginaMap(int sect, FILE * dirArch)
 
 void funcInfo()
 {
-	sprintf(bufferConsola, "%d", vecConfig.posactual);
+	sprintf(bufferConsola, "%d", posCabAct);
 	//send(socket,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
@@ -303,7 +290,7 @@ void funcClean(char * parametros)
 	memset(bufferConsola, '\0', TAM_SECT);
 	while(primSec <= ultSec)
 	{
-		escribirSect(bufferConsola, primSec, dirArch);
+		escribirSect(primSec, bufferConsola);
 		primSec++;
 	}
 
