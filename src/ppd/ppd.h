@@ -18,7 +18,7 @@
 #define TAM_PAG 4096
 #define PROTOCOLO 0  
 
-char comando[15], param[15], buffer[512];
+char comando[30], buffer[TAM_SECT], bufferent[TAM_SECT];
 char * pathArch;
 void * dirMap, * dirSect;
 int sect, cantSect, offset;
@@ -32,7 +32,7 @@ void atenderPedido(void);
 
 void leerSect(int sect, FILE * dirArch);
 
-void escribirSect(char param[TAM_SECT], int sect, FILE * dirArch);
+void escribirSect(char bufferent[TAM_SECT], int sect, FILE * dirArch);
 
 FILE * abrirArchivoV(char * pathArch);
 
@@ -40,13 +40,13 @@ void * paginaMap (int sect, FILE * dirArch);
 
 void escucharConsola(void);
 
-void atenderConsola(char comando[15]);
+void atenderConsola(char comando[30]);
 
 void funcInfo(void);
 
-void funcClean(void);
+void funcClean(char *);
 
-void funcTrace(void);
+void funcTrace(char *);
 
 int my_itoa(int val, char* buf);
 
