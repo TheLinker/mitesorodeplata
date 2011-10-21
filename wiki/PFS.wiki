@@ -7,9 +7,24 @@ Resumen de estructuras y decisiones tomadas en el desarrollo del Proceso File Sy
 
 El nombre del sistema de archivos *FAT* (_File Allocation Table_) proviene del uso de una tabla que centraliza la información sobre aquellas áreas de memoria que pertenecen a archivos y aquellas que se encuentran libres o posiblemente no utilizadas. La FAT también  alberga la información acerca de *donde* se encuentra cada archivo almacenado en memoria.
 
-Con el objeto de limitar el tamaño de la tabla, el espacio en disco cedido a los archivos es administrado en forma de _clusters_ . El número de bits utilizado para identificar cada cluster es de 28 bits en FAT 32.
+Con el objeto de limitar el tamaño de la tabla,la partición o el espacio en disco cedido a los archivos es administrado en forma de _clusters_ (pequeños bloques de espacio contiguo). Nosotros utilizaremos clústers de *4Kb*. El número de bits utilizado para identificar cada cluster es de 28 bits en FAT 32, a pesar de que el tamaño total de cada entrada en la tabla FAT es de 32 (se desperdician 4 bits por entrada).
 
+Cada archivo puede ocupar uno o más clusters según su tamaño, es por eso que un archivo en la tabla FAT está representado como una cadena de estos clusters referida como una única lista enlazada.
 
+La *tabla FAT* no es más que una lista de entradas que ubican a cada clúster en la partición. Cada entrada puede contener alguno de los siguientes 5 valores:
+
+1) El número de clúster al siguiente clúster en la cadena.(un valor cualquiera desde 0x00000002 al 0xFFFFFFF6 ) 
+2) *EOC* _end of clusterchain_ *marker*. Es un valor que indica el fin de la cadena.
+3) Cluster reservado        (0x00000001)
+4) Cluster no utilizado     (0x00000000)
+5) Una marca que indica que el clúster se encuentra dañado   (0xFFFFFFF7)
+
+Las 2 primeras entradas de tabla FAT almacenan valores especiales:
+
+entrada 0 = Media Descriptor (obtenido del boot sector).
+entrada 1 = EOC marker.
+
+En la entrada 2 se encuentra el Root directory, y a partir de allí, datos.
 
 ==Estructuras de nuestra FAT32 (según este TP)==
 
@@ -78,5 +93,5 @@ Add your content here.  Format your content with:
 
 # Archivos de nombre largo : de 0 hasta 255 caracteres UTF-16
 
-# FAT usa formato *Little Endian* para las entradas en el header (sectores reservados) y para las entradas de la FAT. La notación *Little Endian" implica que 
+# FAT usa formato *Little Endian* para las entradas en el header (sectores reservados) y para las entradas de la FAT. La notación *Little Endian* implica que  
 se guarda *primero* el byte menos significativo.
