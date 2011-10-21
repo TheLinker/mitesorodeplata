@@ -6,16 +6,16 @@
 #include "pfs_files.h"
 
 typedef union boot_t {
-    uint8_t buffer[512];
+    uint8_t buffer[512];              // Offset   Longitud
     struct {
-        uint8_t  no_usado[11];
-        uint16_t bytes_per_sector;    // 0x0B 2
-        uint8_t  sectors_per_cluster; // 0x0D 1
-        uint16_t reserved_sectors;    // 0x0E 2
-        uint8_t  fat_count;           // 0x10 1
+        uint8_t  no_usado[11];        //  0x03      11
+        uint16_t bytes_per_sector;    //  0x0B       2
+        uint8_t  sectors_per_cluster; //  0x0D       1
+        uint16_t reserved_sectors;    //  0x0E       2
+        uint8_t  fat_count;           //  0x10       1
         uint8_t  no_usado2[15];
-        uint32_t total_sectors;       // 0x20 4
-        uint32_t sectors_per_fat;     // 0x24 4
+        uint32_t total_sectors;       //  0x20       4
+        uint32_t sectors_per_fat;     //  0x24       4
         uint8_t  no_usado3[472];
     } __attribute__ ((packed));       // para que no alinee los miembros de la estructura (si, estupido GCC)
 } boot_t;
