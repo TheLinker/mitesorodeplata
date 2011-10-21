@@ -64,6 +64,9 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp)
     //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
     if(cluster<2) return -EINVAL;
 
+//// SSA =                  | RSC = Reserved Sector Count  | FN = Number of FAT 
+//// SF = sectors per FAT   | LSN = Logical Sector Number  | CN = Cluster Number  | SC = Sectors per Cluster
+
 ////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
 ////  LSN=SSA + (CN-2) × SC(0x0D)
 
