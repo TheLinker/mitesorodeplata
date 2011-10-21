@@ -45,8 +45,17 @@ fat32_readdir
 
 ==Resumen de estructuras==
 
-===
+===Estructura tipo *boot_t*===
 
+Es un array de 512 bytes simil al Boot Sector. Solamente contiene la información necesaria.
+
+||*Nombre*||bytes per sector||sectors per cluster||Reserved Sector Count||# of FATs||Total Sectors||Sectors per FAT||
+||*Longitud* (bytes)|| 2 || 1 || 2 || 1 || 4 || 4 ||
+||*byte offset*|| 0x0B (11) || 0x0D (13) || 0x0E (14) || 0x10 (16) || 0x20 (32) || 0x24 (36) ||
+
+===Estructura tipo *fsinfo_t*===
+
+Es un array de 512 bytes simil al FS information sector. Solamente se utiliza un campo (_Number of free clusters on the drive_) de 4 bytes en la posición 0x1E8
 
 ==Decisiones Tomadas==
 
