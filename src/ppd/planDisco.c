@@ -72,24 +72,36 @@ cola_t * initPtr()
 	 return newptr;
 }
 
-/*cola_t * initSaltoPrt()
+ped_t desencolar(cola_t * headprt, cola_t * saltoprt)
 {
-	cola_t * saltoprt;
-	saltoprt = (cola_t *) malloc (sizeof(cola_t));
-	   if(saltoprt==NULL)
-	    {
-	        printf("Memoria RAM Llena");
-	        exit(0);
-	    }else
-	    {
-	    	memset(saltoprt->ped.buffer, '\0', TAM_SECT);
-	    	saltoprt->ped.oper = 0;
-	    	saltoprt->ped.sect = 99999; //Se Tiene que calcular el cual es el ultimo sector de todos
-	    	saltoprt->sig = NULL;
-	    }
+	ped_t pout;
+	cola_t * ptr;
 
-	 return saltoprt;
-}*/
+	if(NULL != headprt)
+	{
+		ptr = headprt;
+		pout.oper = ptr->ped.oper;
+		pout.sect = ptr->ped.sect;
+		strcpy(pout.buffer,ptr->ped.buffer);
+		headprt = ptr->sig;
+		free(ptr);
+
+	}else
+	{
+		if(NULL != saltoprt)
+		{
+			ptr = saltoprt;
+			pout.oper = ptr->ped.oper;
+			pout.sect = ptr->ped.sect;
+			strcpy(pout.buffer,ptr->ped.buffer);
+			saltoprt = ptr->sig;
+			free(ptr);
+		}
+	}
+
+	return pout;
+}
+
 
 
 void insertFifo(nipc_packet msj, cola_t * headptr)

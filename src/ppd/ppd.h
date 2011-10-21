@@ -17,7 +17,6 @@
 #include "../common/utils.h"
 #include <arpa/inet.h>
 
-
 #define TAM_SECT 512
 #define TAM_PAG 4096
 #define PROTOCOLO 0  
@@ -27,16 +26,14 @@ char * pathArch;
 void * dirMap, * dirSect;
 int sect, cantSect, offset;
 
-size_t len = 100;
-FILE * dirArch;
 
 void escucharPedidos(void);
 
 void atenderPedido(void);
 
-void leerSect(int sect, FILE * dirArch);
+void leerSect(int sect);
 
-void escribirSect(char bufferent[TAM_SECT], int sect, FILE * dirArch);
+void escribirSect(int, char [TAM_SECT]);
 
 FILE * abrirArchivoV(char * pathArch);
 
