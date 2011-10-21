@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include "../common/nipc.h"
 #include "../common/utils.h"
+#include <arpa/inet.h>
 
 
 #define TAM_SECT 512
