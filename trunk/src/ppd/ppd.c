@@ -98,9 +98,14 @@ void escucharConsola()
 	bind ( servidor, punteroServidor, lengthServidor );   /* crea el fichero */
 
 	puts ("\n estoy a la esperaaaaa \n");
-	listen ( servidor, 5 );
+	listen ( servidor, 1 );
 
-	cliente = accept ( servidor, punteroServidor, &lengthServidor );
+	do	//verifico que se quede esperando la conexion en caso de error
+
+		cliente = accept ( servidor, punteroServidor, &lengthServidor );
+
+	while (cliente == -1);
+   
 	puts ("\n acepto la conexion \n");
 
 	if(recv(cliente,comando,sizeof(comando),0)==-1) // recivimos lo que nos envia el cliente
