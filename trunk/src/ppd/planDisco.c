@@ -4,22 +4,13 @@
 #include "planDisco.h"
 
 
-void nnCscan(nipc_packet msj, int posCab)
+void insertCscan(nipc_packet msj, cola_t* headprt, cola_t* saltoptr, int posCab)
 {
-	cola_t *headprt = NULL, *saltoptr, * newptr;
-
-	saltoptr = initSaltoPrt();
+	cola_t *newptr;
+	div_t pisec;
 
 	newptr = initPtr();
 	msjtocol(msj, newptr);
-	insertCscan(newptr, headprt, saltoptr, posCab);
-
-	return;
-}
-
-void insertCscan(cola_t * newptr, cola_t* headprt, cola_t* saltoptr, int posCab)
-{
-	div_t pisec;
 
 	pisec = div(newptr->ped.sect, 100 /*CANTIDAD DE SECTORES POR PISTA (HAY Q PASARSELO)*/);
 	if(pisec.quot >= posCab)
@@ -36,22 +27,17 @@ void insertOrd (cola_t * colaptr, cola_t * newptr)
 {
 	cola_t* ordptr;
 
-	if((colaptr->ped.sect == 99999) /*prueba*/ && NULL == colaptr->sig)
-		colaptr->sig = newptr;
-	else
+	if(NULL == colaptr || newptr->ped.sect < colaptr->ped.sect)
 	{
-		if(NULL == colaptr || newptr->ped.sect < colaptr->ped.sect)
-			{
-				newptr->sig = colaptr;
-				colaptr = newptr;
-			}else
-			{
-				ordptr = colaptr;
-				while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
-					ordptr = ordptr->sig;
-				colaptr->sig = ordptr->sig;
-				ordptr->sig = colaptr;
-			}
+		newptr->sig = colaptr;
+		colaptr = newptr;
+	}else
+	{
+		ordptr = colaptr;
+		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
+			ordptr = ordptr->sig;
+		colaptr->sig = ordptr->sig;
+		ordptr->sig = colaptr;
 	}
 
 	return;
@@ -86,7 +72,7 @@ cola_t * initPtr()
 	 return newptr;
 }
 
-cola_t * initSaltoPrt()
+/*cola_t * initSaltoPrt()
 {
 	cola_t * saltoprt;
 	saltoprt = (cola_t *) malloc (sizeof(cola_t));
@@ -98,41 +84,15 @@ cola_t * initSaltoPrt()
 	    {
 	    	memset(saltoprt->ped.buffer, '\0', TAM_SECT);
 	    	saltoprt->ped.oper = 0;
-	    	saltoprt->ped.sect = 99999; /*Se Tiene que calcular el cual es el ultimo sector de todos*/
+	    	saltoprt->ped.sect = 99999; //Se Tiene que calcular el cual es el ultimo sector de todos
 	    	saltoprt->sig = NULL;
 	    }
 
 	 return saltoprt;
-}
+}*/
 
 
-//cola_t *creacola(cola_t *ult, nipc_packet msj)
-//{
-//    cola_t *p;
-//    p=initPtr();
-//    msjtocol(msj, p);
-//    if(ult!=NULL)
-    	//(*ult).proximo=p; // Si hay nodo anterior en prox pongo la direccion del nodo actual
-//    return p;
-//}
-
-int colaVacia(cola_t * headptr)
-{
-    if(headptr==NULL)
-    {
-    	return 1;
-    }else
-    {
-    	return 0;
-    }
-}
-
-
-
-
-
-
-void insertFifo(nipc_packet msj)
+void insertFifo(nipc_packet msj, cola_t * headptr)
 {
 
 	return;
