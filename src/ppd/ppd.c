@@ -30,7 +30,7 @@ void conectarConPraid()  //ver tipos de datos
 	char * host;
 	uint16_t port;
 
-	nipc_socket create_socket(host, port);  // ver tipos de datos
+	create_socket(host, port);  // ver tipos de datos
 }
 
 nipc_socket create_socket(char *host, uint16_t port)
