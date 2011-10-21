@@ -25,8 +25,7 @@ nipc_socket create_socket(char *host, uint16_t port)
 {
 	nipc_socket ppd;
   struct sockaddr_in addr_ppd;
-  uint32_t i = 1;
-
+  
 	if ( (ppd = socket(AF_INET,SOCK_STREAM,0)) <0 )
   {
     printf("ERROR AL CREAR EL SOCKET");
