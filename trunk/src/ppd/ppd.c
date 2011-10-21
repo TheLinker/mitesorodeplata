@@ -11,7 +11,8 @@ int main()
 	//conectar()
 	//CREAR TRES HILOS, UNO PARA ESCUCHAR PEDIDOS Y ENCOLARLOS, OTRO PARA ATENDER LOS PEDIDOS Y OTRO PARA LA CONSOLA
 	escucharPedidos();
-	//escucharConsola()
+	escucharConsola();
+	//atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
 	return 1;
 }
 
@@ -30,7 +31,7 @@ void escucharPedidos(void)
 		insertFifo(msj, headprt);
 
 
-	//atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
+
 
 return;
 }
@@ -97,7 +98,7 @@ void escucharConsola()
 	unlink( "fichero" );
 	bind ( servidor, punteroServidor, lengthServidor );   /* crea el fichero */
 
-	puts ("\n estoy a la esperaaaaa \n");
+	puts ("\n Estoy a la espera \n");
 	listen ( servidor, 1 );
 
 	do	//verifico que se quede esperando la conexion en caso de error
@@ -106,9 +107,9 @@ void escucharConsola()
 
 	while (cliente == -1);
    
-	puts ("\n acepto la conexion \n");
+	puts ("\n Acepto la conexion \n");
 
-	if(recv(cliente,comando,sizeof(comando),0)==-1) // recivimos lo que nos envia el cliente
+	if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
 	{
 		printf("error recibiendo");
 		exit(0);
@@ -120,23 +121,28 @@ void escucharConsola()
 
 }
 
-void atenderConsola(char comando[15])
+void atenderConsola(char comando[30])
 {
-	if(0 == strcmp(comando,"info"))
+	char * funcion, * parametros;
+
+	funcion = strtok(comando," ");
+	parametros = strtok (NULL, "\0");
+
+	if(0 == strcmp(funcion,"info"))
 		{
 			funcInfo();
 		}
 		else
 		{
-			if(0 == strcmp(comando,"clean"))
+			if(0 == strcmp(funcion,"clean"))
 			{
-				funcClean();
+				funcClean(parametros);
 			}
 			else
 			{
-			if(0 == strcmp(comando,"trace"))
+			if(0 == strcmp(funcion,"trace"))
 			{
-				funcTrace();
+				funcTrace(parametros);
 			}
 			else
 			{
@@ -233,28 +239,28 @@ void funcInfo()
 	return;
 }
 
-void funcClean(/*char * parametros*/)
+void funcClean(char * parametros)
 {
-	//char * strprimSec, * strultSec;
-	//int primSec, ultSec;
+	char * strprimSec, * strultSec;
+	int primSec, ultSec;
 
-	//strprimSec = strtok(parametros, ",");
-	//strultSec = strtok(NULL, "\0");
-	//primSec = atoi(strprimSec);
-	//ultSec = atoi(strultSec);
-	//memset(bufferConsola, '\0', TAM_SECT);
-	//while(primsec <= ultsec)
-	//{
-	//	escribirSect(bufferConsola, primsec, dirArch);
-	//	primsec++;
-	//}
+	strprimSec = strtok(parametros, ":");
+	strultSec = strtok(NULL, "\0");
+	primSec = atoi(strprimSec);
+	ultSec = atoi(strultSec);
+	memset(bufferConsola, '\0', TAM_SECT);
+	while(primSec <= ultSec)
+	{
+		escribirSect(bufferConsola, primSec, dirArch);
+		primSec++;
+	}
 
 	strcpy(bufferConsola, "Se han limpiado correctamente los sectores");
 	//send(socket,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
-void funcTrace(/*char * parametros*/)
+void funcTrace(char * parametros)
 {
 	//int cantparam = 0;
 	//simular el disco
