@@ -7,7 +7,7 @@ char * bufferConsola;
 int main()
 {
 	vecConfig = getconfig("config.txt");
-	dirMap = abrirArchivoV(vecConfig.rutadisco);
+	dirArch = abrirArchivoV(vecConfig.rutadisco);
 	//conectar()
 	//CREAR TRES HILOS, UNO PARA ESCUCHAR PEDIDOS Y ENCOLARLOS, OTRO PARA ATENDER LOS PEDIDOS Y OTRO PARA LA CONSOLA
 	escucharPedidos();
@@ -18,12 +18,14 @@ int main()
 
 void escucharPedidos(void)
 {
+	//inicializar la cola de pedidos initCol(cola);
 	//HACER UN WHILE Q ESCUCHE PEDIDOS
 	nipc_packet msj;
+
 	msjprueba(&msj);
 
 	if(0 == strcmp(vecConfig.algplan, "cscan"))
-		insertCscan(msj, vecConfig.posactual);
+		nnCscan(msj, vecConfig.posactual);
 	else
 		insertFifo(msj);
 
@@ -61,7 +63,7 @@ void atenderPedido(void)
 	{
 		if(0 == strcmp(comando,"escribir"))
 		{
-			escribirSect(param, sect, dirArch);
+			escribirSect(buffer, sect, dirArch);
 		}
 		else
 		{
@@ -146,10 +148,11 @@ void atenderConsola(char comando[15])
 
 void leerSect(int sect, FILE * dirArch)
 {
+	div_t res;
 
 	if( (0 >= sect) && (cantSect <= sect))
 	{
-		dirMap = (int *) paginaMap(sect, dirArch);
+		dirMap = paginaMap(sect, dirArch);
 		res = div(sect, 8);
 		dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
 		memcpy(buffer, dirSect, TAM_SECT);
@@ -166,14 +169,25 @@ void leerSect(int sect, FILE * dirArch)
 }
 
 
-void escribirSect(char param[15], int sect, FILE * dirArch)
+void escribirSect(char buffer[512], int sect, FILE * dirArch)
 {
-	//validar numero de sector
-	//buscar en el puntero del archivo la direccion donde arrancaria el sector
-	//buffer = (char *) malloc (TAM_SEC);
-	//inicializo un buffer (menset) y copio lo que hay q escribir
-	//copio el buffer a la memoria mapeada
-	//doy aviso de OK
+	div_t res;
+
+		if( (0 >= sect) && (cantSect <= sect))
+		{
+			dirMap = paginaMap(sect, dirArch);
+			res = div(sect, 8);
+			dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
+			memcpy(dirSect, buffer, TAM_SECT);
+			//envio mensaje de operacion exitosa
+			if(0 != munmap(dirMap,TAM_PAG))
+				printf("Fallo la eliminacion del mapeo\n");
+
+		}
+		else
+		{
+			printf("El sector no es valido\n");
+		}
 
 }
 
@@ -196,11 +210,12 @@ return 0;
 
 void * paginaMap(int sect, FILE * dirArch)
 {
+	div_t res;
 	res = div(sect, 8);
 	offset = (res.quot * 512);
 	dirMap = mmap(NULL,TAM_PAG, PROT_WRITE, MAP_SHARED, (int) dirArch , offset);
 
-	return dirArch;
+	return dirMap;
 }
 
 //---------------Funciones Consola------------------//
@@ -246,7 +261,7 @@ void funcTrace(/*char * parametros*/)
 void msjprueba(nipc_packet * msj)
 {
 	msj->len = 1024;
-	strcpy(msj->payload, "1234,hola como estas vos...");
+	strcpy((char *) msj->payload.contenido, "1234,hola como estas vos...");
 	msj->type = 2;
 
 }

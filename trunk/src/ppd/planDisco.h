@@ -18,10 +18,20 @@ typedef struct
 	struct cola_t *		sig;
 } cola_t;
 
-void insertCscan(nipc_packet, int);
+void nnCscan(nipc_packet, int);
+
+void insertCscan(cola_t * newptr, cola_t* headprt, cola_t* saltoptr, int posCab);
+
+void insertOrd (cola_t * colaptr, cola_t * newptr);
 
 void insertFifo(nipc_packet);
 
-ped_t msjtoped(nipc_packet);
+void msjtocol(nipc_packet msj, cola_t * newptr);
+
+void initCol(cola_t * headprt, cola_t * tailprt);
+
+cola_t * initPtr();
+
+cola_t * initSaltoPrt();
 
 #endif /* PLANDISCO_H_ */

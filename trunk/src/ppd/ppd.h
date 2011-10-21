@@ -22,7 +22,7 @@ char comando[15], param[15], buffer[512];
 char * pathArch;
 void * dirMap, * dirSect;
 int sect, cantSect, offset;
-div_t res;
+
 size_t len = 100;
 FILE * dirArch;
 
