@@ -5,7 +5,7 @@
 
 config_t vecConfig;
 char * bufferConsola;
-int posCabAct;
+int posCabAct, cliente;
 nipc_socket ppd_socket;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
@@ -151,24 +151,28 @@ void escucharConsola()
    
 	puts ("\n Acepto la conexion \n");
 
-	if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
+	while(1)
 	{
-		printf("error recibiendo");
-		exit(0);
-	}
 
-	atenderConsola(comando);
+		if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
+		{
+			printf("error recibiendo");
+			exit(0);
+		}
+
+		atenderConsola(comando);
+	}
 
 	close( cliente );
 
 }
 
-void atenderConsola(char comando[30])
+void atenderConsola(char comando[100])
 {
 	char * funcion, * parametros;
 
-	funcion = strtok(comando," ");
-	parametros = strtok (NULL, "\0");
+	funcion = strtok(comando,"(");
+	parametros = strtok (NULL, ")");
 
 	if(0 == strcmp(funcion,"info"))
 		{
@@ -202,6 +206,7 @@ void atenderConsola(char comando[30])
 void leerSect(int sect)
 {
 	div_t res;
+	nipc_packet resp;
 
 	if( (0 >= sect) && (cantSect <= sect))
 	{
@@ -211,7 +216,13 @@ void leerSect(int sect)
 		memcpy(buffer, dirSect, TAM_SECT);
 		if(0 != munmap(dirMap,TAM_PAG))
 			printf("Fallo la eliminacion del mapeo\n");
-		//mando el buffer por el protocolo al raid
+
+		resp.type = 1;
+		resp.payload.sector = sect;
+		strcpy(resp.payload.contenido, buffer);
+		resp.len = sizeof(resp.payload);
+
+		send_socket(&resp, ppd_socket);    //mando el buffer por el protocolo al raid
 	}
 	else
 	{
@@ -225,6 +236,7 @@ void leerSect(int sect)
 void escribirSect(int sect, char buffer[512])
 {
 	div_t res;
+	nipc_packet resp;
 
 		if( (0 >= sect) && (cantSect <= sect))
 		{
@@ -232,10 +244,15 @@ void escribirSect(int sect, char buffer[512])
 			res = div(sect, 8);
 			dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
 			memcpy(dirSect, buffer, TAM_SECT);
-			//envio mensaje de operacion exitosa
 			if(0 != munmap(dirMap,TAM_PAG))
 				printf("Fallo la eliminacion del mapeo\n");
 
+			resp.type = 2;
+			resp.payload.sector = sect;
+			memset(resp.payload.contenido,'\0', TAM_SECT);
+			resp.len = sizeof(resp.payload);
+
+			send_socket(&resp, ppd_socket);
 		}
 		else
 		{
@@ -276,8 +293,9 @@ void * paginaMap(int sect, FILE * dirArch)
 
 void funcInfo()
 {
+	memset(bufferConsola, '\0', TAM_SECT);
 	sprintf(bufferConsola, "%d", posCabAct);
-	//send(socket,bufferConsola,strlen(bufferConsola),0);
+	send(cliente,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
@@ -298,7 +316,7 @@ void funcClean(char * parametros)
 	}
 
 	strcpy(bufferConsola, "Se han limpiado correctamente los sectores");
-	//send(socket,bufferConsola,strlen(bufferConsola),0);
+	send(cliente,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
@@ -306,6 +324,9 @@ void funcTrace(char * parametros)
 {
 	//int cantparam = 0;
 	//simular el disco
+	memset(bufferConsola, '\0', TAM_SECT);
+	strcpy(bufferConsola, "Funcion en construccion");
+	send(cliente,bufferConsola,strlen(bufferConsola),0);
 	return;
 }
 
