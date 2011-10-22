@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "praid1.h"
-#include "../common/nipc.h"
+#include "nipc.h"
 
 void agregarPedidoLectura();
 void agregarPedidoEscritura();

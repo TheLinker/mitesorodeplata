@@ -8,7 +8,7 @@
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>
-#include "../common/nipc.h"
+#include "nipc.h"
 #include "praid1.h"
 #include "praid_func.h"
 
@@ -19,7 +19,8 @@ int main(int argc, char *argv[])
   pfs *aux_pfs;
   fd_set set_socket;
   nipc_socket sock_raid,sock_new;
-  sock_raid = create_socket("127.0.0.1",50003);
+  sock_raid = create_socket("127.0.0.1",50000);
+  nipc_listen(sock_raid);
   
   printf("\n Socket RAID: %d\n\n",sock_raid);
   
@@ -52,10 +53,11 @@ int main(int argc, char *argv[])
     {
       if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
       {
-	//printf("\nYa esta en la conexion  %d\n",sock_new);
+	printf("\nYa esta en la conexion  %d\n",sock_new);
 //--------------	
 	if(recv_socket(&mensaje,sock_new)>0)
 	{
+	  printf("%d %d\n", mensaje.len, mensaje.type);
 	  if(mensaje.type == nipc_handshake)
 	    printf("\nBASTA DE HANDSHAKE!!!!\n");
 	  if(mensaje.type == nipc_req_read)
@@ -91,6 +93,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+	  printf("mate la conexion");
 	  //murio el socket
 	  pfs *anterior=NULL;
 	  aux_pfs=pedidos_pfs;
