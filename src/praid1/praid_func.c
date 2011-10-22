@@ -7,7 +7,7 @@
 #include<signal.h>
 #include "praid_func.h"
 #include "praid1.h"
-#include "../common/nipc.h"
+#include "nipc.h"
 
 /**
  * Crea un nuevo pedido de lectura
@@ -292,11 +292,10 @@ void eliminarCola(disco **discos)
 }
 
 /**
- * Funcion para hilos de PPDs
- * Escucha constante de respuestas del PPD y la pone en una cola de mensajes
+ * Distriubuye constantemente los pedidos que alla en la cola
  *
  */
-void *esperaRespuestas(uint32_t sock)
+void *esperaRespuestas(nipc_socket sock)
 {
   nipc_packet mensaje;
   while(1)
@@ -323,5 +322,6 @@ void *esperaRespuestas(uint32_t sock)
 	      printf("\nMensaje publicado");
     }
   }
+  
   return (void *)1;
 }

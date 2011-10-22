@@ -8,6 +8,8 @@
 #include<arpa/inet.h>
 #include "nipc.h"
 
+#define MAX_CONECTIONS 50
+
 /**
  * Inicia un socket para escuchar nuevas conexiones
  *
@@ -30,23 +32,19 @@ nipc_socket create_socket(char *host, uint16_t port)
       exit(EXIT_FAILURE);
     }
     addr_raid.sin_family = AF_INET;
-    addr_raid.sin_port=htons(50003);
-    addr_raid.sin_addr.s_addr=inet_addr("127.0.0.1");
+    addr_raid.sin_port=htons(port);
+    addr_raid.sin_addr.s_addr=inet_addr(host);
     if (bind(sock_new,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
     {
       printf("Error bind");
       exit(EXIT_FAILURE);
     }
-    if ((listen(sock_new,10))<0)
-    {
-      puts("Error listen");
-      exit(EXIT_FAILURE);
-    }
+    
     return sock_new;
 }
 
 /**
- * Recive un paquete del socket indicado
+ * Recibe un paquete del socket indicado
  *
  * @return cantidad de caracteres recividos, en caso de ser 0 informa que el socket ha sido cerrado
  */
@@ -69,8 +67,8 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 		}
 		else
 		{
-			//* Si read devuelve 0, es que se ha cerrado el socket
-			//* Devolvemos los caracteres leidos hasta ese momento
+			//* Si read devuelve 0, es que se ha cerrado el socket. Devolvemos
+			//* los caracteres leidos hasta ese momento
 			if (aux == 0) 
 				return leido;
 			if (aux == -1)
@@ -115,18 +113,20 @@ uint32_t send_socket(nipc_packet *packet, nipc_socket sock)
 	//* Comprobacion de los parametros de entrada
 	if ((sock == -1) || (packet == NULL))
 		return -1;
-	//* Bucle hasta que hayamos escrito todos los caracteres que nos han indicado.
+	//* Bucle hasta que hayamos escrito todos los caracteres que nos han
+	//* indicado.
 	while (escrito < 519)
 	{
 		aux = send(sock, packet->buffer + escrito, 519 - escrito,0);
 		if (aux > 0)
 		{
-			//* Si hemos conseguido escribir caracteres, se actualiza la variable escrito
+			//* Si hemos conseguido escribir caracteres, se actualiza la
+			//* variable escrito
 			escrito = escrito + aux;
 		}
 		else
 		{
-			//* Si se ha cerrado el socket, devolvemos el numero de caracteres leidos.
+			//* Si se ha cerrado el socket, devolvemos el numero de caracteres leidos
 			//* Si ha habido error, devolvemos -1
 			if (aux == 0)
 				return escrito;
@@ -136,3 +136,30 @@ uint32_t send_socket(nipc_packet *packet, nipc_socket sock)
 	}
 	return escrito;
 }
+
+/**
+ * Pone en escucha al socket especificado
+ *
+ */
+void nipc_listen(nipc_socket sock)
+{
+  if ((listen(sock,MAX_CONECTIONS))<0)
+    {
+      puts("Error listen");
+      exit(EXIT_FAILURE);
+    }
+}
+
+/**
+ * Cierra el socket especificado
+ *
+ */
+void nipc_close(nipc_socket sock)
+{
+  if ((close(sock))<0)
+    {
+      puts("Error close");
+      exit(EXIT_FAILURE);
+    }
+}
+
