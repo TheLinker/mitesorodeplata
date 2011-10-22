@@ -1,9 +1,12 @@
 #include "ppd.h"
+#include "../common/nipc.h"
+#include "../common/utils.h"
 
 
 config_t vecConfig;
 char * bufferConsola;
 int posCabAct;
+nipc_socket ppd_socket;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
 FILE * dirArch;
@@ -24,15 +27,12 @@ int main()
 	thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *) escucharPedidos, (void*) mensaje);
 	thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, (void*) mensaje);
 
-	//escucharPedidos();
-	//escucharConsola();
-	//atenderPedido(/*dirmap, payloadDescriptor, sect, param*/);
 	return 1;
 }
 
-void conectarConPraid()  //ver tipos de datos
+ void conectarConPraid()  //ver tipos de datos
 {
-	create_socket(vecConfig.ippraid,vecConfig.puertopraid);  // ver tipos de datos
+	ppd_socket = create_socket(vecConfig.ippraid,vecConfig.puertopraid);  // ver tipos de datos
 }
 
 nipc_socket create_socket(char *host, uint16_t port)
@@ -67,14 +67,17 @@ nipc_socket create_socket(char *host, uint16_t port)
 void escucharPedidos(void)
 {
 	nipc_packet msj; /*PRUEBA*/
-	msjprueba(&msj); /*PRUEBA*/
 
 	if(0 == strcmp(vecConfig.algplan, "cscan"))
+	{
+		while(1)
+		{
+			recv_socket(&msj, ppd_socket);
+			insertCscan(msj, headprt, saltoptr, vecConfig.posactual);
+		}
+	}else
 		//HACER UN WHILE Q ESCUCHE PEDIDOS
-		insertCscan(msj, headprt, saltoptr, vecConfig.posactual);
-	else
-		//HACER UN WHILE Q ESCUCHE PEDIDOS
-		insertFifo(msj, headprt);
+		//insertFifo(msj, headprt);
 
 return;
 }
