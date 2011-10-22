@@ -1,7 +1,5 @@
 #include "consola.h"
 
-//NO TRABAJAMOS CON NIPC
-
 int main ()
 {
 		//inicializo una estructura nipc para la comunicacion
@@ -34,41 +32,45 @@ int main ()
 
 	}   while ( resultado == -1 );
 
-	printf("INGRESE COMANDO: ");
-
-	fgets(comando, TAM_COMANDO, stdin); //ingreso info, clean o trace
-
-	if(send(cliente, comando, sizeof(comando), 0) == -1)	//envio al proceso ppd el comando que contiene el dato(info,clean o trace)
+	while (1)
 	{
-		printf("error enviando");
-		exit(0);
+		atenderComando(cliente);
+
+		//printf("INGRESE COMANDO: ");
+
+		//fgets(comando, TAM_COMANDO, stdin); //ingreso info, clean o trace
+
+		//if(send(cliente, comando, sizeof(comando), 0) == -1)	//envio al proceso ppd el comando que contiene el dato(info,clean o trace)
+		//{
+		//printf("error enviando");
+		//exit(0);
+		//}
 	}
 
 	close ( cliente );  //hay que cerrarlo el socket en este momento????????
-
+}
 /*--------------------------------------------------------------------------------*/
 
-	while(1)
-	{
-		if(0 == atenderComando(/* estructura nipc ,  el tengo q pasarle el socket por el q se comunican */))
-		{
-			conectarPpd();
-		}
-	}
-	return 0;
-}
+//	while(1)
+	//{
+		//if(0 == atenderComando(/* estructura nipc ,  el tengo q pasarle el socket por el q se comunican */))
+		//{
+			//conectarPpd();
+		//}
+	//}
+	//return 0;
+//}
 
 
-int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada comando. Devuelve cant de bytes enviados o recibidos*/
+int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de bytes enviados o recibidos*/
 {
-	char *funcion, *parametros;
+	char *funcion, *parametros, *resp;
 	char comando[TAM_COMANDO];
 	unsigned int i = 0;
-	unsigned int cantEnv = 1;
+	//unsigned int cantEnv = 1;
 
 
 	strcpy(comando, "");
-	//payloadDescriptor = 0;
 
 	if(0 == strcmp(comando, ""))
 	{
@@ -93,11 +95,12 @@ int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada
 
 	if(strcmp(funcion, "info") == 0)
 	{
-		//payloadDescriptor = INFO;
+
 		sprintf(comando, "%s()", funcion);
-		//if(!(bytesEnvRec = enviar( estructura nipc , comando)))
+		//if(!(bytesEnvRec = send(comando)))
 			//return cantEnv;
-		funcInfo(/* estructura nipc */);
+		send(cliente,resp,strlen(resp),0);
+		funcInfo(resp);
 
 	}else
 
@@ -106,15 +109,17 @@ int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada
 		if(NULL == parametros) //Control de parametros
 		{
 			//errParam();
-			return cantEnv;
+			//return cantEnv;
 		}
-		//payloadDescriptor = CLEAN;
+
 		//if (0 == errParamClean(parametros)){
 		sprintf(comando, "%s(%s)", funcion, parametros);
-		//if(!(cantEnv = enviar( estructura nipc , comando)))
+		//if(!(cantEnv = enviar(comando)))
 			//return cantEnv;
-		funcClean(/* estructura nipc */);
-		//}else
+
+		send(cliente,resp,strlen(resp),0);
+		funcClean(resp);
+			//}else
 		//printf("El ingreso de parametros a sido invalido");
 
 	}else
@@ -124,19 +129,24 @@ int atenderComando(/* estructura nipc, socket comunicador */)/*Se llama por cada
 		if(NULL == parametros) //Control de parametros
 		{
 			//errParam();
-			return cantEnv;
+			//return cantEnv;
 		}
-		//payloadDescriptor = TRACE;
+
 		//if(0 == errParamTrace(parametros)){
 		sprintf(comando, "%s(%s)", funcion, parametros);
-		//if(!(cantEnv = enviar( estructura nipc , comando)))
+		//if(!(cantEnv = enviar(comando)))
 			//return cantEnv;
-		funcTrace(/* estructura nipc */);
+
+		send(cliente,comando,strlen(comando),0);
+
+		recv(cliente,resp,sizeof(resp),0);
+
+		funcTrace(resp);
 		//}else
 		//printf("El ingreso de parametros a sido invalido");
 	}
 
-	return cantEnv;
+	return 1;
 }
 
 
@@ -146,32 +156,34 @@ void conectarPpd(void)
 	return;
 }
 
-void funcInfo()
+void funcInfo(char *resp)
 {
+	printf("La posicion actual de la cabeza es: %s", resp);
 
 	return;
 }
 
-void funcClean(void)
+void funcClean(char *resp)
 {
-
+	printf("%s", resp);
 	return;
 }
 
-void funcTrace(void)
+void funcTrace(char *resp)
 {
-
+	printf("%s", resp);
 	return;
 }
 
-int errParamClean(/*parametros*/)
-{
 
-	return 0;
-}
+//int errParamClean(/*parametros*/)
+//{
 
-int errParamTrace(/*parametros*/)
-{
+	//return 0;
+//}
 
-	return 0;
-}
+//int errParamTrace(/*parametros*/)
+//{
+
+	//return 0;
+//}
