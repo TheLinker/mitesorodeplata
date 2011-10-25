@@ -17,27 +17,37 @@ int main(int argc, char *argv[])
   disco *discos=NULL;
   pfs *pedidos_pfs=NULL;
   pfs *aux_pfs;
+  
   fd_set set_socket;
-  nipc_socket sock_raid,sock_new;
+  nipc_socket sock_raid;
+  
   sock_raid = create_socket("127.0.0.1",50000);
   nipc_listen(sock_raid);
+  printf("------------------------------\n");
+  printf("--- Socket escucha RAID: %d ---\n",sock_raid);
+  printf("------------------------------\n");
   
-  printf("\n Socket RAID: %d\n\n",sock_raid);
   
   uint32_t max_sock;
   nipc_packet mensaje;
+  nipc_socket sock_new;
   struct sockaddr_in *addr_ppd = malloc(sizeof(struct sockaddr_in));
   uint32_t clilen;  
+  pthread_t hilo_respuestas;
   
+  hilo_respuestas = crear_hilo_respuestas();
+  
+    
   while(1)
   {
     FD_ZERO(&set_socket);
-        
+    
     FD_SET(sock_raid, &set_socket);
     
     max_sock = sock_raid;
     
     aux_pfs=pedidos_pfs;
+    
     while(aux_pfs!=NULL)
     {
       if(aux_pfs->sock > max_sock)
@@ -46,146 +56,144 @@ int main(int argc, char *argv[])
       aux_pfs=aux_pfs->sgte;
     }
     
+    listarPedidosDiscos(&discos);
+    printf("------------------------------\n");
+    
     select(max_sock+1, &set_socket, NULL, NULL, NULL);  
-      
+    
+     /*
+     * Lista de socket PFS
+     */
+	
     aux_pfs=pedidos_pfs;
     while(aux_pfs != NULL)
     {
       if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
       {
-	printf("\nYa esta en la conexion  %d\n",sock_new);
-//--------------	
-	if(recv_socket(&mensaje,sock_new)>0)
+	if(recv_socket(&mensaje,aux_pfs->sock)>0)
 	{
-	  printf("%d %d\n", mensaje.len, mensaje.type);
-	  if(mensaje.type == nipc_handshake)
-	    printf("\nBASTA DE HANDSHAKE!!!!\n");
+	 if(mensaje.type == nipc_handshake)
+	    printf("BASTA DE HANDSHAKE!!!!\n");
 	  if(mensaje.type == nipc_req_read)
 	  {
 	    if(mensaje.len == 4)
 	    {
-	      printf("\nPedido de lectura del FS: %d",mensaje.payload.sector);
+	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
 	      distribuirPedidoLectura(&discos,mensaje);
-	      printf("\n-------------------------------");
+	      printf("------------------------------\n");
 	    }
 	    else
 	    {
-	      printf("\nMANDASTE CUALQUIER COSA");
+	      printf("MANDASTE CUALQUIER COSA\n");
 	    }
 	  }
 	  if(mensaje.type == nipc_req_write)
 	  {
 	    if(mensaje.len != 4)
 	    {
-	      printf("\nPedido de escritura del FS: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
-	      //distribuirPedidoEscritura(&discos);
-	      printf("\n-------------------------------");
+	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+	      distribuirPedidoEscritura(&discos,mensaje);
+	      printf("------------------------------\n");
 	    }
 	    else
 	    {
-	      printf("\nnMANDASTE CUALQUIER COSA");
+	      printf("MANDASTE CUALQUIER COSA\n");
 	    }
 	  }
 	  if(mensaje.type == nipc_error)
 	  {
-	    printf("\nERROR: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
+	    printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
 	  }
 	}
 	else
 	{
-	  printf("mate la conexion");
-	  //murio el socket
-	  pfs *anterior=NULL;
-	  aux_pfs=pedidos_pfs;
-	  while(aux_pfs != NULL &&  aux_pfs->sock != sock_new)
-	  {
-	    anterior=aux_pfs;
-	    aux_pfs=aux_pfs->sgte;
-	  }
-	  if(anterior==NULL)
-	    pedidos_pfs = pedidos_pfs->sgte;
-	  else
-	    anterior->sgte=anterior->sgte->sgte;
-	  free(aux_pfs);
-	  
+	  printf("Se cayo la conexion con el PFS: %d\n",aux_pfs->sock);
+	  liberar_pfs_caido(&pedidos_pfs,aux_pfs->sock);
+	  printf("------------------------------\n");
 	}
-	
-//	----------------
       }
       aux_pfs = aux_pfs->sgte;
     }
     
+    /*
+     * SOCKECT PRINCIPAL DE ESCUCHA
+     */
+    
     if(FD_ISSET(sock_raid, &set_socket)>0)
     {
       if( (sock_new=accept(sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
-	printf("\nERROR en la conexion  %d\n",sock_new);
+	printf("ERROR en la conexion  %d\n",sock_new);
       else
-      if(recv_socket(&mensaje,sock_new)>0)
       {
-	if(mensaje.type == nipc_handshake)
+	if(recv_socket(&mensaje,sock_new)>0)
 	{
-	  if(mensaje.len != 0)
+	  if(mensaje.type == nipc_handshake)
 	  {
-	    printf("\nNueva conexion PPD: %s",mensaje.payload.contenido);
-	    char id_disco[20];
-	    memcpy(&id_disco,mensaje.payload.contenido,20);
-	    agregarDisco(&discos,id_disco,sock_new);//crea hilo
-	    //listarPedidosDiscos(&discos);
-	    
-	    printf("\n-------------------------------");
-	  }
-	  else
-	  {
-	    if(discos!=NULL)
+	    if(mensaje.len != 0)
 	    {
-	      printf("\nNueva conexion PFS: %d",sock_new);
-	      pfs *nuevo_pfs;
-	      nuevo_pfs = (pfs *)malloc(sizeof(pfs));
-	      nuevo_pfs->sock=sock_new;
-	      nuevo_pfs->sgte = pedidos_pfs;
-	      pedidos_pfs = nuevo_pfs;
-	      FD_SET (nuevo_pfs->sock, &set_socket);
+	      printf("Nueva conexion PPD: %s \n",mensaje.payload.contenido);
+	      char id_disco[20];
+	      memcpy(&id_disco,mensaje.payload.contenido,20);
+	      agregarDisco(&discos,(uint8_t *)id_disco,sock_new);//crea hilo
+	      //listarPedidosDiscos(&discos);
+	      printf("------------------------------\n");
 	    }
 	    else
 	    {
-	      //ENVIAR ERROR DE CONEXION
-	      printf("No hay discos conectados!");
+	      if(discos!=NULL)
+	      {
+		printf("Nueva conexion PFS: %d\n",sock_new);
+		pfs *nuevo_pfs;
+		nuevo_pfs = (pfs *)malloc(sizeof(pfs));
+		nuevo_pfs->sock=sock_new;
+		nuevo_pfs->sgte = pedidos_pfs;
+		pedidos_pfs = nuevo_pfs;
+		FD_SET (nuevo_pfs->sock, &set_socket);
+		printf("------------------------------\n");
+	      }
+	      else
+	      {
+		//ENVIAR ERROR DE CONEXION
+		printf("No hay discos conectados!\n");
+		printf("cerrar conexion: %d\n",sock_new);
+		nipc_close(sock_new);
+	      }
 	    }
 	  }
-	}
-	if(mensaje.type == nipc_req_read)
-	{
-	  if(mensaje.len == 4)
+	  if(mensaje.type == nipc_req_read)
 	  {
-	    printf("\nPedido de lectura del FS: %d",mensaje.payload.sector);
-	    //agregarPedidoLectura();
-	    //distribuirPedidoLectura(&discos);
-	    
-	    printf("\n-------------------------------");
+	    if(mensaje.len == 4)
+	    {
+	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
+	      //agregarPedidoLectura();
+	      //distribuirPedidoLectura(&discos);
+	      
+	      printf("------------------------------\n");
+	    }
+	    else
+	    {
+	      printf("Respuesta lectura: %s\n",mensaje.payload.contenido);
+	    }
 	  }
-	  else
+	  if(mensaje.type == nipc_req_write)
 	  {
-	    printf("\nRespuesta lectura: %s",mensaje.payload.contenido);
+	    if(mensaje.len != 4)
+	    {
+	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+	      //agregarPedidoEscritura();
+	      //distribuirPedidoEscritura(&discos);
+	      
+	      printf("------------------------------");
+	    }
+	    else
+	    {
+	      printf("Respuesta lectura: %d\n",mensaje.payload.sector);
+	    }
 	  }
-	}
-	if(mensaje.type == nipc_req_write)
-	{
-	  if(mensaje.len != 4)
+	  if(mensaje.type == nipc_error)
 	  {
-	    printf("\nPedido de escritura del FS: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
-	    //agregarPedidoEscritura();
-	    //distribuirPedidoEscritura(&discos);
-	    
-	    printf("\n-------------------------------");
+	    printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
 	  }
-	  else
-	  {
-	    printf("\nRespuesta lectura: %d",mensaje.payload.sector);
-	  }
-	}
-	if(mensaje.type == nipc_error)
-	{
-	  printf("\nERROR: %d - %s",mensaje.payload.sector,mensaje.payload.contenido);
 	}
       }
     }

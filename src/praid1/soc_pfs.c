@@ -112,7 +112,7 @@ int main(int argc, char **argv){
 	
 	
 	nipc_packet mensaje;
-	mensaje.type='0';
+	mensaje.type=0;
 	strcpy(mensaje.payload.contenido,"");
 	mensaje.payload.sector=0;
 	mensaje.len=0;
@@ -125,7 +125,7 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 	else
-	printf("\n\nEl mensaje enviado es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	printf("\n\nEl mensaje enviado es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	
 	uint32_t unSector;
 	
@@ -150,7 +150,7 @@ int main(int argc, char **argv){
 			printf("\n	Pedido Lectura");
 			printf("\nIngrse numero de sector: ");
 			scanf("%d",&unSector);
-			mensaje.type='1';
+			mensaje.type=1;
 			mensaje.payload.sector = unSector;
 			strcpy(mensaje.payload.contenido,"");
 			mensaje.len=4;
@@ -160,14 +160,14 @@ int main(int argc, char **argv){
 				exit(EXIT_FAILURE);
 			}
 			else
-			  printf("\n\nEl mensaje Pedido es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+			  printf("\n\nEl mensaje Pedido es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 		}
 		if(opcion == '2')
 		{
 			printf("\n	Pedido Escritura");
 			printf("\nIngrse numero de sector: ");
 			scanf("%d",&unSector);
-			mensaje.type='2';
+			mensaje.type=2;
 			mensaje.payload.sector = unSector;
 			strcpy(mensaje.payload.contenido,"asdclhbjkhsabcdksahgvcljashdc");
 			mensaje.len=516;
@@ -177,7 +177,7 @@ int main(int argc, char **argv){
 				exit(EXIT_FAILURE);
 			}
 			else
-			  printf("\n\nEl mensaje Pedido es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+			  printf("\n\nEl mensaje Pedido es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 		}
 		if(opcion == '3')
 		{

@@ -3,6 +3,7 @@
 #include<string.h>
 #include<pthread.h>
 #include<sys/msg.h>
+#include<sys/sem.h>
 #include<stdlib.h>
 #include<signal.h>
 #include "praid_func.h"
@@ -57,21 +58,21 @@ void agregarPedidoEscritura()
 		perror("msgsnd"); 
 		exit(EXIT_FAILURE);
 	}else
-		printf("\nMensaje publicado");
+		printf("Mensaje publicado\n");
 }
 
 /**
  * Agrega un nuevo disco al RAID
  *
  */
-void agregarDisco(disco **discos, char id_disco[20], nipc_socket sock_new)
+void agregarDisco(disco **discos, uint8_t id_disco[20], nipc_socket sock_new)
 {
 	disco *nuevoDisco;
 	nuevoDisco = (disco *)malloc(sizeof(disco));
 	memcpy(nuevoDisco->id,id_disco,strlen((char *)id_disco));
 	nuevoDisco->sock=sock_new;
 	if(pthread_create(&nuevoDisco->hilo,NULL,(void *)esperaRespuestas,(void *)nuevoDisco->sock)!=0)
-	     printf("Error en la creacion del hilo");
+	     printf("Error en la creacion del hilo\n");
 	nuevoDisco->cantidad_pedidos = 0;
 	nuevoDisco->pedidos = NULL;
 	nuevoDisco->sgte = *discos;
@@ -90,12 +91,12 @@ void listarPedidosDiscos(disco **discos)
 	aux_disco=*discos;
 	while(aux_disco != NULL)	
 	{
-		printf("\n\nDisco %s, Cantidad %d", aux_disco->id, aux_disco->cantidad_pedidos);
+		printf("Disco %s, Cantidad %d\n", aux_disco->id, aux_disco->cantidad_pedidos);
 		pedido *aux_pedido;
 		aux_pedido = aux_disco->pedidos;	
 		while(aux_pedido!=NULL)
 		{
-			printf("\n\ttype_pedido %d, Sector %d", aux_pedido->type_pedido, aux_pedido->sector);
+			printf("\ttype_pedido %d, Sector %d\n", aux_pedido->type, aux_pedido->sector);
 			aux_pedido=aux_pedido->sgte;		
 		}
 		aux_disco=aux_disco->sgte;
@@ -141,8 +142,9 @@ void distribuirPedidoLectura(disco **discos,nipc_packet mensaje)
 	}
 	pedido *nuevoPedido;
 	nuevoPedido = (pedido *)malloc(sizeof(pedido));
-	nuevoPedido->type_pedido=mensaje.type;
+	nuevoPedido->type=mensaje.type;
 	nuevoPedido->sector = mensaje.payload.sector;
+	strcpy((char *)nuevoPedido->contenido,"");
 	if (encontrado==1)
 	{
 		nuevoPedido->sgte = aux->pedidos;
@@ -163,7 +165,7 @@ void distribuirPedidoLectura(disco **discos,nipc_packet mensaje)
 		exit(EXIT_FAILURE);
 	}
 	else
-	printf("\nLectura en disco: %s",aux->id);
+	printf("Lectura en disco: %s\n",aux->id);
 	
 }
 
@@ -171,35 +173,31 @@ void distribuirPedidoLectura(disco **discos,nipc_packet mensaje)
  * Distribulle un pedido de Escritura de la cola de mensajes
  *
  */
-void distribuirPedidoEscritura(disco **discos)
+void distribuirPedidoEscritura(disco **discos,nipc_packet mensaje)
 {
-	uint32_t id_cola, size_msg;
-	key_t clave = 222;
-	struct mensajeCola buf_msg;
-	if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
-			perror("msgget:create");
-			exit(EXIT_FAILURE);
-		}
-	size_msg = msgrcv(id_cola, &buf_msg, sizeof(uint32_t),0,0);
-	if (size_msg>0)
+
+	disco *aux;
+	aux=*discos;
+	while(aux != NULL)	
 	{
-		disco *aux;
-		aux=*discos;
-		while(aux != NULL)	
+		pedido *nuevoPedido;
+		nuevoPedido = (pedido *)malloc(sizeof(pedido));
+		nuevoPedido->type = mensaje.type;
+		nuevoPedido->sector = mensaje.payload.sector;
+		strcpy((char *)nuevoPedido->contenido,(char *)mensaje.payload.contenido);
+		nuevoPedido->sgte = aux->pedidos;
+		aux->pedidos = nuevoPedido;
+		
+		if(send_socket(&mensaje,aux->sock)<0)
 		{
-			pedido *nuevoPedido;
-			nuevoPedido = (pedido *)malloc(sizeof(pedido));
-			nuevoPedido->type_pedido = (&buf_msg)->type;
-			nuevoPedido->sector = (&buf_msg)->sector;
-			nuevoPedido->sgte = aux->pedidos;
-			aux->pedidos = nuevoPedido;
-			aux=aux->sgte;
+		  printf("\nError send");
+		  exit(EXIT_FAILURE);
 		}
-	}
-	else
-	{
-		perror("msgrcv");
-		exit(EXIT_FAILURE);
+		else
+		  printf("Escritura en disco: %s\n",aux->id);
+		
+		
+		aux=aux->sgte;
 	}
 }
 
@@ -251,8 +249,8 @@ uint32_t hayPedidosEscritura()
  */
 void estado()
 {
-	printf("\n\nMensajes de lectura = %d", hayPedidosLectura());
-	printf("\nMensajes de Escritura = %d", hayPedidosEscritura());
+	printf("Mensajes de lectura = %d\n", hayPedidosLectura());
+	printf("Mensajes de Escritura = %d\n", hayPedidosEscritura());
 }
 
 /**
@@ -302,26 +300,120 @@ void *esperaRespuestas(nipc_socket sock)
   {
     if(recv_socket(&mensaje,sock)>0)
     {
-      printf("\n\nEl mensaje recivido es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
-      uint32_t id_cola, size_msg;
-      key_t clave = 111;
-      struct mensajeCola buf_msg;
-      if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
-	      perror("msgget:create");
-	      exit(EXIT_FAILURE);
+      if(mensaje.len == 0)
+      {
+	printf("Se perdio la conexion con el disco\n");
+	nipc_close(sock);
+	break;
       }
-      buf_msg.type=mensaje.type;
-      (&buf_msg)->sector = mensaje.payload.sector;
-      memcpy((&buf_msg)->contenido, mensaje.payload.contenido,strlen(mensaje.payload.contenido));
-      
-      size_msg=516;
-      if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
-	      perror("msgsnd"); 
-	      exit(EXIT_FAILURE);
-      }else
-	      printf("\nMensaje publicado");
+      else
+      {
+	printf("El mensaje recivido es: %c - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	uint32_t id_cola, size_msg;
+	key_t clave = 111;
+	struct mensajeCola buf_msg;
+	if ((id_cola = msgget(clave, IPC_CREAT | 0666))<0){
+		perror("msgget:create");
+		exit(EXIT_FAILURE);
+	}
+	buf_msg.type=mensaje.type;
+	(&buf_msg)->sector = mensaje.payload.sector;
+	memcpy(((&buf_msg)->contenido), mensaje.payload.contenido,strlen((char *)mensaje.payload.contenido));
+	
+	size_msg=516;
+	if((msgsnd(id_cola,&buf_msg,size_msg,0))<0){
+		perror("msgsnd"); 
+		exit(EXIT_FAILURE);
+	}else
+		printf("Mensaje publicado\n");
+      }
     }
+    else
+    {
+      printf("Se perdio la conexion con el disco\n");
+      nipc_close(sock);
+      break;
+    }
+    printf("------------------------------\n");
+  }
+  printf("------------------------------\n");
+  pthread_exit(NULL);
+}
+
+void liberar_pfs_caido(pfs **pedidos_pfs, nipc_socket sock)
+{
+  pfs *aux_pfs;
+  pfs *anterior;
+  aux_pfs = *pedidos_pfs;
+  anterior=NULL;
+  while(aux_pfs != NULL &&  aux_pfs->sock != sock)
+  {
+    anterior=aux_pfs;
+    aux_pfs=aux_pfs->sgte;
+  }
+  if(anterior == NULL)
+  {
+    *pedidos_pfs = (*pedidos_pfs)->sgte;
+  }
+  else
+  {
+    anterior = anterior->sgte;
+  }
+  nipc_close(aux_pfs->sock);
+  free(aux_pfs);
+}
+
+
+pthread_t crear_hilo_respuestas()
+{
+  pthread_t hilo;
+  if(pthread_create(&hilo,NULL,(void *)enviar_respuetas,NULL)!=0)
+    printf("Error en la creacion del hilo Respuetas!\n");
+  return hilo;
+}
+
+void *enviar_respuetas(void *nada)
+{
+  
+  return NULL;
+  /*
+   * Suspendemos en busqueda de <semaphore.h>
+   * 
+  uint32_t id_semaforo;
+  struct sembuf buffer;
+  union semun arg;
+  
+  id_semaforo = semget(IPC_PRIVATE,1,0666);
+  if (id_semaforo<0)
+  {
+    perror("semget");
+    exit(EXIT_FAILURE);
+  }
+  printf("Semaforo Respuestas: %d", id_semaforo);
+  buffer.sem_num = 0;
+  buffer.sem_op = -1;
+  buffer.sem_flg = IPC_NOWAIT;
+  if( semop(id_semaforo,&buffer,1) < 0)
+  {
+    perror("semop");
+    exit(EXIT_FAILURE);
   }
   
-  return (void *)1;
+  while(1)
+  {
+    printf("se desbloqueoooooo");
+    
+    //envio las respuestas!!!
+    
+    //lo bloqueo de nuevo
+    buffer.sem_num = 0;
+    buffer.sem_op = -1;
+    buffer.sem_flg = IPC_NOWAIT;
+    if( semop(id_semaforo,&buffer,1) < 0)
+    {
+      perror("semop");
+      exit(EXIT_FAILURE);
+    }
+  }
+  */
 }

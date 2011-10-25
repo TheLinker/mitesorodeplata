@@ -102,7 +102,7 @@ int main(int argc, char **argv){
 	//datos del PRAID
 	addr_raid->sin_family = AF_INET;
 	addr_raid->sin_port=htons(50000);
-	//addr_raid->sin_addr.s_addr=inet_addr("127.0.0.1");
+	addr_raid->sin_addr.s_addr=inet_addr("127.0.0.1");
 	
 	if(connect(sock_ppd,(struct sockaddr *)addr_raid,sizeof(struct sockaddr_in))<0)
 	{
@@ -114,11 +114,10 @@ int main(int argc, char **argv){
 	scanf("%s",ppd_name);
 	
 	nipc_packet mensaje;
-	mensaje.type='0';
+	mensaje.type=0;
 	strcpy(mensaje.payload.contenido,ppd_name);
 	mensaje.payload.sector=0;
 	mensaje.len=strlen(mensaje.payload.contenido);
-	
 	
 	//if(send(sock_ppd,mensaje.buffer, sizeof(mensaje.buffer)+1,0)<0)
 	if(sendSocket(&mensaje,sock_ppd)<0)
@@ -127,7 +126,7 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 	else
-	printf("\n\nEl mensaje enviado es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	printf("\n\nEl mensaje enviado es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	
 	uint32_t unSector;
 	
@@ -152,7 +151,7 @@ int main(int argc, char **argv){
 			printf("\n	Devolver Lectura");
 			printf("\nIngrse numero de sector: ");
 			scanf("%d",&unSector);
-			mensaje.type='1';
+			mensaje.type=1;
 			mensaje.payload.sector = unSector;
 			strcpy(mensaje.payload.contenido,"esto es el contenido!!!");
 			mensaje.len=516;
@@ -162,14 +161,14 @@ int main(int argc, char **argv){
 				exit(EXIT_FAILURE);
 			}
 			else
-			  printf("\n\nEl mensaje enviado es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+			  printf("\n\nEl mensaje enviado es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 		}
 		if(opcion == '2')
 		{
 			printf("\n	Devolver Escritura");
 			printf("\nIngrse numero de sector: ");
 			scanf("%d",&unSector);
-			mensaje.type='2';
+			mensaje.type=2;
 			mensaje.payload.sector = unSector;
 			strcpy(mensaje.payload.contenido,"Escritura OK");
 			mensaje.len=516;
@@ -179,7 +178,7 @@ int main(int argc, char **argv){
 				exit(EXIT_FAILURE);
 			}
 			else
-			  printf("\n\nEl mensaje enviado es: %c - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+			  printf("\n\nEl mensaje enviado es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 		}
 		if(opcion == '3')
 		{
