@@ -74,7 +74,7 @@ $(BUILD_PATH)/%.o: $(SRC_PATH)/ppd/%.c $(PPD_INCLUDES)
 
 clean:
 	@echo 'Limpiando todo'
-	@rm $(BUILD_PATH)/* $(PFS_BIN) $(PRAID_BIN) 2> /dev/null || true
+	@rm $(BUILD_PATH)/* $(PFS_BIN) $(PRAID_BIN) $(PPD_BIN) 2> /dev/null || true
 
 .PHONY: pfs praid ppd clean all
 
