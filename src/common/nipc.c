@@ -3,12 +3,12 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "nipc.h"
 
-#define MAX_CONECTIONS 50
+#define MAX_CONECTIONS 10
 
 /**
  * Inicia un socket para escuchar nuevas conexiones
@@ -145,7 +145,7 @@ void nipc_listen(nipc_socket sock)
 {
   if ((listen(sock,MAX_CONECTIONS))<0)
     {
-      puts("Error listen");
+      printf("Error listen");
       exit(EXIT_FAILURE);
     }
 }
@@ -156,10 +156,11 @@ void nipc_listen(nipc_socket sock)
  */
 void nipc_close(nipc_socket sock)
 {
-  if ((close(sock))<0)
-    {
-      puts("Error close");
-      exit(EXIT_FAILURE);
-    }
+  uint32_t error;
+  error = close(sock);
+  if (error<0)
+  {
+    printf("Error close %d",error);
+  }
 }
 
