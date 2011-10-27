@@ -14,22 +14,14 @@
  */
 uint32_t fat32_free_clusters(fs_fat32_t *fs_tmp)
 {
-    if(fs_tmp->fsinfo_sector.free_clusters < 0) {
-        int i=0, free_clusters=0;
+    int i=0, free_clusters=0;
 
-        for ( i = 2 ; i < fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_fat / sizeof(int32_t) ; i++ )
-            if(fs_tmp->fat[i] == 0)
-                free_clusters++;
+    for ( i = 2 ; i < fs_tmp->boot_sector.bytes_per_sector *
+                      fs_tmp->boot_sector.sectors_per_fat / sizeof(int32_t) ; i++ )
+        if(fs_tmp->fat[i] == 0)
+            free_clusters++;
 
-        fs_tmp->fsinfo_sector.free_clusters = free_clusters;
-
-        //TODO actualizar fs_info_sector del volumen
-
-        return free_clusters;
-    } else {
-        return fs_tmp->fsinfo_sector.free_clusters;
-    }
-
+    return free_clusters;
 }
 
 /**
@@ -100,9 +92,7 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fs_tmp->fat[posicion] = free_cluster;
     fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
 
-    fs_tmp->fsinfo_sector.free_clusters--;
     // Falta hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
-
 }
 
 /**
@@ -129,7 +119,6 @@ void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fs_tmp->fat[pos_ant] = fs_tmp->eoc_marker;
     fs_tmp->fat[pos_act] = 0;
 
-    fs_tmp->fsinfo_sector.free_clusters++;
     // Faltar hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
 }
 
@@ -217,7 +206,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
  * @return 0 si exito
  *         -EINVAL en caso de error
  */
-int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, uint8_t *buffer, fs_fat32_t *fs_tmp)
+int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_attrs *buffer, fs_fat32_t *fs_tmp)
 {
     int32_t cluster_offset = entry_number / (fs_tmp->boot_sector.bytes_per_sector *
                                              fs_tmp->boot_sector.sectors_per_cluster / 32);
@@ -231,7 +220,7 @@ int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, uint8_t *buf
 
     int8_t *cluster_buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
     fat32_getcluster(cluster, cluster_buffer, fs_tmp);
-    memcpy(buffer, cluster_buffer + (entry_offset * 32), 32);
+    memcpy((int8_t*)buffer, cluster_buffer + (entry_offset * 32), 32);
     free(cluster_buffer);
 
     return 0;
@@ -348,6 +337,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
                 memcpy(&cluster_hi, &(((file_entry_t *)directory_entry)->first_cluster_hi), 2);
                 memcpy(&cluster_lo, &(((file_entry_t *)directory_entry)->first_cluster_low), 2);
                 nuevo_archivo.first_cluster = cluster_hi * 0x100 + cluster_lo;
+                nuevo_archivo.entry_index = current_entry;
 
                 memcpy(ret_list+cantidad_entradas-1,&nuevo_archivo,sizeof(file_attrs));
 
