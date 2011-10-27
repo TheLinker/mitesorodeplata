@@ -90,6 +90,7 @@ typedef struct file_attrs {
     uint8_t  file_type;
     uint32_t first_cluster;
     uint32_t file_size;
+    uint32_t entry_index;
 } __attribute__ ((packed)) file_attrs;
 
 #endif //__PFS_H_

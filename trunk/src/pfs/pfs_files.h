@@ -11,7 +11,8 @@ typedef struct file_descriptor {
     uint32_t  file_size;
     uint32_t  file_pos;
     int32_t   first_cluster;
-    //que onda el lock con fuse. El kernel hace el bloqueo o no?
+    int32_t   container_cluster;
+    int32_t   entry_index;
     int8_t    busy; //1 no disponible, 0 disponible
 } file_descriptor;
 
