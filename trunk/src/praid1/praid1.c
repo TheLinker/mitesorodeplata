@@ -9,11 +9,20 @@
 #include<netinet/in.h>
 #include<arpa/inet.h>
 #include "nipc.h"
+#include "log.h"
 #include "praid1.h"
 #include "praid_func.h"
 
+
+
 int main(int argc, char *argv[])
 {
+  log_t* log = log_new("./src/praid1/log.txt", "Runner", LOG_OUTPUT_FILE);
+  
+  //log_info(log, "Principal", "Message info: %s", "se conecto el cliente xxx");
+  //log_warning(log, "Principal", "Message warning: %s", "not load configuration file");
+  //log_error(log, "Principal", "Message error: %s", "Crash!!!!");
+  
   disco *discos=NULL;
   pfs *pedidos_pfs=NULL;
   pfs *aux_pfs;
@@ -26,15 +35,15 @@ int main(int argc, char *argv[])
   printf("------------------------------\n");
   printf("--- Socket escucha RAID: %d ---\n",sock_raid);
   printf("------------------------------\n");
-  
+  log_info(log, "Principal", "Message info: Socket escucha %d", sock_raid);
   
   uint32_t max_sock;
   nipc_packet mensaje;
   nipc_socket sock_new;
   struct sockaddr_in *addr_ppd = malloc(sizeof(struct sockaddr_in));
-  uint32_t clilen;  
-  pthread_t hilo_respuestas;
+  uint32_t clilen;
   
+  pthread_t hilo_respuestas;
   hilo_respuestas = crear_hilo_respuestas();
   
     
@@ -57,7 +66,7 @@ int main(int argc, char *argv[])
     }
     
     listarPedidosDiscos(&discos);
-    printf("------------------------------\n");
+    if (discos!=NULL)printf("------------------------------\n");
     
     select(max_sock+1, &set_socket, NULL, NULL, NULL);  
     
@@ -73,18 +82,24 @@ int main(int argc, char *argv[])
 	if(recv_socket(&mensaje,aux_pfs->sock)>0)
 	{
 	 if(mensaje.type == nipc_handshake)
-	    printf("BASTA DE HANDSHAKE!!!!\n");
+	 {
+	   printf("BASTA DE HANDSHAKE!!!!\n");
+	   log_warning(log, "Principal", "Message warning: %s", "Ya se realizo el HANDSHAKE");
+	 }
 	  if(mensaje.type == nipc_req_read)
 	  {
 	    if(mensaje.len == 4)
 	    {
+	      uint8_t *id_disco;
 	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
-	      distribuirPedidoLectura(&discos,mensaje);
+	      id_disco = distribuirPedidoLectura(&discos,mensaje);
+	      log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
 	      printf("------------------------------\n");
 	    }
 	    else
 	    {
 	      printf("MANDASTE CUALQUIER COSA\n");
+	      log_warning(log, "Principal", "Message warning: %s", "Formato de mensaje no reconocido");
 	    }
 	  }
 	  if(mensaje.type == nipc_req_write)
@@ -93,21 +108,25 @@ int main(int argc, char *argv[])
 	    {
 	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
 	      distribuirPedidoEscritura(&discos,mensaje);
+	      log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
 	      printf("------------------------------\n");
 	    }
 	    else
 	    {
 	      printf("MANDASTE CUALQUIER COSA\n");
+	      log_warning(log, "Principal", "Message warning: %s", "Formato de mensaje no reconocido");
 	    }
 	  }
 	  if(mensaje.type == nipc_error)
 	  {
 	    printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+	    log_error(log, "Principal", "Message error: Sector:%d Error: %s", mensaje.payload.sector,mensaje.payload.contenido);
 	  }
 	}
 	else
 	{
 	  printf("Se cayo la conexion con el PFS: %d\n",aux_pfs->sock);
+	  log_warning(log, "Principal", "Message warning: Se cayo la conexion con el PFS:%d",aux_pfs->sock);
 	  liberar_pfs_caido(&pedidos_pfs,aux_pfs->sock);
 	  printf("------------------------------\n");
 	}
@@ -122,7 +141,10 @@ int main(int argc, char *argv[])
     if(FD_ISSET(sock_raid, &set_socket)>0)
     {
       if( (sock_new=accept(sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
-	printf("ERROR en la conexion  %d\n",sock_new);
+      {
+	printf("ERROR en la nueva conexion\n");
+	log_error(log, "Principal", "Message error: %s", "No se pudo establecer la conexion");
+      }
       else
       {
 	if(recv_socket(&mensaje,sock_new)>0)
@@ -135,7 +157,7 @@ int main(int argc, char *argv[])
 	      char id_disco[20];
 	      memcpy(&id_disco,mensaje.payload.contenido,20);
 	      agregarDisco(&discos,(uint8_t *)id_disco,sock_new);//crea hilo
-	      //listarPedidosDiscos(&discos);
+	      log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", id_disco);
 	      printf("------------------------------\n");
 	    }
 	    else
@@ -149,12 +171,14 @@ int main(int argc, char *argv[])
 		nuevo_pfs->sgte = pedidos_pfs;
 		pedidos_pfs = nuevo_pfs;
 		FD_SET (nuevo_pfs->sock, &set_socket);
+		log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
 		printf("------------------------------\n");
 	      }
 	      else
 	      {
 		//ENVIAR ERROR DE CONEXION
 		printf("No hay discos conectados!\n");
+		log_error(log, "Principal", "Message error: %s", "No hay discos conectados!");
 		printf("cerrar conexion: %d\n",sock_new);
 		nipc_close(sock_new);
 	      }
@@ -162,48 +186,33 @@ int main(int argc, char *argv[])
 	  }
 	  if(mensaje.type == nipc_req_read)
 	  {
-	    if(mensaje.len == 4)
-	    {
-	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
-	      //agregarPedidoLectura();
-	      //distribuirPedidoLectura(&discos);
-	      
-	      printf("------------------------------\n");
-	    }
-	    else
-	    {
-	      printf("Respuesta lectura: %s\n",mensaje.payload.contenido);
-	    }
+	    printf("ATENCION!!! Formato de mensaje no reconocido: %d - %d - %d - %s\n",mensaje.type, mensaje.len, mensaje.payload.sector, mensaje.payload.contenido);
+	    log_warning(log, "Principal", "Message warning: Formato de mensaje no reconocido: %d - %d - %d - %s",
+		mensaje.type, mensaje.len, mensaje.payload.sector, mensaje.payload.contenido);
+	    printf("------------------------------\n");
 	  }
 	  if(mensaje.type == nipc_req_write)
 	  {
-	    if(mensaje.len != 4)
-	    {
-	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-	      //agregarPedidoEscritura();
-	      //distribuirPedidoEscritura(&discos);
-	      
-	      printf("------------------------------");
-	    }
-	    else
-	    {
-	      printf("Respuesta lectura: %d\n",mensaje.payload.sector);
-	    }
+	    printf("ATENCION!!! Formato de mensaje no reconocido: %d - %d - %d - %s\n",mensaje.type, mensaje.len, mensaje.payload.sector, mensaje.payload.contenido);
+	    log_warning(log, "Principal", "Message warning: Formato de mensaje no reconocido: %d - %d - %d - %s",
+			mensaje.type, mensaje.len, mensaje.payload.sector, mensaje.payload.contenido);
+	    printf("------------------------------\n");
 	  }
 	  if(mensaje.type == nipc_error)
 	  {
 	    printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+	    log_error(log, "Principal", "Message error: Sector:%d Error: %s",
+		      mensaje.payload.sector,mensaje.payload.contenido);
 	  }
 	}
       }
     }
   }
   printf("\n\n POR ALGO SALIII \n\n");
+  log_warning(log, "Principal", "Message warning: Sali del sistema, cosa dificil");
+  log_delete(log);
   exit(EXIT_SUCCESS);
 }
-
-
-
 
 
 
