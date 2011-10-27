@@ -12,9 +12,6 @@
 #include "pfs.h"
 #include "direccionamiento.h"
 
-static const char *hello_str = "Hello World!\n"; ////
-static const char *hello_path = "/hello"; ////
-
 int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     printf("Create: path:%s\n", path);
@@ -195,6 +192,15 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
     fs_tmp->open_files[ret].first_cluster = ret_attrs.first_cluster;
     fs_tmp->open_files[ret].busy = TRUE;
 
+//
+//    int32_t cluster_actual = ret_attrs.first_cluster;
+//    while (cluster_actual != fs_tmp->eoc_marker)
+//    {
+//        printf("%d -> ", cluster_actual);
+//        cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
+//    }
+//    printf("EOC\n");
+
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;
     log_info(fs_tmp->log, "un_thread", " ret_val: %d\n", ret);
@@ -205,21 +211,48 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
 static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
-    size_t len;
-    (void) fi;
-    printf("Read: path: %s\n", path);
-    if(strcmp(path, hello_path) != 0)
-        return -ENOENT;
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
 
-    len = strlen(hello_str);
-    if (offset < len) {
-        if (offset + size > len)
-            size = len - offset;
-        memcpy(buf, hello_str + offset, size);
-    } else
-        size = 0;
+    log_info(fs_tmp->log, "un_thread", "Read: path: %s offset: %d size: %d", path, offset, size);
 
-    return size;
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    int32_t cluster_actual = fs_tmp->open_files[fi->fh].first_cluster;
+
+    cluster_actual = fat32_get_link_n_in_chain( cluster_actual, offset / cluster_size, fs_tmp);
+
+    offset =  offset % cluster_size;
+
+    int8_t *buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
+    fat32_getcluster(cluster_actual, buffer, fs_tmp);
+
+    int32_t size_to_read = cluster_size - offset;
+//    int32_t size_aldy_read = 0;
+    if (size_to_read>size) size_to_read = size;
+//    size_aldy_read += size_to_read;
+
+    memcpy(buf, buffer, size_to_read);
+    
+//    Tal vez la vayamos a usar, segun lo que este pasando con esta funcion
+//    especificamente con el size
+//    while(size <= 0 && cluster_actual != fs_tmp->eoc_marker)
+//    {
+//        cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
+//    printf("1: %d\n", cluster_actual);
+//        fat32_getcluster(cluster_actual, buffer, fs_tmp);
+//        size_to_read = (size>cluster_size)?cluster_size:size;
+//        memcpy(buf, buffer + size_aldy_read, size_to_read);
+//
+//        size_aldy_read += size_to_read;
+//        size -= size_to_read;
+//    }
+
+    free(buffer);
+
+    return size_to_read;
 }
 
 static void *fat32_init(struct fuse_conn_info *conn)

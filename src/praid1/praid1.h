@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include<pthread.h>
-#include"nipc.h"
+#include "nipc.h"
 
 #define SIZEBUF 1024
 
