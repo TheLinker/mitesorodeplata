@@ -41,6 +41,15 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
     return 0;
 }
 
+/**
+ * Obtiene el bloque *block* (1024 bytes) y *cantidad* de bloques siguientes.
+ *
+ * @block:    Primer bloque a pedir.
+ * @cantidad: Cantidad de bloques a pedir.
+ * @buffer:   Lugar donde se almacena la información recibida.
+ * @fs_tmp:   Estructura privada del file system// Ver Wiki.
+ * @return:   Código de error o 0 si fue todo bien.
+ */
 uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
 {
     int i=0;
