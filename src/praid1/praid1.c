@@ -14,6 +14,7 @@
 #include "praid_func.h"
 
 
+//disco *discos;
 
 int main(int argc, char *argv[])
 {
@@ -22,42 +23,37 @@ int main(int argc, char *argv[])
   //log_info(log, "Principal", "Message info: %s", "se conecto el cliente xxx");
   //log_warning(log, "Principal", "Message warning: %s", "not load configuration file");
   //log_error(log, "Principal", "Message error: %s", "Crash!!!!");
+  datos               *info_ppal = (datos *)malloc(sizeof(datos));
+  pfs                 *aux_pfs;
+  uint32_t             max_sock;
+  nipc_packet          mensaje;
+  nipc_socket          sock_new;
+  struct sockaddr_in  *addr_ppd = malloc(sizeof(struct sockaddr_in));
+  uint32_t             clilen;
+  fd_set               set_socket;
   
-  disco *discos=NULL;
-  pfs *pedidos_pfs=NULL;
-  pfs *aux_pfs;
+  info_ppal->sock_raid = -1;
+  info_ppal->lista_pfs = NULL;
+  info_ppal->discos    = NULL;
   
-  fd_set set_socket;
-  nipc_socket sock_raid;
-  
-  sock_raid = create_socket("127.0.0.1",50000);
-  nipc_listen(sock_raid);
+  info_ppal->sock_raid = create_socket("127.0.0.1",50000);
+  nipc_listen(info_ppal->sock_raid);
   printf("------------------------------\n");
-  printf("--- Socket escucha RAID: %d ---\n",sock_raid);
+  printf("--- Socket escucha RAID: %d ---\n",info_ppal->sock_raid);
   printf("------------------------------\n");
-  log_info(log, "Principal", "Message info: Socket escucha %d", sock_raid);
-  
-  uint32_t max_sock;
-  nipc_packet mensaje;
-  nipc_socket sock_new;
-  struct sockaddr_in *addr_ppd = malloc(sizeof(struct sockaddr_in));
-  uint32_t clilen;
-  
-  pthread_t hilo_respuestas;
-  hilo_respuestas = crear_hilo_respuestas();
+  log_info(log, "Principal", "Message info: Socket escucha %d", info_ppal->sock_raid);
   
     
   while(1)
   {
     FD_ZERO(&set_socket);
     
-    FD_SET(sock_raid, &set_socket);
+    FD_SET(info_ppal->sock_raid, &set_socket);
     
-    max_sock = sock_raid;
+    max_sock = info_ppal->sock_raid;
     
-    aux_pfs=pedidos_pfs;
-    
-    while(aux_pfs!=NULL)
+    aux_pfs = info_ppal->lista_pfs;
+    while(aux_pfs != NULL)
     {
       if(aux_pfs->sock > max_sock)
 	max_sock = aux_pfs->sock;
@@ -65,16 +61,22 @@ int main(int argc, char *argv[])
       aux_pfs=aux_pfs->sgte;
     }
     
-    listarPedidosDiscos(&discos);
-    if (discos!=NULL)printf("------------------------------\n");
+    listar_pedidos_discos(info_ppal->discos);
+    if (info_ppal->discos!=NULL)printf("------------------------------\n");
     
     select(max_sock+1, &set_socket, NULL, NULL, NULL);  
     
-     /*
+    /*
+     * Busco discos caidos
+     */
+    //crear arriba un hilo bloqueado que se habilite por una señal o semaforo
+    limpio_discos_caidos(&info_ppal);
+    
+    /*
      * Lista de socket PFS
      */
 	
-    aux_pfs=pedidos_pfs;
+    aux_pfs=info_ppal->lista_pfs;
     while(aux_pfs != NULL)
     {
       if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
@@ -92,7 +94,7 @@ int main(int argc, char *argv[])
 	    {
 	      uint8_t *id_disco;
 	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
-	      id_disco = distribuirPedidoLectura(&discos,mensaje);
+	      id_disco = distribuir_pedido_lectura(&info_ppal->discos,mensaje,aux_pfs->sock);
 	      log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
 	      printf("------------------------------\n");
 	    }
@@ -107,7 +109,7 @@ int main(int argc, char *argv[])
 	    if(mensaje.len != 4)
 	    {
 	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-	      distribuirPedidoEscritura(&discos,mensaje);
+	      distribuir_pedido_escritura(&info_ppal->discos,mensaje,aux_pfs->sock);
 	      log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
 	      printf("------------------------------\n");
 	    }
@@ -127,7 +129,7 @@ int main(int argc, char *argv[])
 	{
 	  printf("Se cayo la conexion con el PFS: %d\n",aux_pfs->sock);
 	  log_warning(log, "Principal", "Message warning: Se cayo la conexion con el PFS:%d",aux_pfs->sock);
-	  liberar_pfs_caido(&pedidos_pfs,aux_pfs->sock);
+	  liberar_pfs_caido(&info_ppal->lista_pfs,aux_pfs->sock);
 	  printf("------------------------------\n");
 	}
       }
@@ -138,15 +140,16 @@ int main(int argc, char *argv[])
      * SOCKECT PRINCIPAL DE ESCUCHA
      */
     
-    if(FD_ISSET(sock_raid, &set_socket)>0)
+    if(FD_ISSET(info_ppal->sock_raid, &set_socket)>0)
     {
-      if( (sock_new=accept(sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
+      if( (sock_new=accept(info_ppal->sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
       {
 	printf("ERROR en la nueva conexion\n");
 	log_error(log, "Principal", "Message error: %s", "No se pudo establecer la conexion");
       }
       else
       {
+	strcpy((char *)mensaje.buffer, "\0");
 	if(recv_socket(&mensaje,sock_new)>0)
 	{
 	  if(mensaje.type == nipc_handshake)
@@ -156,20 +159,21 @@ int main(int argc, char *argv[])
 	      printf("Nueva conexion PPD: %s \n",mensaje.payload.contenido);
 	      char id_disco[20];
 	      memcpy(&id_disco,mensaje.payload.contenido,20);
-	      agregarDisco(&discos,(uint8_t *)id_disco,sock_new);//crea hilo
+	      agregarDisco(&info_ppal,(uint8_t *)id_disco,sock_new);//crea hilo
+	      FD_SET (sock_new, &set_socket);
 	      log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", id_disco);
 	      printf("------------------------------\n");
 	    }
 	    else
 	    {
-	      if(discos!=NULL)
+	      if(info_ppal->discos!=NULL)
 	      {
 		printf("Nueva conexion PFS: %d\n",sock_new);
 		pfs *nuevo_pfs;
 		nuevo_pfs = (pfs *)malloc(sizeof(pfs));
 		nuevo_pfs->sock=sock_new;
-		nuevo_pfs->sgte = pedidos_pfs;
-		pedidos_pfs = nuevo_pfs;
+		nuevo_pfs->sgte = info_ppal->lista_pfs;
+		info_ppal->lista_pfs = nuevo_pfs;
 		FD_SET (nuevo_pfs->sock, &set_socket);
 		log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
 		printf("------------------------------\n");
@@ -244,7 +248,7 @@ int main(int argc, char *argv[])
 			if (discos != NULL)
 			{
 			  agregarPedidoLectura();
-			  distribuirPedidoLectura(&discos);
+			  distribuir_pedido_lectura(&discos);
 			}else
 				printf("\n\nNo hay discos");		
 		}
@@ -254,7 +258,7 @@ int main(int argc, char *argv[])
 			if (discos != NULL)
 			{
 			  agregarPedidoEscritura();
-			  distribuirPedidoEscritura(&discos);
+			  distribuir_pedido_escritura(&discos);
 			}else
 				printf("\n\nNo hay discos");		
 		}
@@ -266,13 +270,13 @@ int main(int argc, char *argv[])
 		if(opcion == '4')
 		{
 			printf("\n	Listar pedidos en discos");
-			listarPedidosDiscos(&discos);
+			listar_pedidos_discos(&discos);
 		}
 		if(opcion == '5')
 		{
 			printf("\n	Distribuir Pedido Lectura");
 			if (discos != NULL && hayPedidosLectura()!=0)
-				distribuirPedidoLectura(&discos);
+				distribuir_pedido_lectura(&discos);
 			else
 				printf("\n\nNo hay discos o pedidos");
 		}
@@ -280,7 +284,7 @@ int main(int argc, char *argv[])
 		{
 			printf("\n	Distribuir Pedido Escritura");
 			if (discos != NULL && hayPedidosEscritura()!=0)
-				distribuirPedidoEscritura(&discos);
+				distribuir_pedido_escritura(&discos);
 			else
 				printf("\n\nNo hay discos o pedidos");
 		}

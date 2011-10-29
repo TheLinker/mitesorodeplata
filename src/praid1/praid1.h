@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include<pthread.h>
-#include "nipc.h"
+#include"nipc.h"
 
 #define SIZEBUF 1024
 
@@ -14,6 +14,7 @@ struct mensaje_cola{
 }__attribute__ ((packed));
 
 typedef struct _pedido{
+    nipc_socket      sock;
     uint8_t          type;
     uint32_t         sector;
     uint8_t          contenido[512];
@@ -34,12 +35,11 @@ typedef struct _pfs{
     struct _pfs   *sgte;
 } __attribute__ ((packed)) pfs;
 
-union semun 
-{ 
-	int                   val;
-	struct semid_ds      *buf;
-	unsigned short int   *array;
-	struct seminfo       *__buf;
-};
+typedef struct datos{
+    nipc_socket   sock_raid;
+    pfs	         *lista_pfs;
+    disco        *discos;
+}datos;
+
 
 #endif //__PRAID1_H_
