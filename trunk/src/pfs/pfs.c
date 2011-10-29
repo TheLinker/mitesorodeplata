@@ -96,7 +96,7 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
     memcpy(buffer + (entry_offset * 32), &buffer, BLOCK_SIZE);
 
     //Pedir la escritura del bloque
-    //fat32_writeblock(target_block, &buffer)
+    fat32_writeblock(target_block, 1, &buffer, fs_tmp);
 
     if(cluster_abm > 0)
         while(cluster_abm)
@@ -268,7 +268,6 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
 
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;
-    log_info(fs_tmp->log, "un_thread", " ret_val: %d\n", ret);
 
     return 0;
 }

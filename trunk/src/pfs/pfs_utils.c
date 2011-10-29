@@ -90,7 +90,12 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fs_tmp->fat[posicion] = free_cluster;
     fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
 
-    // Falta hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
+    int32_t bloque1 = fs_tmp->boot_sector.reserved_sectors + (posicion / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
+    int32_t bloque2 = fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
+
+    fat32_writeblock(bloque1, 1, fs_tmp->fat + (bloque1 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
+    if(bloque2 != bloque1)
+        fat32_writeblock(bloque2, 1, fs_tmp->fat + (bloque2 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
 }
 
 /**
@@ -117,7 +122,12 @@ void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fs_tmp->fat[pos_ant] = fs_tmp->eoc_marker;
     fs_tmp->fat[pos_act] = 0;
 
-    // Faltar hacer la escritura en Disco de la modificacion de la FAT y del FSinfo
+    int32_t bloque1 = fs_tmp->boot_sector.reserved_sectors + (pos_ant / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
+    int32_t bloque2 = fs_tmp->boot_sector.reserved_sectors + (pos_act / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
+
+    fat32_writeblock(bloque1, 1, fs_tmp->fat + (bloque1 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
+    if(bloque2 != bloque1)
+        fat32_writeblock(bloque2, 1, fs_tmp->fat + (bloque2 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
 }
 
 /**
