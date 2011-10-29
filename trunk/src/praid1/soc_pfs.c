@@ -1,3 +1,6 @@
+// cd Desarrollo/Workspace/mitesorodeplata/src/praid1/
+// gcc soc_pfs.c -o pfs
+
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<arpa/inet.h>

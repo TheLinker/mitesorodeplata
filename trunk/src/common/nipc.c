@@ -156,11 +156,10 @@ void nipc_listen(nipc_socket sock)
  */
 void nipc_close(nipc_socket sock)
 {
-  uint32_t error;
-  error = close(sock);
-  if (error<0)
+  if (close(sock)<0)
   {
-    printf("Error close %d",error);
+    printf("Error close");
+    exit(EXIT_FAILURE);
   }
 }
 
