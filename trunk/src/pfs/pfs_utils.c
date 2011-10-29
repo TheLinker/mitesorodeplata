@@ -47,28 +47,26 @@ int32_t fat32_first_free_cluster(fs_fat32_t *fs_tmp)
  * @return en caso de ser rechazada la conexion,
  * envia el mensaje de error y sale del programa
  */
-void fat32_handshake(nipc_socket *socket)
+void fat32_handshake(nipc_socket socket)
 {
-    nipc_packet *packet = malloc(sizeof(nipc_packet));
+    nipc_packet packet;
+    memset(&packet, '\0', sizeof(nipc_packet));
 
-    packet->type = nipc_handshake;
-    packet->len = 0;
-    nipc_send_packet(packet, socket);
-    free(packet);
+    packet.type = nipc_handshake;
+    packet.len = 0;
+    send_socket(&packet, socket);
 
-    packet = nipc_recv_packet(socket);
+    recv_socket(&packet, socket);
 
-    if (packet->type) {
-        printf("Error: tipo %d recibido en vez del handshake\n", packet->type);
+    if (packet.type != nipc_handshake) {
+        printf("Error: tipo %d recibido en vez del handshake\n", packet.type);
         exit(-ECONNREFUSED);
     }
 
-    if (packet->len) {
-        printf("Error: %s\n", packet->payload);
+    if (packet.len) {
+        printf("Error %d: %s\n", packet.payload.sector, packet.payload.contenido);
         exit(-ECONNREFUSED);
     }
-
-    free(packet);
 
     return;
 }
@@ -271,7 +269,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
     uint32_t current_entry=0;
     uint8_t  checksum=0;
 
-    fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
+    fat32_get_entry(current_entry, first_cluster, (file_attrs *)directory_entry, fs_tmp);
 
     while ( directory_entry[0] != AVAIL_ENTRY ) {
         switch( ((file_entry_t *)directory_entry)->file_attr ) {
@@ -349,7 +347,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
         }
 
         current_entry++;
-        fat32_get_entry(current_entry, first_cluster, (uint8_t *)directory_entry, fs_tmp);
+        fat32_get_entry(current_entry, first_cluster, (file_attrs *)directory_entry, fs_tmp);
     }
 
     return cantidad_entradas;

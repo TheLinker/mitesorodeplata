@@ -1,7 +1,7 @@
 #ifndef __PFS_H_
 #define __PFS_H_
 
-#include "ex_nipc.h"
+#include "nipc.h"
 #include "log.h"
 #include "pfs_files.h"
 
@@ -41,7 +41,7 @@ typedef struct fs_fat32_t {
     uint16_t server_port;
     uint16_t cache_size;
 
-    nipc_socket *socket;
+    nipc_socket socket;
 
     struct file_descriptor open_files[MAX_OPEN_FILES];
 
