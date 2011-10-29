@@ -158,7 +158,7 @@ void string_split3( uint8_t *str, uint8_t delimitor, uint8_t **result ){
 }
 
 uint8_t** string_split4( const uint8_t *str, int8_t *delimitor ){
-    uint8_t *tmp_str = calloc(strlen((char *)str), 1);
+    uint8_t *tmp_str = calloc(strlen((char *)str) + 1, 1);
     memcpy(tmp_str, str, strlen((char *)str));
 
     uint8_t  *pch;
@@ -169,8 +169,10 @@ uint8_t** string_split4( const uint8_t *str, int8_t *delimitor ){
 
     pch =(uint8_t *) strtok ((char *)tmp_str, (char *)delimitor);
     while( pch ) {
-        array[elementsAmount] = calloc(strlen((char *)pch), 1);
+printf("split4: pch: %s(%d)", pch, strlen(pch));
+        array[elementsAmount] = calloc(strlen((char *)pch) + 1, 1);
         memcpy(array[elementsAmount], pch, strlen((char *)pch));
+        array[elementsAmount][strlen(pch)] = '\0';
         elementsAmount++;
         void *tmp = realloc(array, elementsAmount * sizeof(uint8_t*) + 1);
         if (!tmp)
