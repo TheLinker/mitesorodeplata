@@ -280,7 +280,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
 
-    log_info(fs_tmp->log, "un_thread", "Read: path: %s offset: %d size: %d", path, offset, size);
+    log_info(fs_tmp->log, "un_thread", "Read: path: %s size: %d offset: %ld", path, size, offset);
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
@@ -331,7 +331,7 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fs_tmp->log = log_new( fs_tmp->log_path, "process_file_system", fs_tmp->log_mode );
 
-    if(!(fs_tmp->socket = nipc_init(fs_tmp->server_host, fs_tmp->server_port))) {
+    if(!(fs_tmp->socket = create_socket((char *)fs_tmp->server_host, fs_tmp->server_port))) {
         printf("La conexion al RAID 1 o planificador de disco no esta lista\n");
         exit(-EADDRNOTAVAIL);
     }
