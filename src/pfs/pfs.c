@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 #include "pfs_utils.h"
+#include "pfs_consola.h"
 #include "utils.h"
 #include "pfs.h"
 #include "direccionamiento.h"
@@ -257,15 +258,6 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
     fs_tmp->open_files[ret].container_cluster = container_cluster;
     fs_tmp->open_files[ret].entry_index = ret_attrs.entry_index;
 
-//
-//    int32_t cluster_actual = ret_attrs.first_cluster;
-//    while (cluster_actual != fs_tmp->eoc_marker)
-//    {
-//        printf("%d -> ", cluster_actual);
-//        cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
-//    }
-//    printf("EOC\n");
-
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;
 
@@ -352,6 +344,9 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fat32_getblock(fs_tmp->boot_sector.reserved_sectors / SECTORS_PER_BLOCK,
                    fs_tmp->boot_sector.sectors_per_fat / SECTORS_PER_BLOCK, fs_tmp->fat, fs_tmp);
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
+
+    //creamos el thread de la consola
+    pthread_create(fs_tmp->thread_consola, NULL, fat32_consola, fs_tmp);
 
     log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -",
                                        fs_tmp->boot_sector.bytes_per_sector,

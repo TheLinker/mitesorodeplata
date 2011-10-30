@@ -4,6 +4,7 @@
 #include "nipc.h"
 #include "log.h"
 #include "pfs_files.h"
+#include <pthread.h>
 
 typedef union boot_t {
     uint8_t buffer[512];              // Offset   Longitud
@@ -44,6 +45,8 @@ typedef struct fs_fat32_t {
     nipc_socket socket;
 
     struct file_descriptor open_files[MAX_OPEN_FILES];
+
+    pthread_t *thread_consola;
 
     char        log_path[1024];
     log_output  log_mode;
