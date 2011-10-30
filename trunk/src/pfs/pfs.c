@@ -1,5 +1,7 @@
 #define FUSE_USE_VERSION  28
 
+#define MAX(a,b) (a)>(b)?(a):(b)
+
 #include <fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,8 +23,50 @@ int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 
 int fat32_write (const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-    printf("Write: path: %s\n", path);
-    return 0;
+     struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
+
+    log_info(fs_tmp->log, "un_thread", "Write: path: %s size: %d offset: %ld", path, size, offset);
+
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    int32_t cluster_actual = fs_tmp->open_files[fi->fh].first_cluster;
+
+    cluster_actual = fat32_get_link_n_in_chain( cluster_actual, offset / cluster_size, fs_tmp);
+
+    //Suponemos que FUSE llama a truncate para pedir espacio si es que detecta que no tiene.
+
+    int8_t *buffer = calloc(cluster_size, 1);
+    size_t data_to_write = size;
+    offset = offset % cluster_size;
+
+    fat32_getcluster(cluster_actual, buffer, fs_tmp);
+    int32_t data_cluster = cluster_size - offset;
+
+    memcpy(buffer + offset, buf, data_cluster);
+
+    fat32_writecluster(cluster_actual, buffer, fs_tmp);
+
+    data_to_write -= data_cluster;
+
+    while(data_to_write) {
+        data_cluster = MAX(data_to_write, cluster_size);
+
+        cluster_actual = fat32_get_link_n_in_chain( cluster_actual, 1, fs_tmp);
+
+        if(data_cluster < cluster_size)
+            fat32_getcluster(cluster_actual, buffer, fs_tmp);
+
+        memcpy(buffer, buf+size-data_to_write, data_cluster);
+
+        fat32_writecluster(cluster_actual, buffer, fs_tmp);
+
+        data_to_write -= data_to_write;
+    }
+
+    return size; //TODO error handling
 }
 
 int fat32_flush (const char *path, struct fuse_file_info *fi)
