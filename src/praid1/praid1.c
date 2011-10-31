@@ -13,9 +13,6 @@
 #include "praid1.h"
 #include "praid_func.h"
 
-
-//disco *discos;
-
 int main(int argc, char *argv[])
 {
   log_t* log = log_new("./src/praid1/log.txt", "Runner", LOG_OUTPUT_FILE);
@@ -65,13 +62,7 @@ int main(int argc, char *argv[])
     if (info_ppal->discos!=NULL)printf("------------------------------\n");
     
     select(max_sock+1, &set_socket, NULL, NULL, NULL);  
-    
-    /*
-     * Busco discos caidos
-     */
-    //crear arriba un hilo bloqueado que se habilite por una señal o semaforo
-    limpio_discos_caidos(&info_ppal);
-    
+        
     /*
      * Lista de socket PFS
      */
@@ -216,97 +207,3 @@ int main(int argc, char *argv[])
   log_delete(log);
   exit(EXIT_SUCCESS);
 }
-
-
-
-/*
-int main(int argc, char *argv[])
-{
-	disco *discos;
-	char opcion;
-	discos = NULL;
-	//pthread_t hilo1;
-	while(1){
-		printf("\n\n\n-------------------------------------");
-		printf("\n-------------------------------------");
-		printf("\n1. Agregar pedido lectura");
-		printf("\n2. Agregar pedido escritura");
-		printf("\n3. Agregar disco");
-		printf("\n4. Listar pedidos en discos");
-		printf("\n5. Distribuir Pedido Lectura");
-		printf("\n6. Distribuir Pedido Escritura");
-		printf("\n7. Estado de colas");
-		printf("\n8. ");
-		printf("\n9. Salir");
-		printf("\nIngrese opcion: ");
-		opcion = getchar();
-		getchar();
-		if(opcion == '1')
-		{
-			printf("\n	Agregar pedido de lectura");
-			if (discos != NULL)
-			{
-			  agregarPedidoLectura();
-			  distribuir_pedido_lectura(&discos);
-			}else
-				printf("\n\nNo hay discos");		
-		}
-		if(opcion == '2')
-		{
-			printf("\n	Agregar pedido de Escritura");
-			if (discos != NULL)
-			{
-			  agregarPedidoEscritura();
-			  distribuir_pedido_escritura(&discos);
-			}else
-				printf("\n\nNo hay discos");		
-		}
-		if(opcion == '3')
-		{
-			printf("\n	Agregar disco");
-			agregar_disco(&discos);
-		}
-		if(opcion == '4')
-		{
-			printf("\n	Listar pedidos en discos");
-			listar_pedidos_discos(&discos);
-		}
-		if(opcion == '5')
-		{
-			printf("\n	Distribuir Pedido Lectura");
-			if (discos != NULL && hayPedidosLectura()!=0)
-				distribuir_pedido_lectura(&discos);
-			else
-				printf("\n\nNo hay discos o pedidos");
-		}
-		if(opcion == '6')
-		{
-			printf("\n	Distribuir Pedido Escritura");
-			if (discos != NULL && hayPedidosEscritura()!=0)
-				distribuir_pedido_escritura(&discos);
-			else
-				printf("\n\nNo hay discos o pedidos");
-		}
-		if(opcion == '7')
-		{
-			printf("\n	Estado de cola");
-			estado();
-		}
-		if(opcion == '8')
-		{
-			printf("\n	");
-			//distribuirPedidos(&discos);
-			//int ret1;
-			//ret1=pthread_create(&hilo1,NULL,distribuirPedidos,(void *)&discos);
-			//pthread_join(hilo1,NULL);
-		}
-		if(opcion == '9')
-		{
-			printf("\n	Salir\n\n");
-			eliminarCola(&discos);
-			//pthread_kill(hilo1,SIGKILL);
-			exit(EXIT_SUCCESS);
-		}
-	}
-}
-*/

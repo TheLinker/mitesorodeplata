@@ -10,15 +10,16 @@
 
 #define MAX_CONECTIONS 20
 
-// Errores
+// Errores HANDSHAKE
 #define HANDSHAKE_OK     0
 #define NO_DISKS         1
 #define ALREADY_CONNECT  2
 #define CONNECTION_FAIL  3
-#define DISKS_FAILED     4
-#define NO_FOUND_SECTOR  5
-#define WRITE_FAIL       6
-#define READ_FAIL        7
+// Errores EN EJECUCION
+#define DISKS_FAILED     0
+#define NO_FOUND_SECTOR  1
+#define WRITE_FAIL       2
+#define READ_FAIL        3
 
 /**
  * Inicia un socket para escuchar nuevas conexiones
@@ -117,17 +118,15 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 	}
     }
     packet->payload.sector = 0;
-    //borrar contenido
+    //borrar contenido por si las dudas
     uint32_t i=0;
     for(i=0; i < 512;i++)
     {
       packet->payload.contenido[i]='\0';
-      printf("%c",packet->payload.contenido[i]);
     }
     switch (packet->type)
     {
       case nipc_handshake:
-	printf("HANDSHAKE\n");
 	memcpy(&packet->payload.sector   , buffer    , 4 + 1);
 	memcpy(&packet->payload.contenido, buffer + 4, packet->len + 1);
 	packet->payload.contenido[packet->len -4]='\0';
@@ -157,7 +156,6 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 	}
 	break;
       case nipc_error:
-	printf("ERROR\n");
 	memcpy(&packet->payload.sector   , buffer    , 4 + 1);
 	memcpy(&packet->payload.contenido, buffer + 4, packet->len + 1);
 	packet->payload.contenido[packet->len -4]='\0';
@@ -167,7 +165,7 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
       default:
 	return -1;
     }
-    printf("%d - %d - %d - %s\n",packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
+    printf("Control de mensaje recibido: %d - %d - %d - %s\n",packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
     return leido;
 }
 
@@ -189,7 +187,6 @@ uint32_t send_socket(nipc_packet *packet, uint32_t sock)
     * Preparo el paquete para ser enviado
     */
     memcpy(buffer    , &packet->type , sizeof(uint8_t));
-    printf("type: %d\n",buffer[0]);
     memcpy(buffer + 1, &packet->len  , sizeof(uint16_t));
     uint16_t len_mensaje;
     switch (packet->type)
@@ -198,21 +195,20 @@ uint32_t send_socket(nipc_packet *packet, uint32_t sock)
 	memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
 	switch (packet->payload.sector)
 	{
-	  case 0: // HANDSHAKE_OK
-	    printf("HANDSHAKE %d\n",packet->len);
+	  case HANDSHAKE_OK:
 	    memcpy(buffer + 7, &packet->payload.contenido, packet->len);
 	    break;
-	  case 1:
+	  case NO_DISKS:
 	    len_mensaje = 4 + strlen("No hay discos conectados");
 	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
 	    memcpy(buffer + 7, "No hay discos conectados", len_mensaje);
 	    break;
-	  case 2:
+	  case ALREADY_CONNECT:
 	    len_mensaje = 4 + strlen("La conexion ya ha sido establecida");
 	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
 	    memcpy(buffer + 7, "La conexion ya ha sido establecida", len_mensaje);
 	    break;
-	  case 3:
+	  case CONNECTION_FAIL:
 	    len_mensaje = 4 + strlen("Se ha producido una falla al intentar conectarse");
 	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
 	    memcpy(buffer + 7, "Se ha producido una falla al intentar conectarse", len_mensaje);
@@ -240,30 +236,35 @@ uint32_t send_socket(nipc_packet *packet, uint32_t sock)
 	  }
 	if (packet->len == 516)
 	{
-	  printf("Escritura\n");
 	  memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
 	  memcpy(buffer + 7, &packet->payload.contenido, packet->len      );
-	  //packet->payload.contenido[packet->len]='\0';
 	}
 	break;
       case 3: //nipc_error
 	memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
 	uint32_t codigo;
 	codigo = atoi((char *)packet->payload.contenido);
-	printf("---%d---",codigo);
 	switch (codigo)
 	{
-	  case 0: // todos los discos rotos
-	    memcpy(buffer + 7, "Todos los discos estan dañados. Se cerrara la conexión.", strlen("Todos los discos estan dañados. Se cerrara la conexión."));
+	  case DISKS_FAILED:
+	    len_mensaje = 4 + strlen("Todos los discos estan dañados. Se cerrara la conexión.");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "Todos los discos estan dañados. Se cerrara la conexión.", len_mensaje);
 	    break;
-	  case 1:
-	    memcpy(buffer + 7, "El sector solicitado es inexistente.", strlen("El sector solicitado es inexistente."));
+	  case NO_FOUND_SECTOR:
+	    len_mensaje = 4 + strlen("El sector solicitado es inexistente.");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "El sector solicitado es inexistente.", len_mensaje);
 	    break;
-	  case 2:
-	    memcpy(buffer + 7, "No se pudo realizar la escritura del sector solicitado.", strlen("No se pudo realizar la escritura del sector solicitado."));
+	  case WRITE_FAIL:
+	    len_mensaje = 4 + strlen("No se pudo realizar la escritura del sector solicitado.");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "No se pudo realizar la escritura del sector solicitado.", len_mensaje);
 	    break;
-	  case 3:
-	    memcpy(buffer + 7, "No se puedo ralizar la lectura del sector solicitado.", strlen("No se puedo ralizar la lectura del sector solicitado."));
+	  case READ_FAIL:
+	    len_mensaje = 4 + strlen("No se puedo ralizar la lectura del sector solicitado.");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "No se puedo ralizar la lectura del sector solicitado.", len_mensaje);
 	    break;
 	  default:
 	    return -1;
