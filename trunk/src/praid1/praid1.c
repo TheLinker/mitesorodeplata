@@ -149,19 +149,18 @@ int main(int argc, char *argv[])
       }
       else
       {
-	strcpy((char *)mensaje.buffer, "\0");
-	if(recv_socket(&mensaje,sock_new)>0)
+	if(recv_socket(&mensaje,sock_new)>=0)
 	{
 	  if(mensaje.type == nipc_handshake)
 	  {
 	    if(mensaje.len != 0)
 	    {
 	      printf("Nueva conexion PPD: %s \n",mensaje.payload.contenido);
-	      char id_disco[20];
-	      memcpy(&id_disco,mensaje.payload.contenido,20);
-	      agregarDisco(&info_ppal,(uint8_t *)id_disco,sock_new);//crea hilo
+	      //char id_disco[20];
+	      //memcpy(&id_disco,mensaje.payload.contenido,20);
+	      agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo
 	      FD_SET (sock_new, &set_socket);
-	      log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", id_disco);
+	      log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", mensaje.payload.contenido);
 	      printf("------------------------------\n");
 	    }
 	    else
@@ -265,7 +264,7 @@ int main(int argc, char *argv[])
 		if(opcion == '3')
 		{
 			printf("\n	Agregar disco");
-			agregarDisco(&discos);
+			agregar_disco(&discos);
 		}
 		if(opcion == '4')
 		{

@@ -27,47 +27,114 @@ typedef union nipc_packet {
 
 uint32_t sendSocket(nipc_packet *packet, uint32_t sock)
 {
-	uint32_t Escrito = 0;
-	uint32_t Aux = 0;
-
-	/*
-	* Comprobacion de los parametros de entrada
-	*/
-	if ((sock == -1) || (packet == NULL) || (519 < 1))
-		return -1;
-	
-	/*
-	* Bucle hasta que hayamos escrito todos los caracteres que nos han
-	* indicado.
-	*/
-	while (Escrito < 519)
+    uint32_t Escrito = 0;
+    uint32_t Aux = 0;
+    char     buffer[1024];
+    /*
+    * Comprobacion de los parametros de entrada
+    */
+    if ((sock == -1) || (packet == NULL) || (519 < 1))
+	return -1;
+    
+    /*
+    * Preparo el paquete para ser enviado
+    */
+    memcpy(buffer    , &packet->type , sizeof(uint8_t));
+    memcpy(buffer + 1, &packet->len  , sizeof(uint16_t));
+    uint16_t len_mensaje;
+    switch (packet->type)
+    {
+      case 0: //nipc_handshake
+	memcpy(buffer + 3, &packet->payload.sector, sizeof(uint32_t));
+	switch (packet->payload.sector)
 	{
-		Aux = send(sock, packet->buffer + Escrito, 519 - Escrito,0);
-		if (Aux > 0)
-		{
-			/*
-			* Si hemos conseguido escribir caracteres, se actualiza la
-			* variable Escrito
-			*/
-			Escrito = Escrito + Aux;
-		}
-		else
-		{
-			/*
-			* Si se ha cerrado el socket, devolvemos el numero de caracteres
-			* leidos.
-			* Si ha habido error, devolvemos -1
-			*/
-			if (Aux == 0)
-				return Escrito;
-			else
-				return -1;
-		}
+	  case 0: // HANDSHAKE_OK
+	    printf("HANDSHAKE %d\n",packet->len);
+	    memcpy(buffer + 7, &packet->payload.contenido, packet->len);
+	    break;
+	  case 1:
+	    len_mensaje = 4 + strlen("No hay discos conectados");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "No hay discos conectados", len_mensaje);
+	    break;
+	  case 2:
+	    len_mensaje = 4 + strlen("La conexion ya ha sido establecida");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "La conexion ya ha sido establecida", len_mensaje);
+	    break;
+	  case 3:
+	    len_mensaje = 4 + strlen("Se ha producido una falla al intentar conectarse");
+	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
+	    memcpy(buffer + 7, "Se ha producido una falla al intentar conectarse", len_mensaje);
+	    break;
+	  default:
+	    return -1;
 	}
-	/*
-	* Devolvemos el total de caracteres leidos
-	*/
-	return Escrito;
+	break;
+      case 1:  //nipc_req_read
+	if (packet->len == 4)
+	  {
+	    memcpy(buffer + 3, &packet->payload.sector, packet->len );
+	  }
+	if (packet->len == 516)
+	{
+	  memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
+	  memcpy(buffer + 7, &packet->payload.contenido, packet->len      );
+	  //packet->payload.contenido[packet->len]='\0';
+	}
+	break;
+      case 2: //nipc_req_write
+	if (packet->len == 4)
+	  {
+	    memcpy(buffer + 3, &packet->payload.sector, packet->len );
+	  }
+	if (packet->len == 516)
+	{
+	  printf("Escritura\n");
+	  memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
+	  memcpy(buffer + 7, &packet->payload.contenido, packet->len      );
+	  //packet->payload.contenido[packet->len]='\0';
+	}
+	break;
+      case 3: //nipc_error
+	break;
+      case 4: //nipc_CHS
+	break;
+      default:
+	return -1;
+    }
+    /*
+    * Bucle hasta que hayamos escrito todos los caracteres que nos han
+    * indicado.
+    */
+    while (Escrito < (3 + packet->len))
+    {
+	Aux = send(sock, buffer + Escrito, (3 + packet->len) - Escrito,0);
+	if (Aux > 0)
+	{
+	    /*
+	    * Si hemos conseguido escribir caracteres, se actualiza la
+	    * variable Escrito
+	    */
+	    Escrito = Escrito + Aux;
+	}
+	else
+	{
+	    /*
+	    * Si se ha cerrado el socket, devolvemos el numero de caracteres
+	    * leidos.
+	    * Si ha habido error, devolvemos -1
+	    */
+	    if (Aux == 0)
+		return Escrito;
+	    else
+		return -1;
+	}
+    }
+    /*
+    * Devolvemos el total de caracteres leidos
+    */
+    return Escrito;
 }
 
 
@@ -120,7 +187,7 @@ int main(int argc, char **argv){
 	mensaje.type=0;
 	strcpy(mensaje.payload.contenido,ppd_name);
 	mensaje.payload.sector=0;
-	mensaje.len=strlen(mensaje.payload.contenido);
+	mensaje.len = 4+strlen(mensaje.payload.contenido);
 	
 	//if(send(sock_ppd,mensaje.buffer, sizeof(mensaje.buffer)+1,0)<0)
 	if(sendSocket(&mensaje,sock_ppd)<0)
@@ -173,8 +240,8 @@ int main(int argc, char **argv){
 			scanf("%d",&unSector);
 			mensaje.type=2;
 			mensaje.payload.sector = unSector;
-			strcpy(mensaje.payload.contenido,"Escritura OK");
-			mensaje.len=516;
+			strcpy(mensaje.payload.contenido,"");
+			mensaje.len=4;
 			if(sendSocket(&mensaje,sock_ppd)<0)
 			{
 				printf("\nError send");

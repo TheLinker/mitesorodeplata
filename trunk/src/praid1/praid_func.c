@@ -16,11 +16,11 @@
  * Agrega un nuevo disco al RAID
  *
  */
-void agregarDisco(datos **info_ppal,uint8_t id_disco[20], nipc_socket sock_new)
+void agregar_disco(datos **info_ppal,uint8_t *id_disco, nipc_socket sock_new)
 {
   disco *nuevo_disco;
   nuevo_disco = (disco *)malloc(sizeof(disco));
-  memcpy(nuevo_disco->id,id_disco,strlen((char *)id_disco));
+  memcpy(nuevo_disco->id,id_disco,strlen((char *)id_disco)+1);
   nuevo_disco->sock=sock_new;
   nuevo_disco->cantidad_pedidos = 0;
   nuevo_disco->pedidos = NULL;
