@@ -233,15 +233,7 @@ void *espera_respuestas(datos **info_ppal)
       log_error(log, (char *)el_disco->id, "Message error: Se perdio la conexion con el disco %s", (char *)el_disco->id);
       nipc_close(el_disco->sock);
       el_disco->sock = -1;
-      //mensaje trucho para avisar evento
-      //mensaje.type = 9;
-      //mensaje.len = 0;
-      //mensaje.payload.sector = 0;
-      //strcpy((char *)mensaje.payload.contenido,"");
-      //if(send_socket(&mensaje,(*info_ppal)->sock_raid)<0)
-	//printf("ERROR AVISO");
-      
-      //strcpy((char *)el_disco->id,"");
+      limpio_discos_caidos(info_ppal);
       break;
     }
     printf("------------------------------\n");
@@ -302,40 +294,43 @@ void limpio_discos_caidos(datos **info_ppal)
       else
 	anterior->sgte = aux_discos->sgte;
       listar_pedidos_discos((*info_ppal)->discos);
-      //if ((*info_ppal)->discos != NULL)
-      printf("-------------------Limpieza disco---------------\n");
-      //Re-Direcciono pedidos de discos caidos
-      pedido *aux_pedidos;
-      pedido *liberar_pedido;
       disco  *liberar_disco;
-      aux_pedidos = aux_discos->pedidos;
-      while(aux_pedidos != NULL)
+      if ((*info_ppal)->discos != NULL)
       {
-	//saco el pedido del disco
-	if (aux_pedidos->type == nipc_req_read)
+	//Re-Direcciono pedidos de discos caidos
+	pedido *aux_pedidos;
+	pedido *liberar_pedido;
+	aux_pedidos = aux_discos->pedidos;
+	while(aux_pedidos != NULL)
 	{
-	  mensaje.type = aux_pedidos->type;
-	  mensaje.len = 4;
-	  mensaje.payload.sector = aux_pedidos->sector;
-	  strcpy((char *)mensaje.payload.contenido,(char *)aux_pedidos->contenido);
-	  
-	  uint8_t *id_disco;
-	  id_disco = distribuir_pedido_lectura(&(*info_ppal)->discos,mensaje,aux_pedidos->sock);
-	  printf("Re-Distribuir pedido: %d en disco: %s\n",mensaje.payload.sector, id_disco);
-	  log_info(log, "Principal", "Message info: Re-Distribuir pedido: %d en disco: %s", mensaje.payload.sector,id_disco);
-	  aux_discos->cantidad_pedidos--;
+	  //saco el pedido del disco
+	  if (aux_pedidos->type == nipc_req_read)
+	  {
+	    mensaje.type = aux_pedidos->type;
+	    mensaje.len = 4;
+	    mensaje.payload.sector = aux_pedidos->sector;
+	    strcpy((char *)mensaje.payload.contenido,(char *)aux_pedidos->contenido);
+	    
+	    uint8_t *id_disco;
+	    id_disco = distribuir_pedido_lectura(&(*info_ppal)->discos,mensaje,aux_pedidos->sock);
+	    printf("Re-Distribuir pedido: %d en disco: %s\n",mensaje.payload.sector, id_disco);
+	    log_info(log, "Principal", "Message info: Re-Distribuir pedido: %d en disco: %s", mensaje.payload.sector,id_disco);
+	    aux_discos->cantidad_pedidos--;
+	  }
+	  aux_discos->pedidos = aux_pedidos->sgte;
+	  liberar_pedido = aux_pedidos;
+	  free(liberar_pedido);
+	  aux_pedidos = aux_pedidos->sgte;
 	}
-	
-	aux_discos->pedidos = aux_pedidos->sgte;
-	liberar_pedido = aux_pedidos;
-	free(liberar_pedido);
-	aux_pedidos = aux_pedidos->sgte;
+      }
+      else
+      {  //enviar aviso a los PFS que se cerrara el sistema
+	printf("No hay discos para redireccionar\n");
       }
       liberar_disco = aux_discos;
       free(liberar_disco);
     }
     anterior = aux_discos;
     aux_discos = aux_discos->sgte;
-    
   }
 }
