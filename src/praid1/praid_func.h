@@ -6,7 +6,7 @@
 #include "praid1.h"
 #include "nipc.h"
 
-void       agregarDisco(datos **info_ppal, uint8_t id_disco[20],nipc_socket sock_ppd);
+void       agregar_disco(datos **info_ppal, uint8_t *id_disco,nipc_socket sock_ppd);
 void       listar_pedidos_discos(disco *discos);
 uint32_t   menor_cantidad_pedidos(disco *discos);
 uint8_t   *distribuir_pedido_lectura(disco **discos,nipc_packet mensaje,nipc_socket sock_pfs);
