@@ -47,7 +47,7 @@ void msjtocol(nipc_packet msj, cola_t * newptr)
 {
 	newptr->ped.sect = msj.payload.sector;
 	newptr->ped.oper = msj.type;
-	strcpy(newptr->ped.buffer, (char *) msj.payload.contenido);
+	memcpy(newptr->ped.buffer, (char *) msj.payload.contenido, TAM_SECT);
 
 }
 
@@ -72,30 +72,20 @@ cola_t * initPtr()
 	 return newptr;
 }
 
-ped_t desencolar(cola_t * headprt, cola_t * saltoprt)
+ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
 {
-	ped_t pout;
-	cola_t * ptr;
+	ped_t * pout = NULL;
 
-	if(NULL != headprt)
+	if(NULL != *headprt)
 	{
-		ptr = headprt;
-		pout.oper = ptr->ped.oper;
-		pout.sect = ptr->ped.sect;
-		strcpy(pout.buffer,ptr->ped.buffer);
-		headprt = ptr->sig;
-		free(ptr);
-
+		pout = headprt;
+		*headprt = (*headprt)->sig;
 	}else
 	{
-		if(NULL != saltoprt)
+		if(NULL != *saltoprt)
 		{
-			ptr = saltoprt;
-			pout.oper = ptr->ped.oper;
-			pout.sect = ptr->ped.sect;
-			strcpy(pout.buffer,ptr->ped.buffer);
-			saltoprt = ptr->sig;
-			free(ptr);
+			pout = saltoprt;
+			*saltoprt = (*headprt)->sig;
 		}
 	}
 

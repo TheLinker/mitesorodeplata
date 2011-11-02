@@ -6,32 +6,42 @@
 config_t vecConfig;
 char * bufferConsola;
 int posCabAct, cliente;
-nipc_socket ppd_socket;
+nipc_socket ppd_socket, sock_new;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
 FILE * dirArch;
 
 int main()
 {
-	pthread_t thConsola,thEscucharPedidos, thAtenderpedidos;
+	pthread_t thConsola;
 	char* mensaje = NULL;
-	int  thidConsola, thidEscucharPedidos, thidAtenderpedidos;
+	int  thidConsola;
 
 	vecConfig = getconfig("config.txt");
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
 	posCabAct = vecConfig.posactual;
 
-	if(strcmp(vecConfig.modoinit, "CONNECT"))
+	printf("%s\n", vecConfig.modoinit);
+
+	if(!(strncmp(vecConfig.modoinit, "CONNECT",7)))
+	{
+		printf("Conexion con praid\n");
 		conectarConPraid();
+	}
 	else
-		if(strcmp(vecConfig.modoinit, "LISTEN"))
+		if(!(strncmp(vecConfig.modoinit, "LISTEN",6)))
+		{
+			printf("Conexion con Pfs\n");
+			//printf("%s\n", vecConfig.ipppd);
+			//printf("%d\n",vecConfig.puertoppd);
 			conectarConPFS(vecConfig);
+		}
 		else
-			printf("Error de modo de inicialización");
+			printf("Error de modo de inicialización\n");
 
 	thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
-	thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *) escucharPedidos, (void*) mensaje);
-	thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, (void*) mensaje);
+	//thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *) escucharPedidos, (void*) mensaje);
+	//thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, (void*) mensaje);
 
 	return 1;
 }
@@ -46,14 +56,23 @@ void escucharPedidos(void)
 {
 	nipc_packet msj; /*PRUEBA*/
 
-	if(0 == strcmp(vecConfig.algplan, "cscan"))
-	{
+	nipc_packet buffer2;
+	buffer2.type = 0;
+	buffer2.len = 0;
+	buffer2.payload.sector = -3;
+	strcpy(buffer2.payload.contenido, "lllllllll");
+	send_socket(&buffer2 ,sock_new);
+	//printf("%s,%d \n", buffer2.payload.contenido, sock_new);
+	//printf("------------------------------\n");
+
+	//if(0 == strcmp(vecConfig.algplan, "cscan"))
+	//{
 		while(1)
 		{
-			recv_socket(&msj, ppd_socket);
+			recv_socket(&msj, sock_new);
 			insertCscan(msj, headprt, saltoptr, vecConfig.posactual);
 		}
-	}else
+	//}else
 		//HACER UN WHILE Q ESCUCHE PEDIDOS
 		//insertFifo(msj, headprt);
 
@@ -62,25 +81,37 @@ return;
 
 void atenderPedido(void)
 {
-	ped_t ped;
+	sleep(5);
 
-	ped = desencolar(headprt, saltoptr);
+	ped_t * ped;
 
-	switch(ped.oper)
+	while(1)
 	{
-		case nipc_req_read:
-			leerSect(ped.sect);
-			break;
-		case nipc_req_write:
-			escribirSect(ped.sect, ped.buffer);
-			break;
+		ped = desencolar(&headprt, &saltoptr);
 
-		default:
-			printf("Error comando PPD");
-			break;
+		if (ped == NULL)
+			continue;
+
+		switch(ped->oper)
+		{
+			printf("SECTOR PEDIDO %d \n", ped->sect);
+
+			case nipc_req_read:
+				leerSect(ped->sect);
+				break;
+			case nipc_req_write:
+				escribirSect(ped->sect, ped->buffer);
+				break;
+
+			default:
+				printf("Error comando PPD %d \n", ped->oper);
+				break;
+
+		}
+
+		free(ped);
 
 	}
-
 }
 
 void escucharConsola()
@@ -188,6 +219,7 @@ void leerSect(int sect)
 
 	if( (0 >= sect) && (cantSect <= sect))
 	{
+		int env;
 		dirMap = paginaMap(sect, dirArch);
 		res = div(sect, 8);
 		dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
@@ -197,10 +229,12 @@ void leerSect(int sect)
 
 		resp.type = 1;
 		resp.payload.sector = sect;
-		strcpy((char *) resp.payload.contenido, buffer);
+		memcpy((char *) resp.payload.contenido, buffer, TAM_SECT);
 		resp.len = sizeof(resp.payload);
 
-		send_socket(&resp, ppd_socket);    //mando el buffer por el protocolo al raid
+		env = send_socket(&resp, sock_new);    //mando el buffer por el protocolo al raid
+
+		printf("%d\n ", env);
 	}
 	else
 	{
@@ -287,6 +321,7 @@ void funcClean(char * parametros)
 	primSec = atoi(strprimSec);
 	ultSec = atoi(strultSec);
 	memset(bufferConsola, '\0', TAM_SECT);
+	//encolar
 	while(primSec <= ultSec)
 	{
 		escribirSect(primSec, bufferConsola);
