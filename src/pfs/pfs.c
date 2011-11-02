@@ -461,7 +461,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 
 static void *fat32_init(struct fuse_conn_info *conn)
 {
-    printf("Init\n");
+    printf("Init1\n");
 
     fs_fat32_t *fs_tmp = calloc(sizeof(fs_fat32_t), 1);
     fs_tmp->boot_sector.bytes_per_sector = 512;
@@ -475,12 +475,15 @@ static void *fat32_init(struct fuse_conn_info *conn)
         exit(-EADDRNOTAVAIL);
     }
 
-    if(!nipc_connect_socket(fs_tmp->socket, (char *)fs_tmp->server_host, fs_tmp->server_port)) {
-        log_info(fs_tmp->log, "", "La conexion al RAID 1 o planificador de disco no esta lista");
+
+    if(nipc_connect_socket(fs_tmp->socket, (char *)fs_tmp->server_host, fs_tmp->server_port)) {
+        log_error(fs_tmp->log, "", "La conexion al RAID 1 o planificador de disco no esta lista");
         exit(-EADDRNOTAVAIL);
     }
+    log_info(fs_tmp->log, "", "Conectado.");
 
     fat32_handshake(fs_tmp->socket);
+    log_info(fs_tmp->log, "", "Handshake aceptado.");
 
     int8_t block[BLOCK_SIZE];
 
@@ -488,8 +491,10 @@ static void *fat32_init(struct fuse_conn_info *conn)
     memcpy(fs_tmp->boot_sector.buffer, block, fs_tmp->boot_sector.bytes_per_sector);
     fs_tmp->system_area_size = fs_tmp->boot_sector.reserved_sectors + ( fs_tmp->boot_sector.fat_count * fs_tmp->boot_sector.sectors_per_fat );
 
-    if (fs_tmp->boot_sector.bytes_per_sector != 512)
+    if (fs_tmp->boot_sector.bytes_per_sector != 512) {
         printf("Nos dijeron que se suponian 512 bytes por sector, no %d bytes >.<\n", fs_tmp->boot_sector.bytes_per_sector);
+        exit(-EINVAL);
+    }
 
     memcpy(fs_tmp->fsinfo_sector.buffer, block + fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.bytes_per_sector);
 

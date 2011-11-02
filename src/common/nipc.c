@@ -30,17 +30,16 @@
 nipc_socket create_socket()
 {
     nipc_socket sock_new;
-    uint32_t i = 1;
     if ((sock_new = socket(AF_INET,SOCK_STREAM,0))<0)
     {
       printf("Error socket");
       exit(EXIT_FAILURE);
     }
-    if (setsockopt(sock_new, SOL_SOCKET, SO_REUSEADDR, &i,sizeof(sock_new)) < 0)
-    {
-      printf("\nError: El socket ya esta siendo utilizado...");
-      exit(EXIT_FAILURE);
-    }
+//    if (setsockopt(sock_new, SOL_SOCKET, SO_REUSEADDR, &i,sizeof(sock_new)) < 0)
+//    {
+//      printf("\nError: El socket ya esta siendo utilizado...");
+//      exit(EXIT_FAILURE);
+//    }
 
     return sock_new;
 }
@@ -86,19 +85,16 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 {
     uint32_t   leido = 0;
     uint32_t   aux = 0;
-    char       buffer[1024];
     
     //* Comprobacion de que los parametros de entrada son correctos
     if ((sock == -1) || (packet == NULL))
 	return -1;
     //* Mientras no hayamos leido todos los datos solicitados
-    aux = recv (sock, buffer , 3 ,0);
-    memcpy(&packet->type, buffer     , 1 );
-    memcpy(&packet->len , buffer + 1 , 2 );
-    //leido = leido + aux;
-    while (leido < (0 + packet->len))
+    aux = recv (sock, packet, 3, 0);
+    leido = leido + aux;
+    while (leido < (3 + packet->len))
     {
-	aux = recv (sock, buffer + leido, (0 + packet->len) - leido,0);
+	aux = recv (sock, packet + leido, (0 + packet->len) - leido,0);
 	if (aux > 0)
 	{
 		//* Si hemos conseguido leer datos, incrementamos la variable
@@ -140,54 +136,9 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 	    }
 	}
     }
-    packet->payload.sector = 0;
-    //borrar contenido por si las dudas
-    uint32_t i=0;
-    for(i=0; i < 512;i++)
-    {
-      packet->payload.contenido[i]='\0';
-    }
-    switch (packet->type)
-    {
-      case nipc_handshake:
-	memcpy(&packet->payload.sector   , buffer    , 4 + 1);
-	memcpy(&packet->payload.contenido, buffer + 4, packet->len + 1);
-	packet->payload.contenido[packet->len -4]='\0';
-	break;
-      case nipc_req_read:
-	if (packet->len == 4)
-	  {
-	    memcpy((uint32_t *)&packet->payload.sector, buffer, packet->len + 1);
-	  }
-	if (packet->len == 516)
-	{
-	  memcpy((uint32_t *)&packet->payload.sector   , buffer    , 4 + 1);
-	  memcpy((uint8_t *) &packet->payload.contenido, buffer + 4, packet->len + 1);
-	  packet->payload.contenido[packet->len]='\0';
-	}
-	break;
-      case nipc_req_write:
-	if (packet->len == 4)
-	  {
-	    memcpy((uint32_t *)&packet->payload.sector, buffer, packet->len + 1);
-	  }
-	if (packet->len == 516)
-	{
-	  memcpy((uint32_t *)&packet->payload.sector   , buffer    , 4 + 1);
-	  memcpy((uint8_t  *)&packet->payload.contenido, buffer + 4, packet->len + 1);
-	  packet->payload.contenido[packet->len]='\0';
-	}
-	break;
-      case nipc_error:
-	memcpy(&packet->payload.sector   , buffer    , 4 + 1);
-	memcpy(&packet->payload.contenido, buffer + 4, packet->len + 1);
-	packet->payload.contenido[packet->len -4]='\0';
-	break;
-      case nipc_CHS:
-	break;
-      default:
-	return -1;
-    }
+
+    //lo que estaba aca es irrelevante si simplemente pasamos el paquete como buffer
+
     printf("Control de mensaje recibido: %d - %d - %d - %s\n",packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
     return leido;
 }
@@ -201,7 +152,6 @@ uint32_t send_socket(nipc_packet *packet, uint32_t sock)
 {
     uint32_t Escrito = 0;
     uint32_t Aux = 0;
-    char     buffer[1024];
     //* Comprobacion de los parametros de entrada
     if ((sock == -1) || (packet == NULL) || (519 < 1))
 	return -1;
@@ -209,100 +159,15 @@ uint32_t send_socket(nipc_packet *packet, uint32_t sock)
     /*
     * Preparo el paquete para ser enviado
     */
-    memcpy(buffer    , &packet->type , sizeof(uint8_t));
-    memcpy(buffer + 1, &packet->len  , sizeof(uint16_t));
-    uint16_t len_mensaje;
-    switch (packet->type)
-    {
-      case 0: //nipc_handshake
-	memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
-	switch (packet->payload.sector)
-	{
-	  case HANDSHAKE_OK:
-	    memcpy(buffer + 7, &packet->payload.contenido, packet->len);
-	    break;
-	  case NO_DISKS:
-	    len_mensaje = 4 + strlen("No hay discos conectados");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "No hay discos conectados", len_mensaje);
-	    break;
-	  case ALREADY_CONNECT:
-	    len_mensaje = 4 + strlen("La conexion ya ha sido establecida");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "La conexion ya ha sido establecida", len_mensaje);
-	    break;
-	  case CONNECTION_FAIL:
-	    len_mensaje = 4 + strlen("Se ha producido una falla al intentar conectarse");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "Se ha producido una falla al intentar conectarse", len_mensaje);
-	    break;
-	  default:
-	    return -1;
-	}
-	break;
-      case 1:  //nipc_req_read
-	if (packet->len == 4)
-	  {
-	    memcpy(buffer + 3, &packet->payload.sector, packet->len + 1);
-	  }
-	if (packet->len == 516)
-	{
-	  memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
-	  memcpy(buffer + 7, &packet->payload.contenido, packet->len      );
-	  //packet->payload.contenido[packet->len]='\0';
-	}
-	break;
-      case 2: //nipc_req_write
-	if (packet->len == 4)
-	  {
-	    memcpy(buffer + 3, &packet->payload.sector, packet->len );
-	  }
-	if (packet->len == 516)
-	{
-	  memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
-	  memcpy(buffer + 7, &packet->payload.contenido, packet->len      );
-	}
-	break;
-      case 3: //nipc_error
-	memcpy(buffer + 3, &packet->payload.sector   , sizeof(uint32_t) );
-	uint32_t codigo;
-	codigo = atoi((char *)packet->payload.contenido);
-	switch (codigo)
-	{
-	  case DISKS_FAILED:
-	    len_mensaje = 4 + strlen("Todos los discos estan dañados. Se cerrara la conexión.");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "Todos los discos estan dañados. Se cerrara la conexión.", len_mensaje);
-	    break;
-	  case NO_FOUND_SECTOR:
-	    len_mensaje = 4 + strlen("El sector solicitado es inexistente.");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "El sector solicitado es inexistente.", len_mensaje);
-	    break;
-	  case WRITE_FAIL:
-	    len_mensaje = 4 + strlen("No se pudo realizar la escritura del sector solicitado.");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "No se pudo realizar la escritura del sector solicitado.", len_mensaje);
-	    break;
-	  case READ_FAIL:
-	    len_mensaje = 4 + strlen("No se puedo ralizar la lectura del sector solicitado.");
-	    memcpy(buffer + 1, &len_mensaje , sizeof(uint16_t));
-	    memcpy(buffer + 7, "No se puedo ralizar la lectura del sector solicitado.", len_mensaje);
-	    break;
-	  default:
-	    return -1;
-	}
-	break;
-      case 4: //nipc_CHS
-	break;
-      default:
-	return -1;
-    }
+
+    //ídem del recv. si le damos el payload al recv como buffer no vamos a
+    //tener que manejar todos los casos posibles para el paquete
+
     //* Bucle hasta que hayamos escrito todos los caracteres que nos han
     //* indicado.
     while (Escrito < (3 + packet->len))
     {
-	Aux = send(sock, buffer + Escrito, (3 + packet->len) - Escrito,0);
+	Aux = send(sock, packet + Escrito, (3 + packet->len) - Escrito,0);
 	if (Aux > 0)
 	{
 	   //* Si hemos conseguido escribir caracteres, se actualiza la

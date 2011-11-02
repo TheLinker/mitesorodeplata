@@ -26,6 +26,7 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
 
     //Pide los sectores necesarios.
     for (i = 0 ; i < cantidad ; i++) {
+	log_info(fs_tmp->log, "", "Enviado paqete (Sector: %d).", packet.payload.sector );
         send_socket(&packet, fs_tmp->socket);
         packet.payload.sector += 1;
     }
