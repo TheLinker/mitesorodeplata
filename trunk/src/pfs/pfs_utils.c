@@ -214,7 +214,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
  * @return 0 si exito
  *         -EINVAL en caso de error
  */
-int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_attrs *buffer, fs_fat32_t *fs_tmp)
+int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_entry_t *buffer, fs_fat32_t *fs_tmp)
 {
     int32_t cluster_offset = entry_number / (fs_tmp->boot_sector.bytes_per_sector *
                                              fs_tmp->boot_sector.sectors_per_cluster / 32);
@@ -279,7 +279,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
     uint32_t current_entry=0;
     uint8_t  checksum=0;
 
-    fat32_get_entry(current_entry, first_cluster, (file_attrs *)directory_entry, fs_tmp);
+    fat32_get_entry(current_entry, first_cluster, (file_entry_t *)directory_entry, fs_tmp);
 
     while ( directory_entry[0] != AVAIL_ENTRY ) {
         switch( ((file_entry_t *)directory_entry)->file_attr ) {
@@ -357,7 +357,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
         }
 
         current_entry++;
-        fat32_get_entry(current_entry, first_cluster, (file_attrs *)directory_entry, fs_tmp);
+        fat32_get_entry(current_entry, first_cluster, (file_entry_t *)directory_entry, fs_tmp);
     }
 
     return cantidad_entradas;
@@ -485,3 +485,70 @@ void fat32_build_name(file_attrs *file, int8_t *ret_name)
         strncpy((char *)(fin_cadena + 1),(char *) file->dos_fileext, 3);
     }
 }
+
+/**
+ * Obtiene la primer entrada libre en el directory table a partir de
+ * *first_cluster* que posea una entrada consecutiva tambien libre
+ *
+ * @first_cluster primer cluster del directorio.
+ * @fs_tmp estructura privada del file system.
+ * @return >=0 primer entrada libre.
+ *         < 0 error.
+ */
+int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp)
+{
+    int32_t ret_val = -1;
+    int32_t entry_n = 0;
+    int8_t  buffer[sizeof(file_entry_t)];
+
+    int8_t ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp);
+
+    while(ret >= 0)
+    {
+        if(&buffer[0] == 0x00)
+            return entry_n;
+
+        if(((file_entry_t*)buffer)->file_attr == ATTR_LONG_FILE_NAME)
+        {
+            if(buffer[0] & 0x80) {
+                if(ret_val == -1)
+                    ret_val = entry_n;
+                else
+                    return ret_val;
+            } else if (ret_val != -1) ret_val = -1;
+
+        } else {
+            if(buffer[0] == 0xE5) {
+                if(ret_val == -1)
+                    ret_val = entry_n;
+                else
+                    return ret_val;
+            } else if (ret_val != -1) ret_val = -1;
+        }
+
+        entry_n++;
+        ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp);
+    }
+
+    return ret;
+}
+
+int32_t fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, fs_fat32_t *fs_tmp)
+{
+    int32_t cluster_offset = entry_index / (fs_tmp->boot_sector.bytes_per_sector *
+                                    fs_tmp->boot_sector.sectors_per_cluster / 32);
+
+    int32_t entry_offset   = entry_index % (fs_tmp->boot_sector.bytes_per_sector *
+                                    fs_tmp->boot_sector.sectors_per_cluster / 32);
+
+    int32_t target_cluster = fat32_get_link_n_in_chain(first_cluster, cluster_offset, fs_tmp);
+    if(target_cluster<0) return target_cluster;
+
+    int32_t target_block = ( fs_tmp->system_area_size + (target_cluster - 2) * 
+                     fs_tmp->boot_sector.sectors_per_cluster +
+                     entry_offset / fs_tmp->boot_sector.sectors_per_cluster ) / SECTORS_PER_BLOCK;
+    
+    return target_block;
+
+}
+
