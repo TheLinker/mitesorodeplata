@@ -33,8 +33,12 @@ int main(int argc, char *argv[])
   info_ppal->lista_pfs = NULL;
   info_ppal->discos    = NULL;
   
-  info_ppal->sock_raid = create_socket("127.0.0.1",50000);
+  info_ppal->sock_raid = create_socket();
+  nipc_bind_socket(info_ppal->sock_raid,"127.0.0.1",50000);
   nipc_listen(info_ppal->sock_raid);
+  
+  
+  
   printf("------------------------------\n");
   printf("--- Socket escucha RAID: %d ---\n",info_ppal->sock_raid);
   printf("------------------------------\n");
@@ -74,6 +78,8 @@ int main(int argc, char *argv[])
       {
 	if(recv_socket(&mensaje,aux_pfs->sock)>0)
 	{
+	 mensaje.payload.contenido[mensaje.len-4]='\0';
+	 printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	 if(mensaje.type == nipc_handshake)
 	 {
 	   printf("BASTA DE HANDSHAKE!!!!\n");
@@ -142,11 +148,13 @@ int main(int argc, char *argv[])
       {
 	if(recv_socket(&mensaje,sock_new)>=0)
 	{
+	  mensaje.payload.contenido[mensaje.len-4]='\0';
+	  printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	  if(mensaje.type == nipc_handshake)
 	  {
 	    if(mensaje.len != 0)
 	    {
-	      printf("Nueva conexion PPD: %s \n",mensaje.payload.contenido);
+	      printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
 	      //char id_disco[20];
 	      //memcpy(&id_disco,mensaje.payload.contenido,20);
 	      agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo

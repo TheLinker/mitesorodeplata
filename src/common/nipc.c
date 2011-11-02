@@ -81,10 +81,10 @@ int8_t nipc_connect_socket(nipc_socket socket, char *host, uint16_t port)
  *
  * @return cantidad de caracteres recividos, en caso de ser 0 informa que el socket ha sido cerrado
  */
-uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
+int32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 {
-    uint32_t   leido = 0;
-    uint32_t   aux = 0;
+    int32_t   leido = 0;
+    int32_t   aux = 0;
     
     //* Comprobacion de que los parametros de entrada son correctos
     if ((sock == -1) || (packet == NULL))
@@ -94,7 +94,7 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
     leido = leido + aux;
     while (leido < (3 + packet->len))
     {
-	aux = recv (sock, packet + leido, (0 + packet->len) - leido,0);
+	aux = recv(sock, packet->buffer + leido, (3 + packet->len) - leido,0);
 	if (aux > 0)
 	{
 		//* Si hemos conseguido leer datos, incrementamos la variable
@@ -148,10 +148,10 @@ uint32_t recv_socket(nipc_packet *packet, nipc_socket sock)
  *
  * @return cantidad de caracteres enviados
  */
-uint32_t send_socket(nipc_packet *packet, uint32_t sock)
+int32_t send_socket(nipc_packet *packet, uint32_t sock)
 {
-    uint32_t Escrito = 0;
-    uint32_t Aux = 0;
+    int32_t Escrito = 0;
+    int32_t Aux = 0;
     //* Comprobacion de los parametros de entrada
     if ((sock == -1) || (packet == NULL) || (519 < 1))
 	return -1;

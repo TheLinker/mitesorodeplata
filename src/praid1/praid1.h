@@ -25,7 +25,7 @@ typedef struct _disco{
     uint8_t          id[20];
     nipc_socket      sock;
     pthread_t        hilo;
-	uint32_t         sector_sincro;
+    uint32_t         sector_sincro;
     pedido          *pendientes_sincro;
     uint32_t         cantidad_pedidos;
     pedido          *pedidos;
