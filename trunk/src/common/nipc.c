@@ -27,10 +27,9 @@
  * @nipc_socket descriptor del socket del protocolo NIPC
  * @return el descriptor del socket creado
  */
-nipc_socket create_socket(char *host, uint16_t port)
+nipc_socket create_socket()
 {
     nipc_socket sock_new;
-    struct sockaddr_in addr_raid;
     uint32_t i = 1;
     if ((sock_new = socket(AF_INET,SOCK_STREAM,0))<0)
     {
@@ -42,16 +41,40 @@ nipc_socket create_socket(char *host, uint16_t port)
       printf("\nError: El socket ya esta siendo utilizado...");
       exit(EXIT_FAILURE);
     }
+
+    return sock_new;
+}
+
+int8_t nipc_bind_socket(nipc_socket socket, char *host, uint16_t port)
+{
+    struct sockaddr_in addr_raid;
+
     addr_raid.sin_family = AF_INET;
     addr_raid.sin_port=htons(port);
     addr_raid.sin_addr.s_addr=inet_addr(host);
-    if (bind(sock_new,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
+    if (bind(socket,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
     {
-      printf("Error bind");
-      exit(EXIT_FAILURE);
+        printf("Error bind");
+        return -EADDRNOTAVAIL;
     }
-    
-    return sock_new;
+
+    return 0;
+}
+
+int8_t nipc_connect_socket(nipc_socket socket, char *host, uint16_t port)
+{
+    struct sockaddr_in addr_raid;
+
+    addr_raid.sin_family = AF_INET;
+    addr_raid.sin_port=htons(port);
+    addr_raid.sin_addr.s_addr=inet_addr(host);
+    if (connect(socket,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
+    {
+        printf("Error connect");
+        return -EADDRNOTAVAIL;
+    }
+
+    return 0;
 }
 
 /**

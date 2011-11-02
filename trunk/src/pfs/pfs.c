@@ -470,8 +470,13 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fs_tmp->log = log_new( fs_tmp->log_path, "process_file_system", fs_tmp->log_mode );
 
-    if(!(fs_tmp->socket = create_socket((char *)fs_tmp->server_host, fs_tmp->server_port))) {
-        printf("La conexion al RAID 1 o planificador de disco no esta lista\n");
+    if((fs_tmp->socket = create_socket((char *)fs_tmp->server_host, fs_tmp->server_port))<0) {
+        log_info(fs_tmp->log, "", "Error al crear el socket");
+        exit(-EADDRNOTAVAIL);
+    }
+
+    if(!nipc_connect_socket(fs_tmp->socket, (char *)fs_tmp->server_host, fs_tmp->server_port)) {
+        log_info(fs_tmp->log, "", "La conexion al RAID 1 o planificador de disco no esta lista");
         exit(-EADDRNOTAVAIL);
     }
 
@@ -546,3 +551,4 @@ int main(int argc, char *argv[])
 
     return ret;
 }
+
