@@ -24,7 +24,7 @@ void insertOrd (cola_t * colaptr, cola_t * newptr);
 
 void insertFifo(nipc_packet, cola_t *);
 
-ped_t desencolar(cola_t *, cola_t * );
+ped_t * desencolar(cola_t **, cola_t ** );
 
 void msjtocol(nipc_packet msj, cola_t * newptr);
 

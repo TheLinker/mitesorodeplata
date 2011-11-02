@@ -1,5 +1,10 @@
 #include "conexionPFS.h"
+#include "ppd.h"
 
+extern nipc_socket sock_new;
+pthread_t thEscucharPedidos, thAtenderpedidos;
+int  thidEscucharPedidos, thidAtenderpedidos;
+char* mensajet = NULL;
 
 void conectarConPFS(config_t vecConfig)
 {
@@ -11,7 +16,7 @@ void conectarConPFS(config_t vecConfig)
 
 	struct sockaddr_in  *addr_ppd; 		//= malloc(sizeof(struct sockaddr_in));
 	uint32_t             clilen;
-	nipc_socket          sock_new;
+	//nipc_socket          sock_new;  DECLARADO EN EL MAIN
 
 	//Necesario para el SELECT
 
@@ -28,13 +33,15 @@ void conectarConPFS(config_t vecConfig)
 
 	// creo el socket principal del PPD
 
-	info_ppal->sock_ppd = create_socket(vecConfig.ipppd,vecConfig.puertoppd);
+	info_ppal->sock_ppd = create_socket();
+
+	nipc_bind_socket(info_ppal->sock_ppd,vecConfig.ipppd,vecConfig.puertoppd);
 
 	// lo pongo a escuchar nuevas conexiones
 
 	nipc_listen(info_ppal->sock_ppd);
 	printf("------------------------------\n");
-	printf("--- Socket escucha RAID: %d ---\n",info_ppal->sock_ppd);
+	printf("--- Socket escucha PPD: %d ---\n",info_ppal->sock_ppd);
 	printf("------------------------------\n");
 
 	/** El SELECT se coloca dentro de un bucle para que se consulte varias veces.
@@ -90,8 +97,9 @@ void conectarConPFS(config_t vecConfig)
 				  {
 					if(mensaje.len == 4)       // se trata de un pedido nuevo de lectura
 					{
-					  uint8_t *id_disco;
+					  //uint8_t *id_disco;
 					  printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
+
 					  //id_disco = distribuir_pedido_lectura(&info_ppal->discos,mensaje,aux_pfs->sock);
 					  //log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
 					  printf("------------------------------\n");
@@ -152,22 +160,36 @@ void conectarConPFS(config_t vecConfig)
 				{
 				  if(mensaje.type == nipc_handshake)  // se consulta si es de tipo HANDSHAKE
 				  {
-					if(mensaje.len != 0)    // si el tamaño es distinto de 0 se trata de un PPD ya que el mensaje contiene el ID del disco
+					if(mensaje.len == 0)    // si el tamaño es distinto de 0 se trata de un PPD ya que el mensaje contiene el ID del disco
 					{
 					 	printf("Nueva conexion PFS: %d\n",sock_new);
 						pfs *nuevo_pfs;
+						int env;
 						nuevo_pfs = (pfs *)malloc(sizeof(pfs));
 						nuevo_pfs->sock=sock_new;
 						nuevo_pfs->sgte = info_ppal->lista_pfs;
 						info_ppal->lista_pfs = nuevo_pfs;
 						FD_SET (nuevo_pfs->sock, &set_socket);  // se agrega la nueva conexion PFS a la lista de PFS
 						//log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
-						printf("------------------------------\n");
+						/*nipc_packet buffer2;
+						buffer2.type = 0;
+						buffer2.len = 0;
+						buffer2.payload.sector = -3;
+						strcpy(buffer2.payload.contenido, "lllllllll");
+						env = send_socket(&buffer2 ,nuevo_pfs->sock);
+						printf("%s,%d, %d \n", buffer2.payload.contenido, nuevo_pfs->sock, env);
+						printf("------------------------------\n");*/
+
+						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, (void*) mensajet);
+
+
+
+						thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, atenderPedido, (void*) mensajet);
 					  }
 					  else
 					  {
 						//ENVIAR ERROR DE CONEXION
-						printf("No hay discos conectados!\n");
+						//printf("No hay discos conectados!\n");
 						//log_error(log, "Principal", "Message error: %s", "No hay discos conectados!");
 						printf("cerrar conexion: %d\n",sock_new);
 						nipc_close(sock_new);

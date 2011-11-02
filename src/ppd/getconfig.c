@@ -1,12 +1,12 @@
 
 #include "getconfig.h"
-#define TAM_LINE 100
+#define TAM_LINE 1024
 
 config_t getconfig(char * archivoConfig)
 {
 	config_t vecConfig;
 	size_t intDif;
-	char * var;
+	char * var, * ptr;
 	char readLine[TAM_LINE]; //uso del tamline
 
 	initValConfig(&vecConfig);
@@ -24,6 +24,11 @@ config_t getconfig(char * archivoConfig)
 			if (!(var == NULL))
 			{
 				intDif = var - readLine;
+
+				ptr = readLine + strlen(readLine);
+				while (--ptr >= readLine && (*ptr =='\n' || *ptr=='\r'));
+						ptr++;
+				        *ptr = '\0';
 
 				if (strncmp("modoinit",readLine,intDif) == 0)
 					strcpy(vecConfig.modoinit, var+1);
