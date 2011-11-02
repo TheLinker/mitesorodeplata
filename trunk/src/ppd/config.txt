@@ -1,9 +1,9 @@
-
-rutadisco=/home/lucas/mitesorodeplata/bin/fat32.disk modoinit[8];
-ipppd[16]=
+modoinit=LISTEN
+rutadisco=/home/lucas/mitesorodeplata/bin/fat32.disk
+ipppd[16]=192.168.1.101
 ippraid[16]=
-ippfs [16]=
-puertoppd=
+ippfs [16]=192.168.1.102
+puertoppd=1337
 puertopraid=
 puertopfs=
 algplan[10]=cscan

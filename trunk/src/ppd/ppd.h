@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "getconfig.h"
 #include "planDisco.h"
+#include "conexionPFS.h"
 #include <signal.h>   
 #include <sys/types.h>   
 #include <sys/socket.h>   

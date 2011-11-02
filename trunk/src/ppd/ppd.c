@@ -21,7 +21,13 @@ int main()
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
 	posCabAct = vecConfig.posactual;
 
-	conectarConPraid();
+	if(strcmp(vecConfig.modoinit, "CONNECT"))
+		conectarConPraid();
+	else
+		if(strcmp(vecConfig.modoinit, "LISTEN"))
+			conectarConPFS(vecConfig);
+		else
+			printf("Error de modo de inicialización");
 
 	thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
 	thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *) escucharPedidos, (void*) mensaje);
@@ -35,34 +41,6 @@ int main()
 	ppd_socket = create_socket(vecConfig.ippraid,vecConfig.puertopraid);  // ver tipos de datos
 }
 
-nipc_socket create_socket(char *host, uint16_t port)
-{
-	nipc_socket ppd;
-	struct sockaddr_in addr_ppd;
-
-	if ( (ppd = socket(AF_INET,SOCK_STREAM,0)) <0 )
-	{
-    printf("ERROR AL CREAR EL SOCKET");
-    exit(1);
-	}
-
-	addr_ppd.sin_family = AF_INET;
-	addr_ppd.sin_port=htons(50003);  //cambiar puerto
-	addr_ppd.sin_addr.s_addr=inet_addr("127.0.0.1");
-
-	if( connect(ppd, (struct sockaddr *) &addr_ppd, sizeof(addr_ppd)) <0 )
-	{
-		printf("ERROR EN LA CONEXION");
-		exit(1);
-	}	
-
-	//recv();
-	//thidEscucharPedidos = pthread_create( &tAtenderpedidos, NULL, escucharPedidos, (void*) mensaje);
-	//send();
-
-	return ppd;
-
-}
 
 void escucharPedidos(void)
 {
@@ -219,7 +197,7 @@ void leerSect(int sect)
 
 		resp.type = 1;
 		resp.payload.sector = sect;
-		strcpy(resp.payload.contenido, buffer);
+		strcpy((char *) resp.payload.contenido, buffer);
 		resp.len = sizeof(resp.payload);
 
 		send_socket(&resp, ppd_socket);    //mando el buffer por el protocolo al raid
