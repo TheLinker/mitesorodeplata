@@ -22,6 +22,8 @@ void agregar_disco(datos **info_ppal,uint8_t *id_disco, nipc_socket sock_new)
   nuevo_disco = (disco *)malloc(sizeof(disco));
   memcpy(nuevo_disco->id,id_disco,strlen((char *)id_disco)+1);
   nuevo_disco->sock=sock_new;
+  nuevo_disco->sector_sincro = 9999;
+  nuevo_disco->pendientes_sincro = NULL;
   nuevo_disco->cantidad_pedidos = 0;
   nuevo_disco->pedidos = NULL;
   nuevo_disco->sgte = (*info_ppal)->discos;
@@ -83,7 +85,7 @@ uint8_t* distribuir_pedido_lectura(disco **discos, nipc_packet mensaje,nipc_sock
 {
 	uint16_t encontrado = 0;
 	nipc_socket sock_disco;
-	sock_disco =  menor_cantidad_pedidos(*discos);
+	sock_disco =  menor_cantidad_pedidos(*discos,mensaje.payload.sector);
 	disco *aux;
 	aux = *discos;
 	while((aux != NULL) && encontrado == 0)
@@ -171,108 +173,114 @@ void *espera_respuestas(datos **info_ppal)
   while(1)
   {
     strcpy((char *)mensaje.buffer, "");
-    if(recv_socket(&mensaje,el_disco->sock)>0)
+    int32_t recibido = 0;
+    recibido = recv_socket(&mensaje,el_disco->sock);
+    //printf("recibido: %d - %d",recibido,el_disco->sock);
+    //getchar();
+    if(recibido > 0)
     {
+      mensaje.payload.contenido[mensaje.len-4]='\0';
       //printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
       if(mensaje.type != nipc_handshake)
       {
-		if(mensaje.type == nipc_CHS)
+	if(mensaje.type == nipc_CHS)
+	{
+	  printf("Disco: %s - CHS: %s\n",el_disco->id,mensaje.payload.contenido);
+	  log_info(log, (char *)el_disco->id, "Message info: Disco: %s - CHS: %s",el_disco->id,mensaje.payload.contenido);
+	}
+	else
+	{      
+	  aux_pedidos=el_disco->pedidos;
+	  anterior=NULL;
+	  while(aux_pedidos != NULL && (aux_pedidos->type != mensaje.type || aux_pedidos->sector != mensaje.payload.sector))
+	  {
+		anterior=aux_pedidos;
+		aux_pedidos=aux_pedidos->sgte;
+	  }
+	  if(aux_pedidos == NULL)
+	  {
+	    printf("Sector no solicitado !!!\n");
+	  }
+	  else
+	  {
+	    if(mensaje.type == nipc_error)
+	    {
+		  printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+		  log_error(log, (char *)el_disco->id, "Message error: Sector:%d Error: %s", mensaje.payload.sector,mensaje.payload.contenido);
+	    }
+	    if(mensaje.type == nipc_req_read)
+	    {
+		  printf("Recibida lectura del sector: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+		  log_info(log, (char *)el_disco->id, "Message info: Recibida lectura del sector: %d - %s", mensaje.payload.sector,mensaje.payload.contenido);
+	    }
+	    if(mensaje.type == nipc_req_write)
+	    {
+		  printf("Recibida escritura del sector: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+		  log_info(log, (char *)el_disco->id, "Message info: Recibida escritura del sector: %d - %s", mensaje.payload.sector,mensaje.payload.contenido);
+	    }
+      
+	    /**	Enviar a quien hizo el pedido
+			    caso PFS se envia tal cual esta!
+			    caso PPD se modifica el tipo ya que pasa a ser escritura de un disco nuevo
+	    */
+	    disco *aux_disco;
+	    aux_disco = (*info_ppal)->discos;
+	    while(aux_disco != NULL  &&  aux_disco->sock != aux_pedidos->sock)
+		    aux_disco = aux_disco->sgte;
+	    
+	    if (aux_disco != NULL)//(aux_disco->sock == aux_pedidos->sock)
+	    {// es una sincronizacion de disco
+	      printf("Envio de sector %d al PPD %s-%d\n",mensaje.payload.sector,aux_disco->id,aux_pedidos->sock);
+	      mensaje.type = 2;
+	      if((aux_disco->sector_sincro + 1) > mensaje.payload.sector)
+	      {
+		//enviar de unaa
+		/*if(send_socket(&mensaje,aux_pedidos->sock)<=0)
 		{
-		  printf("Disco: %s - CHS: %s\n",el_disco->id,mensaje.payload.contenido);
-		  log_info(log, (char *)el_disco->id, "Message info: Disco: %s - CHS: %s",el_disco->id,mensaje.payload.contenido);
+			printf("\nError envio de sincro");
 		}
-		else
-		{      
-		  if(mensaje.type == nipc_error)
-		  {
-			printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-			log_error(log, (char *)el_disco->id, "Message error: Sector:%d Error: %s", mensaje.payload.sector,mensaje.payload.contenido);
-		  }
-		  if(mensaje.type == nipc_req_read)
-		  {
-			printf("Recibida lectura del sector: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-			log_info(log, (char *)el_disco->id, "Message info: Recibida lectura del sector: %d - %s", mensaje.payload.sector,mensaje.payload.contenido);
-		  }
-		  if(mensaje.type == nipc_req_write)
-		  {
-			printf("Recibida escritura del sector: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-			log_info(log, (char *)el_disco->id, "Message info: Recibida escritura del sector: %d - %s", mensaje.payload.sector,mensaje.payload.contenido);
-		  }
-		  aux_pedidos=el_disco->pedidos;
-		  anterior=NULL;
-		  while(aux_pedidos != NULL && (aux_pedidos->type != mensaje.type || aux_pedidos->sector != mensaje.payload.sector))
-		  {
-			anterior=aux_pedidos;
-			aux_pedidos=aux_pedidos->sgte;
-		  }
-		  if(aux_pedidos == NULL)
-		  {
-			printf("Sector no solicitado!!!\n");
-		  }
-		  else
-		  {
-			/**	Enviar a quien hizo el pedido
-					caso PFS se envia tal cual esta!
-					caso PPD se modifica el tipo ya que pasa a ser escritura de un disco nuevo
-			*/
-			disco *aux_disco;
-			aux_disco = (*info_ppal)->discos;
-			while(aux_disco != NULL  &&  aux_disco->sock != aux_pedidos->sock)
-				aux_disco = aux_disco->sgte;
-			
-			if (aux_disco->sock != aux_pedidos->sock)
-			{// es una sincronizacion de disco
-				printf("Envio de sector %d al PPD %s-%d\n",mensaje.payload.sector,aux_disco->id,aux_pedidos->sock);
-				mensaje.type = 2;
-				if((aux_disco->sector_sincro + 1) > mensaje.payload.sector)
-				{
-					//enviar de unaa
-					/*if(send_socket(&mensaje,aux_pedidos->sock)<=0)
-					{
-						printf("\nError envio de sincro");
-					}
-					else*/
-					printf("Envio OK en disco: %s-%d\n",aux_disco->id,aux_pedidos->sock);
-				}
-				if((aux_disco->sector_sincro + 1) == mensaje.payload.sector)
-				{
-					//enviar y revisar cola *pendientes_sincro para ver si hay otros que enviar 
-					aux_disco->sector_sincro++;
-					/*if(send_socket(&mensaje,aux_pedidos->sock)<=0)
-					{
-						printf("\nError envio de sincro");
-					}
-					else*/
-					printf("Envio OK en disco: %s-%d\n",aux_disco->id,aux_pedidos->sock);
-					//revisar cola *pendientes_sincro para ver si hay otros que enviar 
-				}
-				if((aux_disco->sector_sincro + 1) < mensaje.payload.sector)
-				{
-					//encolar ordenadamente en *pendientes_sincro
-				}
-			}
-			else
-			{// es una respuesta a una escritura de un PFS
-				printf("Envio de sector %d al PFS %d\n",mensaje.payload.sector,aux_pedidos->sock);
-				/*if(send_socket(&mensaje,aux_pedidos->sock)<=0)
-				{
-					printf("\nError envio a PFS");
-				}
-				else*/
-				printf("Envio OK en PFS: %d\n",aux_pedidos->sock);
-			}
-			if(anterior == NULL)
-			{
-			  el_disco->pedidos = (el_disco->pedidos)->sgte;
-			}
-			else
-			{
-			  anterior->sgte = aux_pedidos->sgte;
-			}
-			free(aux_pedidos);
-			el_disco->cantidad_pedidos--;
-		  }
+		else*/
+		printf("Envio OK en disco: %s-%d\n",aux_disco->id,aux_pedidos->sock);
+	      }
+	      if((aux_disco->sector_sincro + 1) == mensaje.payload.sector)
+	      {
+		//enviar y revisar cola *pendientes_sincro para ver si hay otros que enviar 
+		aux_disco->sector_sincro++;
+		/*if(send_socket(&mensaje,aux_pedidos->sock)<=0)
+		{
+			printf("\nError envio de sincro");
 		}
+		else*/
+		printf("Envio OK en disco: %s-%d\n",aux_disco->id,aux_pedidos->sock);
+		//revisar cola *pendientes_sincro para ver si hay otros que enviar 
+	      }
+	      if((aux_disco->sector_sincro + 1) < mensaje.payload.sector)
+	      {
+		      //encolar ordenadamente en *pendientes_sincro
+	      }
+	    }
+	    else
+	    {// es una respuesta a una escritura de un PFS
+	      printf("Envio de sector %d al PFS %d\n",mensaje.payload.sector,aux_pedidos->sock);
+	      /*if(send_socket(&mensaje,aux_pedidos->sock)<=0)
+	      {
+		      printf("\nError envio a PFS");
+	      }
+	      else*/
+	      printf("Envio OK en PFS: %d\n",aux_pedidos->sock);
+	    }
+	    if(anterior == NULL)
+	    {
+	      el_disco->pedidos = (el_disco->pedidos)->sgte;
+	    }
+	    else
+	    {
+	      anterior->sgte = aux_pedidos->sgte;
+	    }
+	    free(aux_pedidos);
+	    el_disco->cantidad_pedidos--;
+	  }
+	}
       }
     }
     else
