@@ -14,6 +14,9 @@
 #include <sys/socket.h>   
 #include <sys/un.h> 
 #include <pthread.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <semaphore.h>
 
 #include <arpa/inet.h>
 
@@ -23,7 +26,7 @@
 
 char comando[30], buffer[TAM_SECT], bufferent[TAM_SECT];
 char * pathArch;
-void * dirMap, * dirSect;
+int8_t * dirMap, * dirSect;
 int sect, cantSect, offset;
 
 
@@ -35,9 +38,9 @@ void leerSect(int sect);
 
 void escribirSect(int, char [TAM_SECT]);
 
-FILE * abrirArchivoV(char * pathArch);
+int abrirArchivoV(char * pathArch);
 
-void * paginaMap (int sect, FILE * dirArch);
+void * paginaMap (int sect, int dirArch);
 
 void escucharConsola(void);
 

@@ -5,20 +5,22 @@
 
 config_t vecConfig;
 char * bufferConsola;
-int posCabAct, cliente;
+int posCabAct, cliente, dirArch;
 nipc_socket ppd_socket, sock_new;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
-FILE * dirArch;
+sem_t semEnc;
 
 int main()
 {
+	cantSect = 1000000000;
 	pthread_t thConsola;
 	char* mensaje = NULL;
 	int  thidConsola;
+	sem_init(&semEnc,1,1);
 
 	vecConfig = getconfig("config.txt");
-	dirArch = abrirArchivoV(vecConfig.rutadisco);
+	dirArch = abrirArchivoV("/home/lucas/workspace2/bin/fat32.disk");
 	posCabAct = vecConfig.posactual;
 
 	printf("%s\n", vecConfig.modoinit);
@@ -69,8 +71,12 @@ void escucharPedidos(void)
 	//{
 		while(1)
 		{
+			//sleep(1);
 			recv_socket(&msj, sock_new);
-			insertCscan(msj, headprt, saltoptr, vecConfig.posactual);
+			printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
+			sem_wait(&semEnc);
+			insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual);
+			sem_post(&semEnc);
 		}
 	//}else
 		//HACER UN WHILE Q ESCUCHE PEDIDOS
@@ -81,20 +87,22 @@ return;
 
 void atenderPedido(void)
 {
-	sleep(5);
 
 	ped_t * ped;
 
 	while(1)
 	{
+
+		sem_wait(&semEnc);
 		ped = desencolar(&headprt, &saltoptr);
+		sem_post(&semEnc);
 
 		if (ped == NULL)
 			continue;
+		printf("SECTOR PEDIDO %d \n", ped->sect);
 
 		switch(ped->oper)
 		{
-			printf("SECTOR PEDIDO %d \n", ped->sect);
 
 			case nipc_req_read:
 				leerSect(ped->sect);
@@ -217,21 +225,23 @@ void leerSect(int sect)
 	div_t res;
 	nipc_packet resp;
 
-	if( (0 >= sect) && (cantSect <= sect))
+	if( (0 <= sect) && (cantSect >= sect))
 	{
 		int env;
+		printf("----------------Entro a Leer------------------- \n");
 		dirMap = paginaMap(sect, dirArch);
 		res = div(sect, 8);
-		dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
-		memcpy(buffer, dirSect, TAM_SECT);
+		dirSect = dirMap + ((res.rem  *512));  //NO SE SI VA O NO EL -1    TODO
+		memcpy(&buffer, dirSect, TAM_SECT);
 		if(0 != munmap(dirMap,TAM_PAG))
 			printf("Fallo la eliminacion del mapeo\n");
 
 		resp.type = 1;
 		resp.payload.sector = sect;
-		memcpy((char *) resp.payload.contenido, buffer, TAM_SECT);
+		memcpy((char *) resp.payload.contenido, &buffer, TAM_SECT);
 		resp.len = sizeof(resp.payload);
 
+		printf("ACA SE ENVIA ALGOOOOOOOOOOOO\n");
 		env = send_socket(&resp, sock_new);    //mando el buffer por el protocolo al raid
 
 		printf("%d\n ", env);
@@ -249,22 +259,25 @@ void escribirSect(int sect, char buffer[512])
 {
 	div_t res;
 	nipc_packet resp;
+		sleep(1);
 
-		if( (0 >= sect) && (cantSect <= sect))
+		if( (0 <= sect) && (cantSect >= sect))
 		{
+			printf("----------------Entro a Escribir------------------- \n");
 			dirMap = paginaMap(sect, dirArch);
 			res = div(sect, 8);
-			dirSect = dirMap + ((res.rem *8 *512 ) - 1);  //NO SE SI VA O NO EL -1    TODO
-			memcpy(dirSect, buffer, TAM_SECT);
+			dirSect = dirMap + ((res.rem *512 ));  //NO SE SI VA O NO EL -1    TODO
+			memcpy(dirSect, &buffer, TAM_SECT);
+			msync(dirMap, TAM_PAG, MS_ASYNC);
 			if(0 != munmap(dirMap,TAM_PAG))
 				printf("Fallo la eliminacion del mapeo\n");
 
 			resp.type = 2;
 			resp.payload.sector = sect;
 			memset(resp.payload.contenido,'\0', TAM_SECT);
-			resp.len = sizeof(resp.payload);
+			resp.len = 4;
 
-			send_socket(&resp, ppd_socket);
+			send_socket(&resp, sock_new);
 		}
 		else
 		{
@@ -273,9 +286,9 @@ void escribirSect(int sect, char buffer[512])
 
 }
 
-FILE * abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
+int abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
 {
-	if (NULL == (dirArch = fopen(pathArch, "w+")))
+	if (0 == (dirArch = open(pathArch, O_RDWR)))
 	{
 		printf("%s\n",pathArch);
 		printf("Error al abrir el archivo de mapeo\n");
@@ -290,12 +303,13 @@ return 0;
 
 //---------------Funciones Aux PPD------------------//
 
-void * paginaMap(int sect, FILE * dirArch)
+void * paginaMap(int sect, int dirArch)
 {
 	div_t res;
 	res = div(sect, 8);
-	offset = (res.quot * 512);
-	dirMap = mmap(NULL,TAM_PAG, PROT_WRITE, MAP_SHARED, (int) dirArch , offset);
+	offset = (res.quot * TAM_PAG);
+	dirMap = mmap(NULL,TAM_PAG, PROT_READ | PROT_WRITE, MAP_SHARED, dirArch , offset);
+	printf("%d %X\n", errno, dirMap[0]);
 
 	return dirMap;
 }
