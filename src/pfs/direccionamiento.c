@@ -26,7 +26,7 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
 
     //Pide los sectores necesarios.
     for (i = 0 ; i < cantidad ; i++) {
-	log_info(fs_tmp->log, "", "Enviado paqete (Sector: %d).", packet.payload.sector );
+//	log_info(fs_tmp->log, "", "Enviado paqete (Sector: %d).", packet.payload.sector );
         send_socket(&packet, fs_tmp->socket);
         packet.payload.sector += 1;
     }
@@ -36,7 +36,11 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
         nipc_packet packet;
         recv_socket(&packet, fs_tmp->socket);
         memcpy(buffer+((packet.payload.sector - sector)*fs_tmp->boot_sector.bytes_per_sector), packet.payload.contenido, fs_tmp->boot_sector.bytes_per_sector);
+
     }
+//int j=0;
+//        for(j=0;j<fs_tmp->boot_sector.bytes_per_sector *2;j++)
+//            printf("%.2X%c", ((uint8_t *) buffer)[j], ((j+1)%16)?' ':'\n');
 
     return 0;
 }
