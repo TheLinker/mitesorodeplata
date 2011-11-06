@@ -30,16 +30,18 @@
 nipc_socket create_socket()
 {
     nipc_socket sock_new;
+    int i = 1;
+
     if ((sock_new = socket(AF_INET,SOCK_STREAM,0))<0)
     {
       printf("Error socket");
       exit(EXIT_FAILURE);
     }
-//    if (setsockopt(sock_new, SOL_SOCKET, SO_REUSEADDR, &i,sizeof(sock_new)) < 0)
-//    {
-//      printf("\nError: El socket ya esta siendo utilizado...");
-//      exit(EXIT_FAILURE);
-//    }
+   if (setsockopt(sock_new, SOL_SOCKET, SO_REUSEADDR, &i,sizeof(sock_new)) < 0)
+    {
+      printf("\nError: El socket ya esta siendo utilizado...");
+     exit(EXIT_FAILURE);
+   }
 
     return sock_new;
 }

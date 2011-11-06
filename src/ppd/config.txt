@@ -1,5 +1,5 @@
 modoinit=LISTEN;
-rutadisco=/home/lucas/mitesorodeplata/bin/fat32.disk;
+rutadisco=/home/lucas/workspace2/bin/fat32.disk
 ipppd=192.168.1.101;
 ippraid=
 ippfs=192.168.1.102;

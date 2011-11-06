@@ -81,7 +81,7 @@ void conectarConPFS(config_t vecConfig)
 			 * Recorro la lista de las conexiones PFS y consulto si tubo algun cambio
 			 * De ser asi, se recbe el mensaje y se procesa
 		     */
-		    aux_pfs=info_ppal->lista_pfs;
+		    /*aux_pfs=info_ppal->lista_pfs;
 		    while(aux_pfs != NULL)
 		    {
 		      if(FD_ISSET(aux_pfs->sock, &set_socket)>0)   // se consulta si ese socket tubo algun cambio
@@ -140,7 +140,7 @@ void conectarConPFS(config_t vecConfig)
 				}
 		      }
 		      aux_pfs = aux_pfs->sgte;
-		    }
+		    }*/
 
 		    /*
 		     * SOCKECT PRINCIPAL DE ESCUCHA
@@ -182,7 +182,7 @@ void conectarConPFS(config_t vecConfig)
 
 						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, (void*) mensajet);
 
-
+						sleep(1);
 
 						thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, atenderPedido, (void*) mensajet);
 					  }

@@ -18,9 +18,9 @@ typedef struct
 	struct cola_t *		sig;
 } cola_t;
 
-void insertCscan(nipc_packet, cola_t*, cola_t*, int);
+void insertCscan(nipc_packet, cola_t**, cola_t**, int);
 
-void insertOrd (cola_t * colaptr, cola_t * newptr);
+void insertOrd (cola_t ** colaptr, cola_t * newptr);
 
 void insertFifo(nipc_packet, cola_t *);
 

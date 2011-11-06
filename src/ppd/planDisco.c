@@ -4,9 +4,9 @@
 #include "planDisco.h"
 
 
-void insertCscan(nipc_packet msj, cola_t* headprt, cola_t* saltoptr, int posCab)
+void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCab)
 {
-	cola_t *newptr;
+	cola_t *newptr = 0;
 	div_t pisec;
 
 	newptr = initPtr();
@@ -23,21 +23,23 @@ void insertCscan(nipc_packet msj, cola_t* headprt, cola_t* saltoptr, int posCab)
 	return;
 }
 
-void insertOrd (cola_t * colaptr, cola_t * newptr)
+void insertOrd (cola_t ** colaptr, cola_t * newptr)
 {
-	cola_t* ordptr;
+	cola_t* ordptr = 0;
 
-	if(NULL == colaptr || newptr->ped.sect < colaptr->ped.sect)
+	printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
+
+	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
 	{
-		newptr->sig = colaptr;
-		colaptr = newptr;
+		newptr->sig = (*colaptr);
+		(*colaptr) = newptr;
 	}else
 	{
-		ordptr = colaptr;
+		ordptr = (*colaptr);
 		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
 			ordptr = ordptr->sig;
-		colaptr->sig = ordptr->sig;
-		ordptr->sig = colaptr;
+		newptr->sig = ordptr->sig;
+		ordptr->sig = newptr;
 	}
 
 	return;
@@ -54,7 +56,7 @@ void msjtocol(nipc_packet msj, cola_t * newptr)
 
 cola_t * initPtr()
 {
-	cola_t * newptr;
+	cola_t * newptr = 0;
 
 	newptr = (cola_t *) malloc (sizeof(cola_t));
 	   if(newptr==NULL)
@@ -78,16 +80,18 @@ ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
 
 	if(NULL != *headprt)
 	{
-		pout = headprt;
+		pout = *headprt;
 		*headprt = (*headprt)->sig;
 	}else
 	{
 		if(NULL != *saltoprt)
 		{
-			pout = saltoprt;
-			*saltoprt = (*headprt)->sig;
+			pout = *saltoprt;
+			*saltoprt = (*saltoprt)->sig;
 		}
 	}
+
+	//printf("%d, %d DESENCOLA", pout->oper, pout->sect);
 
 	return pout;
 }
