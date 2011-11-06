@@ -504,7 +504,7 @@ static void *fat32_init(struct fuse_conn_info *conn)
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
 
     //creamos el thread de la consola
-    pthread_create(fs_tmp->thread_consola, NULL, fat32_consola, fs_tmp);
+//    pthread_create(fs_tmp->thread_consola, NULL, fat32_consola, fs_tmp);
 
     log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -",
                                        fs_tmp->boot_sector.bytes_per_sector,
