@@ -37,6 +37,7 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
     int32_t cluster_actual = fs_tmp->open_files[fi->fh].first_cluster;
 
     cluster_actual = fat32_get_link_n_in_chain( cluster_actual, offset / cluster_size, fs_tmp);
+    if (cluster_actual == fs_tmp->eoc_marker) return 0;
 
     //Suponemos que FUSE llama a truncate para pedir espacio si es que detecta que no tiene.
 
@@ -429,6 +430,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     int32_t cluster_actual = fs_tmp->open_files[fi->fh].first_cluster;
 
     cluster_actual = fat32_get_link_n_in_chain( cluster_actual, offset / cluster_size, fs_tmp);
+    if (cluster_actual == fs_tmp->eoc_marker) return 0;
 
     offset =  offset % cluster_size;
 
@@ -501,12 +503,16 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getblock(fs_tmp->boot_sector.reserved_sectors / SECTORS_PER_BLOCK,
                    fs_tmp->boot_sector.sectors_per_fat / SECTORS_PER_BLOCK, fs_tmp->fat, fs_tmp);
-    memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 0x04, 4);
+
+//    int i=0;
+//    for(;i<512;i++) printf("%.4lX%c",fs_tmp->fat[i], (i+1)%16?' ':'\n');
+
+    memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 1, 4);
 
     //creamos el thread de la consola
 //    pthread_create(fs_tmp->thread_consola, NULL, fat32_consola, fs_tmp);
 
-    log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d -",
+    log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d EOC:%ld-",
                                        fs_tmp->boot_sector.bytes_per_sector,
                                        fs_tmp->boot_sector.sectors_per_cluster,
                                        fs_tmp->boot_sector.reserved_sectors,
@@ -514,7 +520,8 @@ static void *fat32_init(struct fuse_conn_info *conn)
                                        fs_tmp->boot_sector.total_sectors,
                                        fs_tmp->boot_sector.sectors_per_fat,
                                        fs_tmp->system_area_size,
-                                       fat32_free_clusters(fs_tmp));
+                                       fat32_free_clusters(fs_tmp),
+                                       fs_tmp->eoc_marker);
 
     return fs_tmp;
 

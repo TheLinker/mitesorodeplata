@@ -66,12 +66,13 @@ int8_t nipc_connect_socket(nipc_socket socket, char *host, uint16_t port)
 {
     struct sockaddr_in addr_raid;
 
+    memset(&addr_raid, '\0', sizeof(struct sockaddr_in));
     addr_raid.sin_family = AF_INET;
     addr_raid.sin_port=htons(port);
     addr_raid.sin_addr.s_addr=inet_addr(host);
     if (connect(socket,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
     {
-        printf("Error connect");
+        printf("Error connect %d %s(%d) %d %d\n",socket, host, strlen(host), port, errno);
         return -EADDRNOTAVAIL;
     }
 
@@ -87,7 +88,7 @@ int32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 {
     int32_t   leido = 0;
     int32_t   aux = 0;
-    
+
     //* Comprobacion de que los parametros de entrada son correctos
     if ((sock == -1) || (packet == NULL))
 	return -1;
