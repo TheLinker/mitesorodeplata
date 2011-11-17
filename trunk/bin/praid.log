@@ -1,0 +1,228 @@
+17:58:11.086 RAID/4266 Principal/3063473872 INFO: Message info: Socket escucha 4
+18:04:19.309 RAID/4306 Principal/3062974160 INFO: Message info: Socket escucha 4
+18:04:22.990 RAID/4306 Principal/3062974160 INFO: Message info: Entra en funcionamiento el PRAID
+18:04:22.990 RAID/4306 Principal/3062974160 INFO: Message info: Nueva conexion PPD: fer
+18:04:26.790 RAID/4306 Principal/3062974160 INFO: Message info: Nueva conexion PPD: qwe
+18:04:26.791 RAID/4306 qwe/3054574448 INFO: Message info: Comienza sincronizacion: qwe - 18:04:26.791 
+18:06:46.808 RAID/4333 Principal/3064411856 INFO: Message info: Socket escucha 4
+18:06:51.830 RAID/4333 Principal/3064411856 INFO: Message info: Entra en funcionamiento el PRAID
+18:06:51.830 RAID/4333 Principal/3064411856 INFO: Message info: Nueva conexion PPD: fer
+18:06:54.774 RAID/4333 Principal/3064411856 INFO: Message info: Nueva conexion PPD: asd
+18:06:54.775 RAID/4333 asd/3056012144 INFO: Message info: Comienza sincronizacion: asd - 18:06:54.775 
+18:06:58.030 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:06:58.970 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:07:01.353 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:07:03.859 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 3 - esto es el contenido!!!
+18:07:05.087 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 5 - esto es el contenido!!!
+18:07:07.170 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 4 - esto es el contenido!!!
+18:07:08.646 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 6 - esto es el contenido!!!
+18:07:10.654 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 7 - esto es el contenido!!!
+18:07:12.850 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 8 - esto es el contenido!!!
+18:07:16.782 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 9 - esto es el contenido!!!
+18:07:19.793 RAID/4333 fer/3064404848 INFO: Message info: Recibida lectura del sector: 10 - esto es el contenido!!!
+18:07:19.793 RAID/4333 asd/3064404848 INFO: Message info: Finaliza sincronizacion: asd - 18:07:19.793 
+18:14:05.360 RAID/4362 Principal/3063015120 INFO: Message info: Socket escucha 4
+18:14:08.675 RAID/4362 Principal/3063015120 INFO: Message info: Entra en funcionamiento el PRAID
+18:14:08.676 RAID/4362 Principal/3063015120 INFO: Message info: Nueva conexion PPD: fer
+18:14:11.460 RAID/4362 Principal/3063015120 INFO: Message info: Nueva conexion PPD: asd
+18:14:11.467 RAID/4362 asd/3054615408 INFO: Message info: Comienza sincronizacion: asd - 18:14:11.467 
+18:14:15.635 RAID/4362 fer/3063008112 INFO: Message info: Recibida lectura del sector: 6 - esto es el contenido!!!
+18:14:15.635 RAID/4362 fer/3063008112 INFO: Message info: Recibida sincronizacion del sector: 6 al PPD: asd
+18:18:11.591 RAID/4391 Principal/3064575696 INFO: Message info: Socket escucha 4
+18:18:14.875 RAID/4391 Principal/3064575696 INFO: Message info: Entra en funcionamiento el PRAID
+18:18:14.876 RAID/4391 Principal/3064575696 INFO: Message info: Nueva conexion PPD: fer
+18:18:17.002 RAID/4391 Principal/3064575696 INFO: Message info: Nueva conexion PPD: asd
+18:18:17.002 RAID/4391 asd/3056175984 INFO: Message info: Comienza sincronizacion: asd - 18:18:17.002 
+18:18:31.410 RAID/4391 fer/3064568688 INFO: Message info: Recibida lectura del sector: 7 - esto es el contenido!!!
+18:20:09.598 RAID/4415 Principal/3062847184 INFO: Message info: Socket escucha 4
+18:20:12.526 RAID/4415 Principal/3062847184 INFO: Message info: Entra en funcionamiento el PRAID
+18:20:12.526 RAID/4415 Principal/3062847184 INFO: Message info: Nueva conexion PPD: fer
+18:20:15.139 RAID/4415 Principal/3062847184 INFO: Message info: Nueva conexion PPD: asd
+18:20:15.140 RAID/4415 asd/3054447472 INFO: Message info: Comienza sincronizacion: asd - 18:20:15.140 
+18:20:33.818 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 5 - esto es el contenido!!!
+18:20:45.350 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:20:49.305 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:20:50.121 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 3 - esto es el contenido!!!
+18:20:50.999 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 4 - esto es el contenido!!!
+18:20:54.793 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:20:57.033 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 6 - esto es el contenido!!!
+18:20:58.334 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 7 - esto es el contenido!!!
+18:20:59.753 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 8 - esto es el contenido!!!
+18:21:01.078 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 9 - esto es el contenido!!!
+18:21:02.918 RAID/4415 fer/3062840176 INFO: Message info: Recibida lectura del sector: 10 - esto es el contenido!!!
+18:21:02.918 RAID/4415 asd/3062840176 INFO: Message info: Finaliza sincronizacion: asd - 18:21:02.918 
+18:21:45.626 RAID/4432 Principal/3063240400 INFO: Message info: Socket escucha 4
+18:21:49.474 RAID/4447 Principal/3064411856 INFO: Message info: Socket escucha 4
+18:21:52.330 RAID/4447 Principal/3064411856 INFO: Message info: Entra en funcionamiento el PRAID
+18:21:52.330 RAID/4447 Principal/3064411856 INFO: Message info: Nueva conexion PPD: fer
+18:21:55.178 RAID/4447 Principal/3064411856 INFO: Message info: Nueva conexion PPD: asd
+18:21:55.179 RAID/4447 asd/3056012144 INFO: Message info: Comienza sincronizacion: asd - 18:21:55.179 
+18:21:58.538 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:21:59.605 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:22:00.609 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 3 - esto es el contenido!!!
+18:22:01.618 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 4 - esto es el contenido!!!
+18:22:02.602 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 5 - esto es el contenido!!!
+18:22:08.254 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 6 - esto es el contenido!!!
+18:22:09.657 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:22:11.515 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 7 - esto es el contenido!!!
+18:22:13.941 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 9 - esto es el contenido!!!
+18:22:15.626 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 10 - esto es el contenido!!!
+18:22:17.010 RAID/4447 fer/3064404848 INFO: Message info: Recibida lectura del sector: 8 - esto es el contenido!!!
+18:22:17.011 RAID/4447 asd/3064404848 INFO: Message info: Finaliza sincronizacion: asd - 18:22:17.011 
+18:22:43.130 RAID/4447 Principal/3064411856 INFO: Message info: Nueva conexion PPD: otro
+18:22:43.131 RAID/4447 otro/3047619440 INFO: Message info: Comienza sincronizacion: otro - 18:22:43.131 
+18:22:50.055 RAID/4447 fer/3064404848 ERROR: Message error: Se perdio la conexion con el disco fer
+18:22:50.056 PRAID/4447 fer/3064404848 INFO: Message info: Re-Distribuir pedido: 9 en disco: asd
+18:22:50.056 PRAID/4447 fer/3064404848 INFO: Message info: Re-Distribuir pedido: 7 en disco: asd
+18:22:50.056 PRAID/4447 fer/3064404848 INFO: Message info: Re-Distribuir pedido: 5 en disco: asd
+18:22:50.056 PRAID/4447 fer/3064404848 INFO: Message info: Re-Distribuir pedido: 3 en disco: asd
+18:22:50.056 PRAID/4447 fer/3064404848 INFO: Message info: Re-Distribuir pedido: 1 en disco: asd
+18:23:00.222 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 7 - esto es el contenido!!!
+18:23:08.646 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:23:10.849 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:23:14.118 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:23:15.210 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 3 - esto es el contenido!!!
+18:23:16.273 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 4 - esto es el contenido!!!
+18:23:17.461 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 5 - esto es el contenido!!!
+18:23:25.419 RAID/4447 Principal/3064411856 INFO: Message info: Nueva conexion PPD: fer
+18:23:25.420 RAID/4447 fer/3039226736 INFO: Message info: Comienza sincronizacion: fer - 18:23:25.420 
+18:24:09.603 RAID/4447 otro/3047619440 ERROR: Message error: Se perdio la conexion con el disco otro
+18:24:09.603 PRAID/4447 otro/3047619440 INFO: Message info: Re-Distribuir pedido: 4 en disco: asd
+18:24:09.603 PRAID/4447 otro/3047619440 INFO: Message info: Re-Distribuir pedido: 3 en disco: asd
+18:24:09.604 PRAID/4447 otro/3047619440 INFO: Message info: Re-Distribuir pedido: 2 en disco: asd
+18:24:09.604 PRAID/4447 otro/3047619440 INFO: Message info: Re-Distribuir pedido: 1 en disco: asd
+18:24:09.604 PRAID/4447 otro/3047619440 INFO: Message info: Re-Distribuir pedido: 0 en disco: asd
+18:24:18.130 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:24:20.005 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:24:30.113 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:24:31.113 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 3 - esto es el contenido!!!
+18:24:32.261 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 4 - esto es el contenido!!!
+18:24:33.882 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 5 - esto es el contenido!!!
+18:24:36.746 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 6 - esto es el contenido!!!
+18:24:38.101 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 7 - esto es el contenido!!!
+18:24:39.518 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 8 - esto es el contenido!!!
+18:24:41.191 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 9 - esto es el contenido!!!
+18:24:43.598 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 10 - esto es el contenido!!!
+18:24:43.598 RAID/4447 fer/3056012144 INFO: Message info: Finaliza sincronizacion: fer - 18:24:43.598 
+18:24:46.594 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 6 - esto es el contenido!!!
+18:24:48.449 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 8 - esto es el contenido!!!
+18:24:50.349 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 9 - esto es el contenido!!!
+18:24:55.962 RAID/4447 asd/3056012144 INFO: Message info: Recibida lectura del sector: 10 - esto es el contenido!!!
+18:26:37.143 RAID/4447 fer/3039226736 ERROR: Message error: Se perdio la conexion con el disco fer
+18:26:42.487 RAID/4447 asd/3056012144 ERROR: Message error: Se perdio la conexion con el disco asd
+18:34:14.643 RAID/4506 Principal/3063592656 INFO: Message info: Socket escucha 4
+18:34:19.219 RAID/4506 Principal/3063592656 INFO: Message info: Entra en funcionamiento el PRAID
+18:34:19.219 RAID/4506 Principal/3063592656 INFO: Message info: Nueva conexion PPD: fer
+18:34:22.286 RAID/4506 Principal/3063592656 INFO: Message info: Nueva conexion PPD: asd
+18:34:22.289 RAID/4506 asd/3055192944 INFO: Message info: Comienza sincronizacion: asd - 18:34:22.289 
+18:34:27.298 RAID/4506 fer/3063585648 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:34:28.434 RAID/4506 fer/3063585648 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:34:29.521 RAID/4506 fer/3063585648 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:34:32.134 RAID/4506 fer/3063585648 ERROR: Message error: Se perdio la conexion con el disco fer
+18:34:47.735 RAID/4506 Principal/3063592656 INFO: Message info: Nueva conexion PPD: fer
+18:34:47.735 RAID/4506 fer/3046800240 INFO: Message info: Comienza sincronizacion: fer - 18:34:47.735 
+18:35:39.182 RAID/4535 Principal/3064231632 INFO: Message info: Socket escucha 4
+18:35:42.186 RAID/4535 Principal/3064231632 INFO: Message info: Entra en funcionamiento el PRAID
+18:35:42.186 RAID/4535 Principal/3064231632 INFO: Message info: Nueva conexion PPD: fer
+18:35:47.707 RAID/4535 Principal/3064231632 INFO: Message info: Nueva conexion PPD: asd
+18:35:47.708 RAID/4535 asd/3055831920 INFO: Message info: Comienza sincronizacion: asd - 18:35:47.708 
+18:35:53.074 RAID/4535 fer/3064224624 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:35:54.125 RAID/4535 fer/3064224624 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:35:55.074 RAID/4535 fer/3064224624 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:35:59.279 RAID/4535 fer/3064224624 ERROR: Message error: Se perdio la conexion con el disco fer
+18:36:07.230 RAID/4535 Principal/3064231632 INFO: Message info: Nueva conexion PPD: qqqqq
+18:36:07.231 RAID/4535 qqqqq/3047439216 INFO: Message info: Comienza sincronizacion: qqqqq - 18:36:07.231 
+18:36:31.759 RAID/4562 Principal/3063650000 INFO: Message info: Socket escucha 4
+18:36:34.794 RAID/4562 Principal/3063650000 INFO: Message info: Entra en funcionamiento el PRAID
+18:36:34.794 RAID/4562 Principal/3063650000 INFO: Message info: Nueva conexion PPD: fer
+18:36:38.062 RAID/4562 Principal/3063650000 INFO: Message info: Nueva conexion PPD: asd
+18:36:38.063 RAID/4562 asd/3055250288 INFO: Message info: Comienza sincronizacion: asd - 18:36:38.063 
+18:36:41.819 RAID/4562 fer/3063642992 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:36:43.533 RAID/4562 fer/3063642992 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:36:45.089 RAID/4562 fer/3063642992 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:36:46.487 RAID/4562 fer/3063642992 ERROR: Message error: Se perdio la conexion con el disco fer
+18:36:50.086 RAID/4562 Principal/3063650000 INFO: Message info: Nueva conexion PPD: fer
+18:36:50.087 RAID/4562 fer/3046857584 INFO: Message info: Comienza sincronizacion: fer - 18:36:50.087 
+18:41:15.740 RAID/4588 Principal/3063609040 INFO: Message info: Socket escucha 4
+18:41:22.194 RAID/4588 Principal/3063609040 INFO: Message info: Entra en funcionamiento el PRAID
+18:41:22.194 RAID/4588 Principal/3063609040 INFO: Message info: Nueva conexion PPD: fer
+18:41:31.554 RAID/4588 Principal/3063609040 INFO: Message info: Nueva conexion PPD: asd
+18:41:31.556 RAID/4588 asd/3055209328 INFO: Message info: Comienza sincronizacion: asd - 18:41:31.556 
+18:41:40.294 RAID/4588 fer/3063602032 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:41:41.453 RAID/4588 fer/3063602032 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:41:42.413 RAID/4588 fer/3063602032 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:41:43.882 RAID/4588 fer/3063602032 ERROR: Message error: Se perdio la conexion con el disco fer
+18:42:11.266 RAID/4611 Principal/3063826128 INFO: Message info: Socket escucha 4
+18:42:14.918 RAID/4611 Principal/3063826128 INFO: Message info: Entra en funcionamiento el PRAID
+18:42:14.918 RAID/4611 Principal/3063826128 INFO: Message info: Nueva conexion PPD: fer
+18:42:18.410 RAID/4611 Principal/3063826128 INFO: Message info: Nueva conexion PPD: fasd
+18:42:18.411 RAID/4611 fasd/3055426416 INFO: Message info: Comienza sincronizacion: fasd - 18:42:18.411 
+18:42:21.895 RAID/4611 fer/3063819120 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:42:22.630 RAID/4611 fer/3063819120 ERROR: Message error: Se perdio la conexion con el disco fer
+18:42:29.487 RAID/4611 Principal/3063826128 INFO: Message info: Nueva conexion PPD: fer
+18:42:29.488 RAID/4611 fer/3047033712 INFO: Message info: Comienza sincronizacion: fer - 18:42:29.488 
+18:43:07.384 RAID/4637 Principal/3063350992 INFO: Message info: Socket escucha 4
+18:43:10.395 RAID/4637 Principal/3063350992 INFO: Message info: Entra en funcionamiento el PRAID
+18:43:10.395 RAID/4637 Principal/3063350992 INFO: Message info: Nueva conexion PPD: fer
+18:43:12.610 RAID/4637 Principal/3063350992 INFO: Message info: Nueva conexion PPD: asd
+18:43:12.611 RAID/4637 asd/3054951280 INFO: Message info: Comienza sincronizacion: asd - 18:43:12.611 
+18:43:14.394 RAID/4637 fer/3063343984 ERROR: Message error: Se perdio la conexion con el disco fer
+18:43:23.562 RAID/4637 Principal/3063350992 INFO: Message info: Nueva conexion PPD: fer
+18:43:23.563 RAID/4637 fer/3046558576 INFO: Message info: Comienza sincronizacion: fer - 18:43:23.563 
+18:45:44.864 RAID/4637 fer/3046558576 ERROR: Message error: Se perdio la conexion con el disco fer
+18:45:53.755 RAID/4637 asd/3054951280 ERROR: Message error: Se perdio la conexion con el disco asd
+18:47:29.942 RAID/4669 Principal/3062953680 INFO: Message info: Socket escucha 4
+18:47:33.363 RAID/4669 Principal/3062953680 INFO: Message info: Entra en funcionamiento el PRAID
+18:47:33.363 RAID/4669 Principal/3062953680 INFO: Message info: Nueva conexion PPD: fer
+18:47:37.986 RAID/4669 Principal/3062953680 INFO: Message info: Nueva conexion PPD: qwe
+18:47:37.986 RAID/4669 qwe/3054553968 INFO: Message info: Comienza sincronizacion: qwe - 18:47:37.986 
+18:47:41.051 RAID/4669 fer/3062946672 ERROR: Message error: Se perdio la conexion con el disco fer
+18:47:43.491 RAID/4669 Principal/3062953680 WARNING: Message warning: Sali del sistema
+18:49:56.754 RAID/4695 Principal/3063920336 INFO: Message info: Socket escucha 4
+18:50:01.318 RAID/4695 Principal/3063920336 INFO: Message info: Entra en funcionamiento el PRAID
+18:50:01.318 RAID/4695 Principal/3063920336 INFO: Message info: Nueva conexion PPD: fer
+18:50:07.614 RAID/4695 Principal/3063920336 INFO: Message info: Nueva conexion PPD: qwe
+18:50:07.615 RAID/4695 qwe/3055520624 INFO: Message info: Comienza sincronizacion: qwe - 18:50:07.615 
+18:50:10.224 RAID/4695 fer/3063913328 ERROR: Message error: Se perdio la conexion con el disco fer
+18:52:45.934 RAID/4723 Principal/3063109328 INFO: Message info: Socket escucha 4
+18:52:49.054 RAID/4723 Principal/3063109328 INFO: Message info: Entra en funcionamiento el PRAID
+18:52:49.054 RAID/4723 Principal/3063109328 INFO: Message info: Nueva conexion PPD: fer
+18:52:54.626 RAID/4723 Principal/3063109328 INFO: Message info: Nueva conexion PPD: qwe
+18:52:54.628 RAID/4723 qwe/3054709616 INFO: Message info: Comienza sincronizacion: qwe - 18:52:54.628 
+18:52:57.410 RAID/4723 fer/3063102320 INFO: Message info: Recibida lectura del sector: 0 - esto es el contenido!!!
+18:52:58.478 RAID/4723 fer/3063102320 INFO: Message info: Recibida lectura del sector: 1 - esto es el contenido!!!
+18:52:59.566 RAID/4723 fer/3063102320 INFO: Message info: Recibida lectura del sector: 2 - esto es el contenido!!!
+18:53:00.602 RAID/4723 fer/3063102320 INFO: Message info: Recibida lectura del sector: 4 - esto es el contenido!!!
+18:53:03.894 RAID/4723 fer/3063102320 INFO: Message info: Recibida lectura del sector: 3 - esto es el contenido!!!
+18:53:06.106 RAID/4723 fer/3063102320 ERROR: Message error: Se perdio la conexion con el disco fer
+18:54:05.985 RAID/4749 Principal/3064301264 INFO: Message info: Socket escucha 4
+18:54:19.423 RAID/4749 Principal/3064301264 INFO: Message info: Entra en funcionamiento el PRAID
+18:54:19.423 RAID/4749 Principal/3064301264 INFO: Message info: Nueva conexion PPD: fer
+18:54:22.134 RAID/4749 Principal/3064301264 INFO: Message info: Nueva conexion PPD: asd
+18:54:22.135 RAID/4749 asd/3055901552 INFO: Message info: Comienza sincronizacion: asd - 18:54:22.135 
+18:54:24.322 RAID/4749 fer/3064294256 ERROR: Message error: Se perdio la conexion con el disco fer
+18:56:43.606 RAID/4770 Principal/3062822608 INFO: Message info: Socket escucha 4
+18:56:48.022 RAID/4770 Principal/3062822608 INFO: Message info: Entra en funcionamiento el PRAID
+18:56:48.022 RAID/4770 Principal/3062822608 INFO: Message info: Nueva conexion PPD: fer
+18:56:50.974 RAID/4770 Principal/3062822608 INFO: Message info: Nueva conexion PPD: asd
+18:56:50.975 RAID/4770 asd/3054422896 INFO: Message info: Comienza sincronizacion: asd - 18:56:50.975 
+18:56:53.111 RAID/4770 fer/3062815600 ERROR: Message error: Se perdio la conexion con el disco fer
+18:58:24.131 RAID/4791 Principal/3062925008 INFO: Message info: Socket escucha 4
+18:58:26.566 RAID/4791 Principal/3062925008 INFO: Message info: Entra en funcionamiento el PRAID
+18:58:26.566 RAID/4791 Principal/3062925008 INFO: Message info: Nueva conexion PPD: fer
+18:58:29.067 RAID/4791 Principal/3062925008 INFO: Message info: Nueva conexion PPD: asd
+18:58:29.067 RAID/4791 asd/3054525296 INFO: Message info: Comienza sincronizacion: asd - 18:58:29.067 
+18:58:31.784 RAID/4791 fer/3062918000 ERROR: Message error: Se perdio la conexion con el disco fer
+18:58:45.131 RAID/4813 Principal/3063371472 INFO: Message info: Socket escucha 4
+18:58:48.007 RAID/4813 Principal/3063371472 INFO: Message info: Entra en funcionamiento el PRAID
+18:58:48.007 RAID/4813 Principal/3063371472 INFO: Message info: Nueva conexion PPD: asd
+18:58:50.458 RAID/4813 Principal/3063371472 INFO: Message info: Nueva conexion PPD: fer
+18:58:50.459 RAID/4813 fer/3054971760 INFO: Message info: Comienza sincronizacion: fer - 18:58:50.459 
+18:58:52.114 RAID/4813 asd/3063364464 ERROR: Message error: Se perdio la conexion con el disco asd
+18:59:16.001 RAID/4832 Principal/3062818512 INFO: Message info: Socket escucha 4
+18:59:19.894 RAID/4832 Principal/3062818512 INFO: Message info: Entra en funcionamiento el PRAID
+18:59:19.894 RAID/4832 Principal/3062818512 INFO: Message info: Nueva conexion PPD: fer
+18:59:22.127 RAID/4832 Principal/3062818512 INFO: Message info: Nueva conexion PPD: asd
+18:59:22.128 RAID/4832 asd/3054418800 INFO: Message info: Comienza sincronizacion: asd - 18:59:22.128 
+18:59:23.558 RAID/4832 fer/3062811504 ERROR: Message error: Se perdio la conexion con el disco fer
+19:05:01.051 RAID/4832 Principal/3062818512 WARNING: Message warning: Sali del sistema
