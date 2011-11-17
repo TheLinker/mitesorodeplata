@@ -15,11 +15,15 @@
 
 int main(int argc, char *argv[])
 {
-  log_t* log = log_new("./src/praid1/log.txt", "Runner", LOG_OUTPUT_FILE);
+  config_t *config;
+  config = calloc(sizeof(config_t), 1);
+  config_read(config);
+  log_t* log = log_new(config->log_path, "RAID", config->log_mode);
   
-  //log_info(log, "Principal", "Message info: %s", "se conecto el cliente xxx");
-  //log_warning(log, "Principal", "Message warning: %s", "not load configuration file");
-  //log_error(log, "Principal", "Message error: %s", "Crash!!!!");
+  // log_info(log, "Principal", "Message info: %s", "se conecto el cliente xxx");
+  // log_warning(log, "Principal", "Message warning: %s", "not load configuration file");
+  // log_error(log, "Principal", "Message error: %s", "Crash!!!!");
+  
   datos               *info_ppal = (datos *)malloc(sizeof(datos));
   pfs                 *aux_pfs;
   uint32_t             max_sock;
@@ -34,7 +38,7 @@ int main(int argc, char *argv[])
   info_ppal->discos    = NULL;
   
   info_ppal->sock_raid = create_socket();
-  nipc_bind_socket(info_ppal->sock_raid,"127.0.0.1",50000);
+  nipc_bind_socket(info_ppal->sock_raid,(char *)config->server_host,config->server_port);
   nipc_listen(info_ppal->sock_raid);
   
   
@@ -66,11 +70,23 @@ int main(int argc, char *argv[])
     if (info_ppal->discos!=NULL)printf("------------------------------\n");
     
     select(max_sock+1, &set_socket, NULL, NULL, NULL);  
-        
+    
+    /*
+     * Control discos consistentes
+     */
+    if((info_ppal->max_sector == 0) && (info_ppal->discos != NULL))
+    {
+      printf("No hay discos consistentes!!!\n");
+      break;
+    }
+    
+    
+    
+    
+    
     /*
      * Lista de socket PFS
      */
-	
     aux_pfs=info_ppal->lista_pfs;
     while(aux_pfs != NULL)
     {
@@ -154,6 +170,8 @@ int main(int argc, char *argv[])
 	  {
 	    if(mensaje.len != 0)
 	    {
+	        if(info_ppal->discos == NULL) 
+		  log_info(log, "Principal", "Message info: %s", "Entra en funcionamiento el PRAID");
 		printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
 		//char id_disco[20];
 		//memcpy(&id_disco,mensaje.payload.contenido,20);
@@ -223,8 +241,8 @@ int main(int argc, char *argv[])
       }
     }
   }
-  printf("\n\n POR ALGO SALIII \n\n");
-  log_warning(log, "Principal", "Message warning: Sali del sistema, cosa dificil");
+  printf("\n\n Se termino el programa \n\n");
+  log_warning(log, "Principal", "Message warning: Sali del sistema");
   log_delete(log);
   exit(EXIT_SUCCESS);
 }

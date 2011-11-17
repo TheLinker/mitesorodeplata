@@ -1,6 +1,8 @@
 #include<stdio.h>
+#include <time.h>
 #include<unistd.h>
 #include<string.h>
+#include <sys/timeb.h>
 #include<pthread.h>
 #include<sys/msg.h>
 #include<sys/sem.h>
@@ -11,6 +13,9 @@
 #include "nipc.h"
 #include "log.h"
 
+
+#define ESTADO_OK   1
+#define ESTADO_FAIL 0
 
 /**
  * Agrega un nuevo disco al RAID
@@ -155,7 +160,16 @@ void distribuir_pedido_escritura(disco **discos, nipc_packet mensaje,nipc_socket
  */
 void *espera_respuestas(datos **info_ppal)
 {
-  log_t*       log = log_new("./src/praid1/log.txt", "Runner", LOG_OUTPUT_FILE );
+  config_t *config;
+  config = calloc(sizeof(config_t), 1);
+  config_read(config);
+  log_t* log = log_new(config->log_path, "RAID", config->log_mode);
+  
+  time_t log_time ;
+  struct tm *log_tm ;
+  struct timeb tmili;
+  char str_time[128] ;
+  
   nipc_packet  mensaje;
   pedido      *aux_pedidos;
   pedido      *anterior;
@@ -171,9 +185,17 @@ void *espera_respuestas(datos **info_ppal)
   
   if ((*info_ppal)->discos->sgte != NULL)
   {  /** SINCRONIZAR **/
+    log_time = time(NULL);
+    log_tm = localtime( &log_time );
+    strftime( str_time , 127 , "%H:%M:%S" , log_tm ) ;
+    if (ftime (&tmili)){
+	perror("[[CRITICAL]] :: No se han podido obtener los milisegundos\n");
+	return 0;
+    }
+    log_info(log, (char *)el_disco->id, "Message info: Comienza sincronizacion: %s - %s.%.3hu ",el_disco->id,str_time, tmili.millitm);
+    
     uint32_t i;
     uint8_t *id_disco;
-    
     mensaje.type=1;
     mensaje.len=4;
     for(i=0;i<=cant_sectores;i++)
@@ -187,6 +209,7 @@ void *espera_respuestas(datos **info_ppal)
   else
   {    /** UNICO DISCO - MAESTRO **/
     el_disco->sector_sincro = cant_sectores;
+    (*info_ppal)->max_sector = cant_sectores;
   }
   
   while(1)
@@ -203,7 +226,7 @@ void *espera_respuestas(datos **info_ppal)
       if(mensaje.type != nipc_handshake)
       {
 	if(mensaje.type == nipc_CHS)
-	{
+	{/** nunca va a llegar aca **/
 	  printf("Disco: %s - CHS: %s\n",el_disco->id,mensaje.payload.contenido);
 	  log_info(log, (char *)el_disco->id, "Message info: Disco: %s - CHS: %s",el_disco->id,mensaje.payload.contenido);
 	}
@@ -263,11 +286,10 @@ void *espera_respuestas(datos **info_ppal)
 	      if((aux_disco->sector_sincro + 1) == mensaje.payload.sector)
 	      {  /** se incrementa en 1 sector_sincro y se revisa la cola para ver si hay otros **/
 		aux_disco->sector_sincro++;
-		printf("Sector preferido en disco: %s - %d\n",aux_disco->id,aux_pedidos->sock);
+		//printf("Sector preferido en disco: %s - %d\n",aux_disco->id,aux_pedidos->sock);
 		sectores_t *aux;
 		if (aux_disco->ya_sincro != NULL)
 		{ 
-		  printf("Sector cola %d\n",(aux_disco->ya_sincro)->sector);
 		  while((aux_disco->sector_sincro+1) == (aux_disco->ya_sincro)->sector)
 		  {
 		    aux_disco->sector_sincro++;
@@ -276,21 +298,31 @@ void *espera_respuestas(datos **info_ppal)
 		    free(aux);
 		    if(aux_disco->ya_sincro == NULL)
 		      break;
-		    printf("Sector cola %d\n",(aux_disco->ya_sincro)->sector);
 		  }
 		}
 	      }
 	      if((aux_disco->sector_sincro + 1) < mensaje.payload.sector)
 	      {  /** se encola ordenadamente para llevar el control de los sectores sincronizados **/
-		printf("Sector encolado en disco: %s - %d\n",aux_disco->id,aux_pedidos->sock);
+		//printf("Sector encolado en disco: %s - %d\n",aux_disco->id,aux_pedidos->sock);
 		insertar(&(aux_disco->ya_sincro),mensaje.payload.sector);
 		
 		sectores_t *aux = aux_disco->ya_sincro;
 		while(aux!=NULL)
 		{
-		  printf("VER - sector: %d\n",aux->sector);
 		  aux = aux->sgte;
 		}
+	      }
+	      if(aux_disco->sector_sincro == (*info_ppal)->max_sector)
+	      {
+		log_time = time(NULL);
+		log_tm = localtime( &log_time );
+		strftime( str_time , 127 , "%H:%M:%S" , log_tm ) ;
+		if (ftime (&tmili)){
+		    perror("[[CRITICAL]] :: No se han podido obtener los milisegundos\n");
+		    return 0;
+		}
+		printf("Sincronizacion COMPLETA\n");
+		log_info(log, (char *)aux_disco->id, "Message info: Finaliza sincronizacion: %s - %s.%.3hu ",aux_disco->id,str_time, tmili.millitm);
 	      }
 	    }
 	    else
@@ -314,6 +346,7 @@ void *espera_respuestas(datos **info_ppal)
 	    free(aux_pedidos);
 	    el_disco->cantidad_pedidos--;
 	  }
+	  printf("------------------------------\n");
 	  listar_pedidos_discos((*info_ppal)->discos);
 	}
       }
@@ -364,7 +397,6 @@ void insertar (sectores_t **lista, uint32_t sector)
       aux->sgte = new_sector;
     }
   }
-  printf("inserto\n");
 }
 
 
@@ -401,17 +433,24 @@ void liberar_pfs_caido(pfs **pedidos_pfs, nipc_socket sock)
  */
 uint16_t limpio_discos_caidos(datos **info_ppal)
 {
-  log_t* log = log_new("./src/praid1/log.txt", "Runner", LOG_OUTPUT_FILE );
+  config_t *config;
+  config = calloc(sizeof(config_t), 1);
+  config_read(config);
+  log_t* log = log_new(config->log_path, "PRAID", config->log_mode);
   
+  uint32_t estado = ESTADO_FAIL; // inicializa como si no hubiera discos sincronizados
   nipc_packet mensaje;
   disco *aux_discos;
   disco *anterior = NULL;
   aux_discos = (*info_ppal)->discos;
   while(aux_discos != NULL)
   {
+    /** Si esta sincronizado y no se perdio la conexion el PRAID sigue funcionando **/
+    if(aux_discos->sector_sincro == (*info_ppal)->max_sector && aux_discos->sock != -1)
+      estado = ESTADO_OK; // en caso de que alla alguno sincronizado el PRAID esta OK
     if(aux_discos->sock == -1)
     {
-      printf("Limpieza de un disco\n");
+      //printf("Limpieza de un disco\n");
       //Saco disco de la lista
       if(anterior == NULL)
 	(*info_ppal)->discos = ((*info_ppal)->discos)->sgte;
@@ -439,12 +478,12 @@ uint16_t limpio_discos_caidos(datos **info_ppal)
 	    if(id_disco == (uint8_t*)"NODISK")
 	    {
 	      printf("No hay discos SINCRONIZADOS\n");
-	      return (uint16_t) 1;
+	      break;//return (uint16_t) 1;
 	    }
 	    else
 	    {
 	      printf("Re-Distribuir pedido: %d en disco: %s\n",mensaje.payload.sector, id_disco);
-	      log_info(log, "Principal", "Message info: Re-Distribuir pedido: %d en disco: %s", mensaje.payload.sector,id_disco);
+	      log_info(log, (char *)aux_discos->id , "Message info: Re-Distribuir pedido: %d en disco: %s", mensaje.payload.sector,id_disco);
 	    }
 	    aux_discos->cantidad_pedidos--;
 	  }
@@ -464,5 +503,81 @@ uint16_t limpio_discos_caidos(datos **info_ppal)
     anterior = aux_discos;
     aux_discos = aux_discos->sgte;
   }
+  if (estado == ESTADO_FAIL)
+  {
+    (*info_ppal)->max_sector = 0;   // informa que no hay discos consistentes 
+    printf("paso por aca\n");
+  }
   return 0;
+}
+
+
+/**
+ * Lee la configuracion
+ *
+ */
+int config_read(config_t *config)
+{
+    char line[1024], w1[1024], w2[1024];
+    FILE *fp;
+
+    fp = fopen("./bin/praid.conf","r");
+    if( fp == NULL ) {
+        printf("No se encuentra el archivo de configuración\n");
+        return 1;
+    }
+
+    while( fgets(line, sizeof(line), fp) ) {
+        char* ptr;
+
+        if( line[0] == '/' && line[1] == '/' )
+            continue;
+        if( (ptr = strstr(line, "//")) != NULL )
+            *ptr = '\n'; //Strip comments
+        if( sscanf(line, "%[^:]: %[^\t\r\n]", w1, w2) < 2 )
+            continue;
+
+        //Strip trailing spaces
+        ptr = w2 + strlen(w2);
+        while (--ptr >= w2 && *ptr == ' ');
+        ptr++;
+        *ptr = '\0';
+
+        if(strcmp(w1,"host")==0)
+            strcpy((char *)(config->server_host), w2);
+        else 
+        if(strcmp(w1,"puerto")==0)
+            config->server_port = atoi(w2);
+        else
+        if(strcmp(w1,"flag_consola")==0)
+        {
+            if(strcmp(w1,"true") == 0)
+                config->console = 1;
+            else
+            if(strcmp(w1,"false") == 0)
+                config->console = 0;
+        }else
+        if(strcmp(w1,"log_path")==0)
+            strcpy(config->log_path, w2);
+        else
+        if(strcmp(w1,"log_mode")==0)
+        {
+            if(strcmp(w2,"none") == 0)
+	    config->log_mode = LOG_OUTPUT_NONE;
+            else
+            if(strcmp(w2,"console") == 0)
+                config->log_mode = LOG_OUTPUT_CONSOLE;
+            else
+            if(strcmp(w2,"file") == 0)
+                config->log_mode = LOG_OUTPUT_FILE;
+            else
+            if(strcmp(w2,"file+console") == 0)
+                config->log_mode = LOG_OUTPUT_CONSOLEANDFILE;
+        }
+        else
+            printf("Configuracion desconocida:'%s'\n", w1);
+    }
+
+    fclose(fp);
+    return 0;
 }

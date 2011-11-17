@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include<pthread.h>
 #include"nipc.h"
+#include "log.h"
 
 #define SIZEBUF 1024
 
@@ -46,7 +47,16 @@ typedef struct datos{
     nipc_socket   sock_raid;
     pfs	         *lista_pfs;
     disco        *discos;
+    uint32_t      max_sector;
 }datos;
+
+typedef struct config_t{
+    uint8_t     server_host[1024];
+    uint16_t    server_port;
+    uint16_t    console;
+    char        log_path[1024];
+    log_output  log_mode;
+} __attribute__ ((packed)) config_t;
 
 
 #endif //__PRAID1_H_
