@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 	if(recv_socket(&mensaje,aux_pfs->sock)>0)
 	{
 	 mensaje.payload.contenido[mensaje.len-4]='\0';
-	 printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	 //printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	 if(mensaje.type == nipc_handshake)
 	 {
 	   printf("BASTA DE HANDSHAKE!!!!\n");
@@ -149,40 +149,53 @@ int main(int argc, char *argv[])
 	if(recv_socket(&mensaje,sock_new)>=0)
 	{
 	  mensaje.payload.contenido[mensaje.len-4]='\0';
-	  printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	  //printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	  if(mensaje.type == nipc_handshake)
 	  {
 	    if(mensaje.len != 0)
 	    {
-	      printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
-	      //char id_disco[20];
-	      //memcpy(&id_disco,mensaje.payload.contenido,20);
-	      agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo
-	      FD_SET (sock_new, &set_socket);
-	      log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", mensaje.payload.contenido);
-	      printf("------------------------------\n");
+		printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
+		//char id_disco[20];
+		//memcpy(&id_disco,mensaje.payload.contenido,20);
+		agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo
+		FD_SET (sock_new, &set_socket);
+		log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", mensaje.payload.contenido);
+		mensaje.type = 0;
+		mensaje.len = 0;
+		if(send_socket(&mensaje,sock_new)<0)
+		  printf("Error ennvio de HANDSHAKE OK");
+		printf("------------------------------\n");
 	    }
 	    else
 	    {
 	      if(info_ppal->discos!=NULL)
 	      {
-		printf("Nueva conexion PFS: %d\n",sock_new);
-		pfs *nuevo_pfs;
-		nuevo_pfs = (pfs *)malloc(sizeof(pfs));
-		nuevo_pfs->sock=sock_new;
-		nuevo_pfs->sgte = info_ppal->lista_pfs;
-		info_ppal->lista_pfs = nuevo_pfs;
-		FD_SET (nuevo_pfs->sock, &set_socket);
-		log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
-		printf("------------------------------\n");
+		  printf("Nueva conexion PFS: %d\n",sock_new);
+		  pfs *nuevo_pfs;
+		  nuevo_pfs = (pfs *)malloc(sizeof(pfs));
+		  nuevo_pfs->sock=sock_new;
+		  nuevo_pfs->sgte = info_ppal->lista_pfs;
+		  info_ppal->lista_pfs = nuevo_pfs;
+		  FD_SET (nuevo_pfs->sock, &set_socket);
+		  log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
+		  mensaje.type = 0;
+		  mensaje.len = 0;
+		  if(send_socket(&mensaje,sock_new)<0)
+		    printf("Error ennvio de HANDSHAKE OK");
+		  printf("------------------------------\n");
 	      }
 	      else
 	      {
-		//ENVIAR ERROR DE CONEXION
-		printf("No hay discos conectados!\n");
-		log_error(log, "Principal", "Message error: %s", "No hay discos conectados!");
-		printf("cerrar conexion: %d\n",sock_new);
-		nipc_close(sock_new);
+		  //ENVIAR ERROR DE CONEXION
+		  printf("No hay discos conectados!\n");
+		  log_error(log, "Principal", "Message error: %s", "No hay discos conectados!");
+		  printf("cerrar conexion: %d\n",sock_new);
+		  mensaje.type = 0;
+		  memcpy(mensaje.payload.contenido,"No hay discos conectados!",strlen("No hay discos conectados")+1);
+		  mensaje.len = 4+strlen("No hay discos conectados")+1;
+		  if(send_socket(&mensaje,sock_new)<0)
+		    printf("Error ennvio de HANDSHAKE OK");
+		  nipc_close(sock_new);
 	      }
 	    }
 	  }
