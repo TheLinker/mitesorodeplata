@@ -7,6 +7,11 @@
 
 #define SIZEBUF 1024
 
+typedef struct _sectores_t{
+    uint32_t             sector;
+    struct _sectores_t  *sgte;
+} __attribute__ ((packed)) sectores_t;
+
 struct mensaje_cola{
     uint32_t   type;
     uint32_t   sector;
@@ -25,8 +30,8 @@ typedef struct _disco{
     uint8_t          id[20];
     nipc_socket      sock;
     pthread_t        hilo;
-    uint32_t         sector_sincro;
-    pedido          *pendientes_sincro;
+    int32_t          sector_sincro;
+    sectores_t      *ya_sincro;
     uint32_t         cantidad_pedidos;
     pedido          *pedidos;
     struct _disco   *sgte;

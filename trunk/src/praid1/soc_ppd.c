@@ -8,6 +8,18 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
+#include <errno.h>
+#include<pthread.h>
+
+
+#include<stdio.h>
+#include<unistd.h>
+#include<string.h>
+#include<pthread.h>
+#include<sys/msg.h>
+#include<sys/sem.h>
+#include<stdlib.h>
+#include<signal.h>
 
 typedef struct payload_t{
         uint32_t  sector;
@@ -29,33 +41,17 @@ int32_t send_socket(nipc_packet *packet, uint32_t sock)
 {
     int32_t Escrito = 0;
     int32_t Aux = 0;
-    //* Comprobacion de los parametros de entrada
     if ((sock == -1) || (packet == NULL) || (519 < 1))
 	return -1;
-    
-    /*
-    * Preparo el paquete para ser enviado
-    */
-
-    //ídem del recv. si le damos el payload al recv como buffer no vamos a
-    //tener que manejar todos los casos posibles para el paquete
-
-    //* Bucle hasta que hayamos escrito todos los caracteres que nos han
-    //* indicado.
     while (Escrito < (3 + packet->len))
     {
 	Aux = send(sock, packet + Escrito, (3 + packet->len) - Escrito,0);
 	if (Aux > 0)
 	{
-	   //* Si hemos conseguido escribir caracteres, se actualiza la
-	   //* variable escrito
-	    Escrito = Escrito + Aux;
+	  Escrito = Escrito + Aux;
 	}
 	else
 	{
-	    //* Si se ha cerrado el socket, devolvemos el numero de caracteres
-	    //* leidos.
-	    //* Si ha habido error, devolvemos -1
 	    if (Aux == 0)
 		return Escrito;
 	    else
@@ -65,7 +61,69 @@ int32_t send_socket(nipc_packet *packet, uint32_t sock)
     return Escrito;
 }
 
+/**
+ * Recibe un paquete del socket indicado
+ *
+ * @return cantidad de caracteres recividos, en caso de ser 0 informa que el socket ha sido cerrado
+ */
+int32_t recv_socket(nipc_packet *packet, uint32_t sock)
+{
+    int32_t   leido = 0;
+    int32_t   aux = 0;
+    if ((sock == -1) || (packet == NULL))
+	return -1;
+    aux = recv (sock, packet, 3, 0);
+    leido = leido + aux;
+    while (leido < (3 + packet->len))
+    {
+	aux = recv(sock, packet->buffer + leido, (3 + packet->len) - leido,0);
+        if (aux > 0)
+	{
+		leido = leido + aux;
+	}
+	else
+	{
+	    if (aux == 0) 
+	    {
+	      return leido;
+	    }
+	    if (aux == -1)
+	    {
+		switch (errno)
+		{
+		    case EINTR:
+		    case EAGAIN:
+			    usleep(100);
+			    break;
+		    default:
+			    return -1;
+		}
+	    }
+	}
+    }
+    return leido;
+}
 
+/*void *espera_respuestas(uint32_t *sock)
+{
+  nipc_packet *packet;
+  int32_t recibido =0;
+  while(1)
+  {
+    recibido = 0;
+    recibido = recv_socket(packet,*sock);
+    printf("Recibido: %d - %d\n",recibido,*sock);
+    if(recibido >= 0)
+    {
+      printf("Control de mensaje recibido: %d - %d - %d - %s\n",packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
+    }
+    else
+    {
+      printf("se callo el sistema RAID\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+}*/
 
 int main(int argc, char **argv){
 	uint32_t sock_ppd;
@@ -112,22 +170,50 @@ int main(int argc, char **argv){
 	scanf("%s",ppd_name);
 	
 	nipc_packet mensaje;
+	
+	
+	//Envio HANDSHAKE
 	mensaje.type=0;
 	strcpy(mensaje.payload.contenido,ppd_name);
 	mensaje.payload.sector=0;
 	mensaje.len = 4+strlen(mensaje.payload.contenido);
-	
-	//if(send(sock_ppd,mensaje.buffer, sizeof(mensaje.buffer)+1,0)<0)
 	if(send_socket(&mensaje,sock_ppd)<0)
 	{
 		printf("\nError send");
 		exit(EXIT_FAILURE);
 	}
 	else
-	printf("\n\nEl mensaje enviado es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	printf("El mensaje enviado es: %d - %d - %d - %s\n\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	
+	//Recibo respuesta HANDSHAKE
+	if(recv_socket(&mensaje,sock_ppd)<0)
+	{
+		printf("\nError recv");
+		exit(EXIT_FAILURE);
+	}
+	else
+	printf("El mensaje recibido es: %d - %d - %d - %s\n\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	
+	//Envio CHS o cantidad de sectores
+	mensaje.type=0;
+	strcpy(mensaje.payload.contenido,"");  //CHS(8192, 1, 512) o CHS(1024, 1, 1024)
+	mensaje.payload.sector = 10;  
+	mensaje.len = 4;
+	if(send_socket(&mensaje,sock_ppd)<0)
+	{
+		printf("\nError send");
+		exit(EXIT_FAILURE);
+	}
+	else
+	printf("El mensaje enviado es: %d - %d - %d - %s\n\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	
+	/*
+	pthread_t respuestas;
+	if(pthread_create(&respuestas,NULL,(void *)espera_respuestas,(void *)&sock_ppd) < 0)
+	  printf("Error en la creacion del hilo\n");
+	*/
 	
 	uint32_t unSector;
-	
 	char opcion;
 	while(1){
 		printf("\n\n\n-------------------------------------");

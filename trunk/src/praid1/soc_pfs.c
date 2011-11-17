@@ -8,6 +8,7 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
+#include <errno.h>
 
 typedef struct payload_t{
         uint32_t  sector;
@@ -29,33 +30,17 @@ int32_t send_socket(nipc_packet *packet, uint32_t sock)
 {
     int32_t Escrito = 0;
     int32_t Aux = 0;
-    //* Comprobacion de los parametros de entrada
     if ((sock == -1) || (packet == NULL) || (519 < 1))
 	return -1;
-    
-    /*
-    * Preparo el paquete para ser enviado
-    */
-
-    //ídem del recv. si le damos el payload al recv como buffer no vamos a
-    //tener que manejar todos los casos posibles para el paquete
-
-    //* Bucle hasta que hayamos escrito todos los caracteres que nos han
-    //* indicado.
     while (Escrito < (3 + packet->len))
     {
 	Aux = send(sock, packet + Escrito, (3 + packet->len) - Escrito,0);
 	if (Aux > 0)
 	{
-	   //* Si hemos conseguido escribir caracteres, se actualiza la
-	   //* variable escrito
-	    Escrito = Escrito + Aux;
+	  Escrito = Escrito + Aux;
 	}
 	else
 	{
-	    //* Si se ha cerrado el socket, devolvemos el numero de caracteres
-	    //* leidos.
-	    //* Si ha habido error, devolvemos -1
 	    if (Aux == 0)
 		return Escrito;
 	    else
@@ -63,6 +48,50 @@ int32_t send_socket(nipc_packet *packet, uint32_t sock)
 	}
     }
     return Escrito;
+}
+
+/**
+ * Recibe un paquete del socket indicado
+ *
+ * @return cantidad de caracteres recividos, en caso de ser 0 informa que el socket ha sido cerrado
+ */
+int32_t recv_socket(nipc_packet *packet, uint32_t sock)
+{
+    int32_t   leido = 0;
+    int32_t   aux = 0;
+    if ((sock == -1) || (packet == NULL))
+	return -1;
+    aux = recv (sock, packet, 3, 0);
+    leido = leido + aux;
+    while (leido < (3 + packet->len))
+    {
+	aux = recv(sock, packet->buffer + leido, (3 + packet->len) - leido,0);
+        if (aux > 0)
+	{
+		leido = leido + aux;
+	}
+	else
+	{
+	    if (aux == 0) 
+	    {
+	      return leido;
+	    }
+	    if (aux == -1)
+	    {
+		switch (errno)
+		{
+		    case EINTR:
+		    case EAGAIN:
+			    usleep(100);
+			    break;
+		    default:
+			    return -1;
+		}
+	    }
+	}
+    }
+    printf("Control de mensaje recibido: %d - %d - %d - %s\n",packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
+    return leido;
 }
 
 
@@ -108,25 +137,32 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 	
-	
+	//Envio HANDSHAKE
 	nipc_packet mensaje;
 	mensaje.type=0;
 	strcpy(mensaje.payload.contenido,"");
 	mensaje.payload.sector=0;
 	mensaje.len=0;
-	
-	
-	//if(send(sock_pfs,mensaje.buffer, sizeof(mensaje.buffer)+1,0)<0)
 	if(send_socket(&mensaje,sock_pfs)<0)
 	{
 		printf("\nError send");
 		exit(EXIT_FAILURE);
 	}
 	else
-	printf("\n\nEl mensaje enviado es: %d - %d - %d - %s",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	printf("El mensaje enviado es: %d - %d - %d - %s\n\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	
+	//Recibo respuesta HANDSHAKE
+	if(recv_socket(&mensaje,sock_pfs)<0)
+	{
+		printf("\nError recv");
+		exit(EXIT_FAILURE);
+	}
+	else
+	printf("El mensaje recibido es: %d - %d - %d - %s\n\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
+	
+	
 	
 	uint32_t unSector;
-	
 	char opcion;
 	while(1){
 		printf("\n\n\n-------------------------------------");
