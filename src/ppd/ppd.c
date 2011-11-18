@@ -288,7 +288,7 @@ void escribirSect(int sect, char buffer[512])
 
 int abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
 {
-	if (0 == (dirArch = open(pathArch, O_RDWR)))
+	if (0 > (dirArch = open(pathArch, O_RDWR)))
 	{
 		printf("%s\n",pathArch);
 		printf("Error al abrir el archivo de mapeo\n");

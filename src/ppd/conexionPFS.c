@@ -12,10 +12,6 @@ void conectarConPFS(config_t vecConfig)
 	pfs                 *aux_pfs;
 	nipc_packet          mensaje;
 
-	//los uso para el acept de una nueva conexion
-
-	struct sockaddr_in  *addr_ppd; 		//= malloc(sizeof(struct sockaddr_in));
-	uint32_t             clilen;
 	//nipc_socket          sock_new;  DECLARADO EN EL MAIN
 
 	//Necesario para el SELECT
@@ -23,7 +19,6 @@ void conectarConPFS(config_t vecConfig)
 	uint32_t             max_sock;      //numero del mayor socket
 	fd_set               set_socket;    //estructura principal del SELECT
 
-	addr_ppd = malloc(sizeof(struct sockaddr_in));
 	info_ppal = (datos *)malloc(sizeof(datos));
 
 	//inicializo estructura principal del PPD
@@ -149,7 +144,7 @@ void conectarConPFS(config_t vecConfig)
 
 		    if(FD_ISSET(info_ppal->sock_ppd, &set_socket)>0)
 		    {
-		      if( (sock_new=accept(info_ppal->sock_ppd,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0) // se acepta una nueva conexion
+		      if( (sock_new=accept(info_ppal->sock_ppd,NULL, NULL)) <0) // se acepta una nueva conexion
 		      {
 				printf("ERROR en la nueva conexion\n");
 				//log_error(log, "Principal", "Message error: %s", "No se pudo establecer la conexion");

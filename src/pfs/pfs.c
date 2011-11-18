@@ -445,7 +445,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 
     memcpy(buf, cluster_buffer + offset, size_to_read);
     
-    while(size > 0 && cluster_actual != fs_tmp->eoc_marker)
+    while((size > 0) && (cluster_actual != fs_tmp->eoc_marker))
     {
         cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
         fat32_getcluster(cluster_actual, cluster_buffer, fs_tmp);
@@ -510,7 +510,7 @@ static void *fat32_init(struct fuse_conn_info *conn)
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 1, 4);
 
     //creamos el thread de la consola
-//    pthread_create(fs_tmp->thread_consola, NULL, fat32_consola, fs_tmp);
+    pthread_create(&(fs_tmp->thread_consola), NULL, fat32_consola, fs_tmp);
 
     log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d EOC:%ld-",
                                        fs_tmp->boot_sector.bytes_per_sector,

@@ -247,7 +247,7 @@ int32_t fat32_get_link_n_in_chain(int32_t first_cluster, int32_t cluster_offset,
 {
     int32_t cluster = first_cluster;
 
-    while(cluster_offset > 0 && cluster != fs_tmp->eoc_marker) {
+    while((cluster_offset > 0) && (cluster != fs_tmp->eoc_marker)) {
         cluster = fs_tmp->fat[cluster];
         cluster_offset--;
     }
@@ -455,14 +455,16 @@ error_2:
 int32_t fat32_get_entry_from_name(uint8_t *name, file_attrs *file_list, int32_t file_list_len)
 {
     int i=0;
+    int8_t buffer[512];
     for (i=0;i<file_list_len;i++)
-        if(!strcmp((char *)file_list[i].filename, (char *) name)) //Encontrado!!
+    {
+        fat32_build_name(file_list+i, buffer);
+
+        if(!strcmp((char *)buffer, (char *) name)) //Encontrado!!
             return i;
 
-    for (i=0;i<file_list_len;i++)
-        //por ahora lo dejo asi, despues haria falta una función que convierta nombre largo -> DOS y viceversa.
-        if(!strcmp((char *)file_list[i].dos_filename, (char *) name)) //Encontrado!!
-            return i;
+        memset(buffer,'\0',sizeof(buffer));
+    }
 
     return -ENOENT;
 }

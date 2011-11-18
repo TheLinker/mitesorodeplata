@@ -6,15 +6,16 @@
 
 void *fat32_consola(void *arg)
 {
+    char w1[1024], path[1024];
     fs_fat32_t *fs_tmp = (fs_fat32_t *)arg;
-    int8_t buffer[1024];
+    int8_t argc;
 
     while(42)
     {
         fprintf(stdout, "PFS> ");
-        fscanf(stdin, "%s",buffer);
+        argc = fscanf(stdin, "%s%*[ ]%s", w1, path);
 
-        if (strncmp((char *)buffer, "fsinfo", 6)) {
+        if (!strcmp(w1, "fsinfo")) {
             printf("Clusters Ocupados: %d\n"
                    "Clusters Libres: %d\n"
                    "Tamaño de un sector: %d\n"
@@ -26,17 +27,17 @@ void *fat32_consola(void *arg)
                    fs_tmp->boot_sector.bytes_per_sector,
                    fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_cluster,
                    fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_fat / 1024);
-        } else if (strncmp((char *)buffer, "finfo", 5)) {
+        } else if (!strcmp(w1, "finfo") && (argc == 2)) {
             file_attrs file;
-            uint8_t *path = (uint8_t *)strchr((char *)buffer, '/');
-            int32_t ret = fat32_get_file_from_path(path, &file, fs_tmp);
+            int32_t ret = fat32_get_file_from_path((uint8_t *)path, &file, fs_tmp);
 
             if(ret == -ENOENT)
                 printf("Archivo o directorio no encontrado\n");
 
             int32_t cluster_actual = file.first_cluster;
             int8_t  contador = 0;
-            while (cluster_actual != fs_tmp->eoc_marker && contador < 20)
+
+            while ((cluster_actual != fs_tmp->eoc_marker) && (contador < 20))
             {
                 contador++;
                 printf("%d -> ", cluster_actual);
@@ -45,12 +46,13 @@ void *fat32_consola(void *arg)
 
             if (contador < 20)
                 printf("EOC\n");
-            else printf("...");
+            else printf("...\n");
 
         } else
-            log_warning(fs_tmp->log, "consola", "Comando '%s' no reconocido", buffer);
+            log_warning(fs_tmp->log, "consola", "Comando '%s' no reconocido o argumenos inválidos", w1);
 
-        memset(buffer, '\0', sizeof(buffer));
+        memset(w1, '\0', sizeof(w1));
+        memset(path, '\0', sizeof(path));
     }
 }
 
