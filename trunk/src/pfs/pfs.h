@@ -46,7 +46,7 @@ typedef struct fs_fat32_t {
 
     struct file_descriptor open_files[MAX_OPEN_FILES];
 
-    pthread_t *thread_consola;
+    pthread_t thread_consola;
 
     char        log_path[1024];
     log_output  log_mode;
