@@ -18,9 +18,9 @@ void *fat32_consola(void *arg)
         if (!strcmp(w1, "fsinfo")) {
             printf("Clusters Ocupados: %d\n"
                    "Clusters Libres: %d\n"
-                   "Tamaño de un sector: %d\n"
-                   "Tamaño de un cluster: %d\n"
-                   "Tamaño de la Tabla FAT: %d\n",
+                   "Tamaño de un sector: %d Bytes\n"
+                   "Tamaño de un cluster: %d Bytes\n"
+                   "Tamaño de la Tabla FAT: %d KB\n",
                    (fs_tmp->boot_sector.total_sectors - fs_tmp->system_area_size) /
                        fs_tmp->boot_sector.sectors_per_cluster - fat32_free_clusters(fs_tmp),
                    fat32_free_clusters(fs_tmp),
@@ -32,7 +32,10 @@ void *fat32_consola(void *arg)
             int32_t ret = fat32_get_file_from_path((uint8_t *)path, &file, fs_tmp);
 
             if(ret == -ENOENT)
+            {
                 printf("Archivo o directorio no encontrado\n");
+                continue;
+            }
 
             int32_t cluster_actual = file.first_cluster;
             int8_t  contador = 0;
