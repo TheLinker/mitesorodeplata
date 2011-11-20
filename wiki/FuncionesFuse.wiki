@@ -1,0 +1,22 @@
+=Funciones del Fuse=
+
+ * *Funcion*: Funcion dentro del pfs.c
+ * *Implementado*: Hay código.
+ * *Funcional*: El código funciona como debe?
+
+|| Función || Implementado || Funcional || Obs. ||
+|| fat32_getattr || Si || Si || ||
+|| fat32_readdir || Si || Si || ||
+|| fat32_open || Si || Si || ||
+|| fat32_read || Si || Si || Solo en single-thread ||
+|| fat32_init || Si || Si || Tal vez haya que mover cosas afuera. ||
+|| fat32_destroy || Si || Si || ||
+|| fat32_create || <font color=red> No || <font color=red> No ||  ||
+|| fat32_write || Si || <font color=red> No || ||
+|| fat32_flush || <font color=red> No || <font color=red> No || Falta Cache ||
+|| fat32_release || Si || Si || ||
+|| fat32_ftruncate || Si || Si || Mas pruebas ||
+|| fat32_unlink || <font color=red> No || <font color=red> No || ||
+|| fat32_rmdir || <font color=red> No || <font color=red> No || ||
+|| fat32_mkdir || <font color=red> No || <font color=red> No || ||
+|| fat32_rename || Si  || <font color=red> No || ||
