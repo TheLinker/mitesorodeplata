@@ -90,12 +90,12 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fs_tmp->fat[posicion] = free_cluster;
     fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
 
-    int32_t bloque1 = fs_tmp->boot_sector.reserved_sectors + (posicion / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
-    int32_t bloque2 = fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
+    int32_t bloque1 = (fs_tmp->boot_sector.reserved_sectors + (posicion / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
+    int32_t bloque2 = (fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(bloque1, 1, fs_tmp->fat + (bloque1 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
+    fat32_writeblock(bloque1, 1, (fs_tmp->fat) + ((bloque1 - (fs_tmp->system_area_size/SECTORS_PER_BLOCK)) * BLOCK_SIZE), fs_tmp);
     if(bloque2 != bloque1)
-        fat32_writeblock(bloque2, 1, fs_tmp->fat + (bloque2 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
+        fat32_writeblock(bloque2, 1, (fs_tmp->fat) + ((bloque2 - (fs_tmp->system_area_size/SECTORS_PER_BLOCK)) * BLOCK_SIZE) , fs_tmp);
 }
 
 /**
@@ -122,12 +122,12 @@ void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fs_tmp->fat[pos_ant] = fs_tmp->eoc_marker;
     fs_tmp->fat[pos_act] = 0;
 
-    int32_t bloque1 = fs_tmp->boot_sector.reserved_sectors + (pos_ant / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
-    int32_t bloque2 = fs_tmp->boot_sector.reserved_sectors + (pos_act / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t))) / SECTORS_PER_BLOCK;
+    int32_t bloque1 = (fs_tmp->boot_sector.reserved_sectors + (pos_ant / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
+    int32_t bloque2 = (fs_tmp->boot_sector.reserved_sectors + (pos_act / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(bloque1, 1, fs_tmp->fat + (bloque1 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
+    fat32_writeblock(bloque1, 1, fs_tmp->fat + ((bloque1 - (fs_tmp->system_area_size/SECTORS_PER_BLOCK)) * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
     if(bloque2 != bloque1)
-        fat32_writeblock(bloque2, 1, fs_tmp->fat + (bloque2 * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
+        fat32_writeblock(bloque2, 1, fs_tmp->fat + ((bloque2 - (fs_tmp->system_area_size/SECTORS_PER_BLOCK)) * fs_tmp->boot_sector.bytes_per_sector * SECTORS_PER_BLOCK) , fs_tmp);
 }
 
 /**
@@ -537,18 +537,16 @@ int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp)
 
 int32_t fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, fs_fat32_t *fs_tmp)
 {
-    int32_t cluster_offset = entry_index / (fs_tmp->boot_sector.bytes_per_sector *
-                                    fs_tmp->boot_sector.sectors_per_cluster / 32);
-
-    int32_t entry_offset   = entry_index % (fs_tmp->boot_sector.bytes_per_sector *
-                                    fs_tmp->boot_sector.sectors_per_cluster / 32);
+    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
+    int32_t cluster_offset = entry_index / (cluster_size / 32);
+    int32_t entry_offset   = entry_index % (cluster_size / 32);
 
     int32_t target_cluster = fat32_get_link_n_in_chain(first_cluster, cluster_offset, fs_tmp);
     if(target_cluster<0) return target_cluster;
 
-    int32_t target_block = ( fs_tmp->system_area_size + (target_cluster - 2) * 
-                     fs_tmp->boot_sector.sectors_per_cluster +
-                     entry_offset / fs_tmp->boot_sector.sectors_per_cluster ) / SECTORS_PER_BLOCK;
+    int32_t target_block = ( fs_tmp->system_area_size +
+                     ((target_cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) +
+                     (entry_offset / (BLOCK_SIZE / 32) )) / SECTORS_PER_BLOCK;
     
     return target_block;
 

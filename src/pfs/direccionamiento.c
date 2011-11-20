@@ -66,6 +66,7 @@ uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_
     //Pide los sectores necesarios.
     for (i = 0 ; i < cantidad ; i++) {
         packet.payload.sector = sector + i;
+        
         memcpy(packet.payload.contenido, buffer+(i*fs_tmp->boot_sector.bytes_per_sector), fs_tmp->boot_sector.bytes_per_sector);
         send_socket(&packet, fs_tmp->socket);
     }
@@ -113,6 +114,7 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32
  */
 uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
 {
+        printf("Pedido escritura bloque: %d\n", block);
     int i=0;
     for( i = 0 ; i < cantidad ; i++, block++)
         fat32_writesectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);

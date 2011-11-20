@@ -95,62 +95,93 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
 
 int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 {
+    printf("1\n");
     struct fuse_context* context = fuse_get_context();
+    printf("2\n");
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+    printf("3\n");
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
+    printf("4\n");
 
     log_info(fs_tmp->log, "un_thread", "Truncate: path: %s offset: %d", path, offset);
+    printf("5\n");
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
+    printf("6\n");
 
     //Si no hay nada que modificar salimos exitosamente
     if(offset == fs_tmp->open_files[fi->fh].file_size)
         return 0;
+    printf("7\n");
 
     //Hay que modificar la FAT?
-    int32_t cluster_abm = (offset / cluster_size) - (fs_tmp->open_files[fi->fh].file_size / cluster_size);
+    div_t aux_new = div(offset, cluster_size);
+    div_t aux_old = div(fs_tmp->open_files[fi->fh].file_size, cluster_size);
+
+    int32_t cluster_abm = ((aux_new.rem)?aux_new.quot+1:aux_new.quot) -
+                          ((aux_old.rem)?aux_old.quot+1:aux_old.quot);
+    printf("8\n");
 
     //cluster_abm == 0 no modificar la FAT
     //     "      >  0 cantidad de clusters a agregar a la cadena
     //     "      <  0 cantidad de clusters a remover de la cadena
 
     file_entry_t entry;
+    printf("9\n");
     int32_t entry_index = fs_tmp->open_files[fi->fh].entry_index;
 
-    int8_t ret = fat32_get_entry(entry_index, fs_tmp->open_files[fi->fh].first_cluster, &entry, fs_tmp);
+    printf("10\n");
+    int8_t ret = fat32_get_entry(entry_index, fs_tmp->open_files[fi->fh].container_cluster, &entry, fs_tmp);
+    printf("11\n");
     if (ret<0) return ret;
+    printf("12\n");
 
     entry.file_size = offset;
+    printf("13\n");
 
-    int32_t target_block = fat32_get_block_from_dentry(fs_tmp->open_files[fi->fh].first_cluster, entry_index, fs_tmp);
+    int32_t target_block = fat32_get_block_from_dentry(fs_tmp->open_files[fi->fh].container_cluster, entry_index, fs_tmp);
+    printf("14\n");
 
     int8_t buffer[BLOCK_SIZE];
+    printf("15\n");
     fat32_getblock(target_block, 1, buffer, fs_tmp);
+    printf("16\n");
 
     //modificamos entry_offset para que sea con respecto al comienzo del bloque
-    int32_t entry_offset   = entry_index % (fs_tmp->boot_sector.bytes_per_sector *
-                                    fs_tmp->boot_sector.sectors_per_cluster / 32);
-    entry_offset = entry_offset % (SECTORS_PER_BLOCK * fs_tmp->boot_sector.bytes_per_sector / 32);
+    int32_t entry_offset= 0;
+    entry_offset = entry_index % (cluster_size / 32);
+    printf("17\n");
+    entry_offset = entry_offset % (BLOCK_SIZE / 32);
+    printf("18\n");
 
-    memcpy(buffer + (entry_offset * 32), &buffer, BLOCK_SIZE);
+    memcpy(buffer + (entry_offset * 32), &entry, sizeof(entry));
+    printf("19\n");
 
     //Pedir la escritura del bloque
     fat32_writeblock(target_block, 1, &buffer, fs_tmp);
+    printf("20\n");
 
     if(cluster_abm > 0)
         while(cluster_abm)
         {
+    printf("21\n");
             fat32_add_cluster(fs_tmp->open_files[fi->fh].first_cluster, fs_tmp);
+    printf("22\n");
             cluster_abm--;
+    printf("23\n");
         }
     else if(cluster_abm < 0)
         while(cluster_abm)
         {
+    printf("24\n");
             fat32_remove_cluster(fs_tmp->open_files[fi->fh].first_cluster, fs_tmp);
+    printf("25\n");
             cluster_abm++;
+    printf("26\n");
         }
 
+    printf("27\n");
     return 0;
 }
 
@@ -511,6 +542,12 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     //creamos el thread de la consola
     pthread_create(&(fs_tmp->thread_consola), NULL, fat32_consola, fs_tmp);
+
+//    char buffer[1024];
+//    memset(buffer, '!', 1024);
+//    fat32_writeblock(1000, 1, buffer, fs_tmp);
+//    memset(buffer, '5', 1024);
+//    fat32_writeblock(10000, 1, buffer, fs_tmp);
 
     log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d EOC:%ld-",
                                        fs_tmp->boot_sector.bytes_per_sector,
