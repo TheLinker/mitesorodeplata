@@ -177,8 +177,6 @@ void conectarConPFS(config_t vecConfig)
 
 						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, (void*) mensajet);
 
-						sleep(1);
-
 						thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, atenderPedido, (void*) mensajet);
 					  }
 					  else
