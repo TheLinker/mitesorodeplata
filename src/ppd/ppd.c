@@ -259,15 +259,15 @@ void escribirSect(int sect, char buffer[512])
 {
 	div_t res;
 	nipc_packet resp;
-		sleep(1);
 
-		if( (0 <= sect) && (cantSect >= sect))
+
+		if((0 <= sect) && (cantSect >= sect))
 		{
 			printf("----------------Entro a Escribir------------------- \n");
 			dirMap = paginaMap(sect, dirArch);
 			res = div(sect, 8);
 			dirSect = dirMap + ((res.rem *512 ));  //NO SE SI VA O NO EL -1    TODO
-			memcpy(dirSect, &buffer, TAM_SECT);
+			memcpy(dirSect, buffer, TAM_SECT);
 			msync(dirMap, TAM_PAG, MS_ASYNC);
 			if(0 != munmap(dirMap,TAM_PAG))
 				printf("Fallo la eliminacion del mapeo\n");
@@ -291,7 +291,7 @@ int abrirArchivoV(char * pathArch)			//Se le pasa el pathArch del config. Se map
 	if (0 > (dirArch = open(pathArch, O_RDWR)))
 	{
 		printf("%s\n",pathArch);
-		printf("Error al abrir el archivo de mapeo\n");
+		printf("Error al abrir el archivo de mapeo %d \n ",errno);
 	}
 	else
 	{
