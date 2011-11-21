@@ -96,6 +96,11 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     fat32_writeblock(bloque1, 1, (fs_tmp->fat) + (bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp);
     if(bloque2 != bloque1)
         fat32_writeblock(bloque2, 1, (fs_tmp->fat) + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp);
+
+    //Inicializamos los datos del nuevo cluster a 0
+    char buffer[fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector];
+    memset(buffer, '\0', fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector);
+    fat32_writecluster(free_cluster, buffer, fs_tmp);
 }
 
 /**
