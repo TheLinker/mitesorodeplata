@@ -96,9 +96,10 @@ uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_
  */
 uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
 {
-    int i=0;
-    for( i = 0 ; i < cantidad ; i++, block++)
-        fat32_getsectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
+    //int i=0;
+    //for( i = 0 ; i < cantidad ; i++, block++)
+    //    fat32_getsectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
+    fat32_getsectors(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer /*+ (i * BLOCK_SIZE)*/, fs_tmp);
 
     return 0;
 }
@@ -115,9 +116,10 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32
 uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
 {
         printf("Pedido escritura bloque: %d\n", block);
-    int i=0;
-    for( i = 0 ; i < cantidad ; i++, block++)
-        fat32_writesectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
+    //int i=0;
+    //for( i = 0 ; i < cantidad ; i++, block++)
+    //    fat32_writesectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
+    fat32_writesectors(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer /*+ (i * BLOCK_SIZE)*/, fs_tmp);
 
     return 0;
 }

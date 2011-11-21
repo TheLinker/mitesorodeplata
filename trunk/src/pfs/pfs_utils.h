@@ -19,5 +19,6 @@ int32_t  fat32_get_entry_from_name(uint8_t *name, file_attrs *file_list, int32_t
 void     fat32_build_name(file_attrs *file, int8_t *ret_name);
 int32_t  fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp);
 int32_t  fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, fs_fat32_t *fs_tmp);
+void     hex_log(unsigned char * buff, int cantidad);
 
 #endif //__UTILS_H_
