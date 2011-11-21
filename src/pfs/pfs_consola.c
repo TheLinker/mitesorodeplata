@@ -38,6 +38,13 @@ void *fat32_consola(void *arg)
             }
 
             int32_t cluster_actual = file.first_cluster;
+
+            if(!cluster_actual)
+            {
+                printf("Archivo Vacío.\n");
+                continue;
+            }
+
             int8_t  contador = 0;
 
             while ((cluster_actual != fs_tmp->eoc_marker) && (contador < 20))
@@ -47,7 +54,7 @@ void *fat32_consola(void *arg)
                 cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
             }
 
-            if (contador < 20)
+            if (cluster_actual == fs_tmp->eoc_marker)
                 printf("EOC\n");
             else printf("...\n");
 

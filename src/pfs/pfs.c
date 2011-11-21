@@ -29,7 +29,9 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
 
-    log_info(fs_tmp->log, "un_thread", "Write: path: %s size: %d offset: %ld", path, size, offset);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Write: path: %s size: %d offset: %ld", path, size, offset);
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
@@ -83,7 +85,9 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    log_info(fs_tmp->log, "un_thread", "Release: path: %s", path);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Release: path: %s", path);
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
@@ -95,93 +99,101 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
 
 int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 {
-    printf("1\n");
     struct fuse_context* context = fuse_get_context();
-    printf("2\n");
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
-    printf("3\n");
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
-    printf("4\n");
 
-    log_info(fs_tmp->log, "un_thread", "Truncate: path: %s offset: %d", path, offset);
-    printf("5\n");
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Truncate: path: %s offset: %d", path, offset);
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
-    printf("6\n");
 
     //Si no hay nada que modificar salimos exitosamente
     if(offset == fs_tmp->open_files[fi->fh].file_size)
         return 0;
-    printf("7\n");
 
     //Hay que modificar la FAT?
-    div_t aux_new = div(offset, cluster_size);
-    div_t aux_old = div(fs_tmp->open_files[fi->fh].file_size, cluster_size);
-
-    int32_t cluster_abm = ((aux_new.rem)?aux_new.quot+1:aux_new.quot) -
-                          ((aux_old.rem)?aux_old.quot+1:aux_old.quot);
-    printf("8\n");
-
     //cluster_abm == 0 no modificar la FAT
     //     "      >  0 cantidad de clusters a agregar a la cadena
     //     "      <  0 cantidad de clusters a remover de la cadena
+    div_t aux_new = div(offset, cluster_size);
+    div_t aux_old = div(fs_tmp->open_files[fi->fh].file_size, cluster_size);
+    int32_t cluster_abm = ((aux_new.rem)?aux_new.quot+1:aux_new.quot) -
+                          ((aux_old.rem)?aux_old.quot+1:aux_old.quot);
 
+    //Obtenemos la entrada de directorio para modificarla
     file_entry_t entry;
-    printf("9\n");
     int32_t entry_index = fs_tmp->open_files[fi->fh].entry_index;
 
-    printf("10\n");
     int8_t ret = fat32_get_entry(entry_index, fs_tmp->open_files[fi->fh].container_cluster, &entry, fs_tmp);
-    printf("11\n");
     if (ret<0) return ret;
-    printf("12\n");
+
+    //Si no tenia clusteres asociados y el tamaño pedido es != 0
+    //agregamos el primer cluster libre que encontremos,
+    //y actualizamos la entrada de directorio
+    if(fs_tmp->open_files[fi->fh].first_cluster==0 && offset!=0)
+    {
+        int32_t free_cluster = fat32_first_free_cluster(fs_tmp);
+        fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
+        fs_tmp->open_files[fi->fh].first_cluster=free_cluster;
+        entry.first_cluster_hi = (free_cluster>>16 & 0xFFFF);
+        entry.first_cluster_low = free_cluster & 0xFFFF;
+
+        int32_t bloque = (fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
+
+        fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp);
+
+        cluster_abm--;
+    }
 
     entry.file_size = offset;
-    printf("13\n");
 
-    int32_t target_block = fat32_get_block_from_dentry(fs_tmp->open_files[fi->fh].container_cluster, entry_index, fs_tmp);
-    printf("14\n");
-
-    int8_t buffer[BLOCK_SIZE];
-    printf("15\n");
-    fat32_getblock(target_block, 1, buffer, fs_tmp);
-    printf("16\n");
-
-    //modificamos entry_offset para que sea con respecto al comienzo del bloque
-    int32_t entry_offset= 0;
-    entry_offset = entry_index % (cluster_size / 32);
-    printf("17\n");
-    entry_offset = entry_offset % (BLOCK_SIZE / 32);
-    printf("18\n");
-
-    memcpy(buffer + (entry_offset * 32), &entry, sizeof(entry));
-    printf("19\n");
-
-    //Pedir la escritura del bloque
-    fat32_writeblock(target_block, 1, &buffer, fs_tmp);
-    printf("20\n");
-
+    //Modificamos la FAT
     if(cluster_abm > 0)
         while(cluster_abm)
         {
-    printf("21\n");
             fat32_add_cluster(fs_tmp->open_files[fi->fh].first_cluster, fs_tmp);
-    printf("22\n");
             cluster_abm--;
-    printf("23\n");
         }
     else if(cluster_abm < 0)
         while(cluster_abm)
         {
-    printf("24\n");
             fat32_remove_cluster(fs_tmp->open_files[fi->fh].first_cluster, fs_tmp);
-    printf("25\n");
             cluster_abm++;
-    printf("26\n");
         }
 
-    printf("27\n");
+    //si el tamaño pedido es 0 y tiene algun cluster asociado,
+    //lo liberamos en la FAT, y editamos la entry
+    if(fs_tmp->open_files[fi->fh].first_cluster!=0 && offset==0)
+    {
+        fs_tmp->fat[fs_tmp->open_files[fi->fh].first_cluster] = 0;
+        int32_t bloque = ( fs_tmp->boot_sector.reserved_sectors + ( fs_tmp->open_files[fi->fh].first_cluster / ( fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
+
+        fs_tmp->open_files[fi->fh].first_cluster=0;
+        entry.first_cluster_hi = 0;
+        entry.first_cluster_low = 0;
+
+        fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp);
+    }
+
+    //Modificamos la entrada en el directorio.
+    int32_t target_block = fat32_get_block_from_dentry(fs_tmp->open_files[fi->fh].container_cluster, entry_index, fs_tmp);
+
+    int8_t buffer[BLOCK_SIZE];
+    fat32_getblock(target_block, 1, buffer, fs_tmp);
+
+    //modificamos entry_offset para que sea con respecto al comienzo del bloque
+    int32_t entry_offset= 0;
+    entry_offset = entry_index % (cluster_size / 32);
+    entry_offset = entry_offset % (BLOCK_SIZE / 32);
+
+    memcpy(buffer + (entry_offset * 32), &entry, sizeof(entry));
+
+    //Pedir la escritura del bloque
+    fat32_writeblock(target_block, 1, &buffer, fs_tmp);
+
     return 0;
 }
 
@@ -211,7 +223,9 @@ int fat32_rename (const char *from, const char *to)
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    log_info(fs_tmp->log, "", "Rename: from: %s to: %s\n", from, to);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Rename: from: %s to: %s\n", from, to);
 
     file_attrs reg_file_attrs;
     int32_t cluster_actual = fat32_get_file_from_path((uint8_t *)from, &reg_file_attrs, fs_tmp);
@@ -326,7 +340,9 @@ static int fat32_getattr(const char *path, struct stat *stbuf)
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    log_info(fs_tmp->log, "un_thread", "Getattr: path: %s", path);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Getattr: path: %s", path);
     memset(stbuf, 0, sizeof(struct stat));
 
     if(memcmp(path, "/", 2) == 0) {
@@ -366,7 +382,9 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    log_info(fs_tmp->log, "un_thread", "Readdir: path: %s", path);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Readdir: path: %s", path);
 
     if(path[0] != '/')
         return -EINVAL;
@@ -421,7 +439,9 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
     struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
 
-    log_info(fs_tmp->log, "un_thread", "Open: path: %s", path);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Open: path: %s", path);
 
     file_attrs ret_attrs;
 
@@ -453,7 +473,9 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
 
-    log_info(fs_tmp->log, "un_thread", "Read: path: %s size: %d offset: %ld", path, size, offset);
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Read: path: %s size: %d offset: %ld", path, size, offset);
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
@@ -534,6 +556,8 @@ static void *fat32_init(struct fuse_conn_info *conn)
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getblock(fs_tmp->boot_sector.reserved_sectors / SECTORS_PER_BLOCK,
                    fs_tmp->boot_sector.sectors_per_fat / SECTORS_PER_BLOCK, fs_tmp->fat, fs_tmp);
+
+    hex_log((unsigned char *)fs_tmp->fat,512);
 
 //    int i=0;
 //    for(;i<512;i++) printf("%.4lX%c",fs_tmp->fat[i], (i+1)%16?' ':'\n');
