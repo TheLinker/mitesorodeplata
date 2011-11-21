@@ -23,80 +23,6 @@ int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     return 0;
 }
 
-int fat32_write (const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
-{
-     struct fuse_context* context = fuse_get_context();
-    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
-    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
-
-    char buff[10];
-    sprintf(buff,"%d",context->pid);
-    log_info(fs_tmp->log, buff, "Write: path: %s size: %d offset: %ld", path, size, offset);
-
-    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
-        return -EINVAL;
-
-    int32_t cluster_actual = fs_tmp->open_files[fi->fh].first_cluster;
-
-    cluster_actual = fat32_get_link_n_in_chain( cluster_actual, offset / cluster_size, fs_tmp);
-    if (cluster_actual == fs_tmp->eoc_marker) return 0;
-
-    //Suponemos que FUSE llama a truncate para pedir espacio si es que detecta que no tiene.
-
-    int8_t *buffer = calloc(cluster_size, 1);
-    size_t data_to_write = size;
-    offset = offset % cluster_size;
-
-    fat32_getcluster(cluster_actual, buffer, fs_tmp);
-    int32_t data_cluster = cluster_size - offset;
-
-    memcpy(buffer + offset, buf, data_cluster);
-
-    fat32_writecluster(cluster_actual, buffer, fs_tmp);
-
-    data_to_write -= data_cluster;
-
-    while(data_to_write) {
-        data_cluster = MAX(data_to_write, cluster_size);
-
-        cluster_actual = fat32_get_link_n_in_chain( cluster_actual, 1, fs_tmp);
-
-        if(data_cluster < cluster_size)
-            fat32_getcluster(cluster_actual, buffer, fs_tmp);
-
-        memcpy(buffer, buf+size-data_to_write, data_cluster);
-
-        fat32_writecluster(cluster_actual, buffer, fs_tmp);
-
-        data_to_write -= data_to_write;
-    }
-
-    return size; //TODO error handling
-}
-
-int fat32_flush (const char *path, struct fuse_file_info *fi)
-{
-    printf("Flush: path: %s\n", path);
-    return 0;
-}
-
-int fat32_release (const char *path, struct fuse_file_info *fi)
-{
-    struct fuse_context* context = fuse_get_context();
-    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
-
-    char buff[10];
-    sprintf(buff,"%d",context->pid);
-    log_info(fs_tmp->log, buff, "Release: path: %s", path);
-
-    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
-        return -EINVAL;
-
-    memset(&(fs_tmp->open_files[fi->fh]), '\0', sizeof(file_descriptor));
-
-    return 0;
-}
-
 int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 {
     struct fuse_context* context = fuse_get_context();
@@ -145,10 +71,15 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 
         fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp);
 
+        //Inicializamos los datos del nuevo cluster a 0
+        char buffer[fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector];
+        memset(buffer, '\0', fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector);
+        fat32_writecluster(free_cluster, buffer, fs_tmp);
+
         cluster_abm--;
     }
 
-    entry.file_size = offset;
+    fs_tmp->open_files[fi->fh].file_size = entry.file_size = offset;
 
     //Modificamos la FAT
     if(cluster_abm > 0)
@@ -193,6 +124,82 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 
     //Pedir la escritura del bloque
     fat32_writeblock(target_block, 1, &buffer, fs_tmp);
+
+    return 0;
+}
+
+int fat32_write (const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+{
+     struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Write: path: %s size: %d offset: %ld", path, size, offset);
+
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    //si el archivo queda chico lo ampliamos
+    if(fs_tmp->open_files[fi->fh].file_size < offset+size)
+        fat32_ftruncate (path, offset+size, fi);
+
+    int32_t cluster_actual = fs_tmp->open_files[fi->fh].first_cluster;
+
+    cluster_actual = fat32_get_link_n_in_chain( cluster_actual, offset / cluster_size, fs_tmp);
+    if (cluster_actual == fs_tmp->eoc_marker) return 0;
+
+    int8_t *buffer = calloc(cluster_size, 1);
+    size_t data_to_write = size;
+    offset = offset % cluster_size;
+
+    fat32_getcluster(cluster_actual, buffer, fs_tmp);
+    int32_t data_cluster = MIN(cluster_size - offset, data_to_write);
+
+    memcpy(buffer + offset, buf, data_cluster);
+
+    fat32_writecluster(cluster_actual, buffer, fs_tmp);
+
+    data_to_write -= data_cluster;
+
+    while(data_to_write) {
+        data_cluster = MAX(data_to_write, cluster_size);
+
+        cluster_actual = fat32_get_link_n_in_chain( cluster_actual, 1, fs_tmp);
+
+        if(data_cluster < cluster_size)
+            fat32_getcluster(cluster_actual, buffer, fs_tmp);
+
+        memcpy(buffer, buf+size-data_to_write, data_cluster);
+
+        fat32_writecluster(cluster_actual, buffer, fs_tmp);
+
+        data_to_write -= data_cluster;
+    }
+
+    return size; //TODO error handling
+}
+
+int fat32_flush (const char *path, struct fuse_file_info *fi)
+{
+    printf("Flush: path: %s\n", path);
+    return 0;
+}
+
+int fat32_release (const char *path, struct fuse_file_info *fi)
+{
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Release: path: %s", path);
+
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    memset(&(fs_tmp->open_files[fi->fh]), '\0', sizeof(file_descriptor));
 
     return 0;
 }
