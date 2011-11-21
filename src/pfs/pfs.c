@@ -550,6 +550,10 @@ static void *fat32_init(struct fuse_conn_info *conn)
     int8_t block[BLOCK_SIZE];
 
     fat32_getblock(0, 1, block, fs_tmp);
+
+    memset(block+0x3E8, 0xff, 4);
+    fat32_writeblock(0, 1, block, fs_tmp);
+
     memcpy(fs_tmp->boot_sector.buffer, block, fs_tmp->boot_sector.bytes_per_sector);
     fs_tmp->system_area_size = fs_tmp->boot_sector.reserved_sectors + ( fs_tmp->boot_sector.fat_count * fs_tmp->boot_sector.sectors_per_fat );
 
@@ -558,16 +562,11 @@ static void *fat32_init(struct fuse_conn_info *conn)
         exit(-EINVAL);
     }
 
-    memcpy(fs_tmp->fsinfo_sector.buffer, block + fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.bytes_per_sector);
-
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getblock(fs_tmp->boot_sector.reserved_sectors / SECTORS_PER_BLOCK,
                    fs_tmp->boot_sector.sectors_per_fat / SECTORS_PER_BLOCK, fs_tmp->fat, fs_tmp);
 
     hex_log((unsigned char *)fs_tmp->fat,512);
-
-//    int i=0;
-//    for(;i<512;i++) printf("%.4lX%c",fs_tmp->fat[i], (i+1)%16?' ':'\n');
 
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 1, 4);
 
