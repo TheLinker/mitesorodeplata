@@ -21,18 +21,8 @@ typedef union boot_t {
     } __attribute__ ((packed));       // para que no alinee los miembros de la estructura (si, estupido GCC)
 } boot_t;
 
-typedef union fsinfo_t {
-    uint8_t buffer[512];
-    struct {
-        uint8_t  no_usado[488];
-        int32_t  free_clusters;      // Clusters libres de la FS Info Sector
-        uint8_t  no_usado2[20];
-    } __attribute__ ((packed));
-} fsinfo_t;
-
 typedef struct fs_fat32_t {
     boot_t   boot_sector;
-    fsinfo_t fsinfo_sector;
     uint32_t *fat;               // usar estructuras para la fat es inutil =)
 
     uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
