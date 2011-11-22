@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include<pthread.h>
+#include <semaphore.h>
 #include"nipc.h"
 #include "log.h"
 
@@ -48,6 +49,7 @@ typedef struct datos{
     pfs	         *lista_pfs;
     disco        *discos;
     uint32_t      max_sector;
+    sem_t         semaforo;
 }datos;
 
 typedef struct config_t{
