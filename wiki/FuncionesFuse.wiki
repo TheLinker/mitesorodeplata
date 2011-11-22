@@ -18,6 +18,8 @@
 || fat32_ftruncate || Si || Si || Mas pruebas ||
 |||||||| *Extras* ||
 || Cache || <font color=red>No || <font color=red>No || ||
+|| Señales || <font color=red>No || <font color=red>No || ||
+|| Sockets || <font color=red>No || <font color=red>No || ||
 |||||||| *No Obligatorios* ||
 || fat32_create || <font color=red> No || <font color=red> No ||  ||
 || fat32_unlink || <font color=red> No || <font color=red> No || ||
