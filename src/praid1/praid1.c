@@ -19,7 +19,6 @@ int main(int argc, char *argv[])
   config = calloc(sizeof(config_t), 1);
   config_read(config);
   log_t* log = log_new(config->log_path, "RAID", config->log_mode);
-  
   // log_info(log, "Principal", "Message info: %s", "se conecto el cliente xxx");
   // log_warning(log, "Principal", "Message warning: %s", "not load configuration file");
   // log_error(log, "Principal", "Message error: %s", "Crash!!!!");
@@ -48,6 +47,8 @@ int main(int argc, char *argv[])
   printf("------------------------------\n");
   log_info(log, "Principal", "Message info: Socket escucha %d", info_ppal->sock_raid);
   
+  sem_init(&(info_ppal->semaforo),1,1);
+  
     
   while(1)
   {
@@ -66,8 +67,8 @@ int main(int argc, char *argv[])
       aux_pfs=aux_pfs->sgte;
     }
     
-    listar_pedidos_discos(info_ppal->discos);
-    if (info_ppal->discos!=NULL)printf("------------------------------\n");
+    //listar_pedidos_discos(info_ppal->discos);
+    //if (info_ppal->discos!=NULL)printf("------------------------------\n");
     
     select(max_sock+1, &set_socket, NULL, NULL, NULL);  
     
@@ -79,11 +80,7 @@ int main(int argc, char *argv[])
       printf("No hay discos consistentes!!!\n");
       break;
     }
-    
-    
-    
-    
-    
+        
     /*
      * Lista de socket PFS
      */
@@ -93,7 +90,7 @@ int main(int argc, char *argv[])
       if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
       {
 	if(recv_socket(&mensaje,aux_pfs->sock)>0)
-	{
+	{ //sleep(2);
 	 mensaje.payload.contenido[mensaje.len-4]='\0';
 	 //printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	 if(mensaje.type == nipc_handshake)
@@ -107,7 +104,7 @@ int main(int argc, char *argv[])
 	    {
 	      uint8_t *id_disco;
 	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
-	      id_disco = distribuir_pedido_lectura(&info_ppal->discos,mensaje,aux_pfs->sock);
+	      id_disco = distribuir_pedido_lectura(&info_ppal,mensaje,aux_pfs->sock);
 	      log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
 	      printf("------------------------------\n");
 	    }
@@ -122,7 +119,7 @@ int main(int argc, char *argv[])
 	    if(mensaje.len != 4)
 	    {
 	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-	      distribuir_pedido_escritura(&info_ppal->discos,mensaje,aux_pfs->sock);
+	      distribuir_pedido_escritura(&info_ppal,mensaje,aux_pfs->sock);
 	      log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
 	      printf("------------------------------\n");
 	    }
@@ -163,7 +160,7 @@ int main(int argc, char *argv[])
       else
       {
 	if(recv_socket(&mensaje,sock_new)>=0)
-	{
+	{ //sleep(2);
 	  mensaje.payload.contenido[mensaje.len-4]='\0';
 	  //printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 	  if(mensaje.type == nipc_handshake)
