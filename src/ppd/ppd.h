@@ -9,6 +9,7 @@
 #include "getconfig.h"
 #include "planDisco.h"
 #include "conexionPFS.h"
+#include "conexionRAID.h"
 #include <signal.h>   
 #include <sys/types.h>   
 #include <sys/socket.h>   
