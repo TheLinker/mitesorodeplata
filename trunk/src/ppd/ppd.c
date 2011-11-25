@@ -4,8 +4,7 @@
 
 
 config_t vecConfig;
-char * bufferConsola;
-int posCabAct, cliente, dirArch;
+int posCabAct, cliente, dirArch, sectxpis;
 nipc_socket ppd_socket, sock_new;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
@@ -18,9 +17,10 @@ int main()
 	char* mensaje = NULL;
 	int  thidConsola;
 	sem_init(&semEnc,1,1);
+	sectxpis= (vecConfig.sectores/vecConfig.pistas);
 
 	vecConfig = getconfig("config.txt");
-	dirArch = abrirArchivoV("/home/lucas/workspace2/bin/fat32.disk");
+	dirArch = abrirArchivoV(vecConfig.rutadisco);
 	posCabAct = vecConfig.posactual;
 
 	printf("%s\n", vecConfig.modoinit);
@@ -42,8 +42,7 @@ int main()
 			printf("Error de modo de inicialización\n");
 
 	thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
-	//thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *) escucharPedidos, (void*) mensaje);
-	//thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, (void*) mensaje);
+
 
 	return 1;
 }
@@ -58,23 +57,15 @@ void escucharPedidos(void)
 	buffer2.payload.sector = -3;
 	strcpy(buffer2.payload.contenido, "lllllllll");
 	send_socket(&buffer2 ,sock_new);
-	//printf("%s,%d \n", buffer2.payload.contenido, sock_new);
-	//printf("------------------------------\n");
-
-	//if(0 == strcmp(vecConfig.algplan, "cscan"))
-	//{
-		while(1)
-		{
-			//sleep(1);
-			recv_socket(&msj, sock_new);
-			printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
-			sem_wait(&semEnc);
-			insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual);
-			sem_post(&semEnc);
-		}
-	//}else
-		//HACER UN WHILE Q ESCUCHE PEDIDOS
-		//insertFifo(msj, headprt);
+	while(1)
+	{
+		//sleep(1);
+		recv_socket(&msj, sock_new);
+		printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
+		sem_wait(&semEnc);
+		insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual, sock_new);
+		sem_post(&semEnc);
+	}
 
 return;
 }
@@ -103,6 +94,9 @@ void atenderPedido(void)
 				break;
 			case nipc_req_write:
 				escribirSect(ped->sect, ped->buffer);
+				break;
+			case nipc_req_trace:
+				traceSect(ped->sect, ped->nextsect);
 				break;
 
 			default:
@@ -313,6 +307,7 @@ void * paginaMap(int sect, int dirArch)
 
 void funcInfo()
 {
+	char * bufferConsola;
 	memset(bufferConsola, '\0', TAM_SECT);
 	sprintf(bufferConsola, "%d", posCabAct);
 	send(cliente,bufferConsola,strlen(bufferConsola),0);
@@ -321,18 +316,27 @@ void funcInfo()
 
 void funcClean(char * parametros)
 {
-	char * strprimSec, * strultSec;
+	char * strprimSec, * strultSec, * bufferConsola;;
 	int primSec, ultSec;
+	nipc_packet pedido;
 
+	memset(bufferConsola, '\0', TAM_SECT);
 	strprimSec = strtok(parametros, ":");
 	strultSec = strtok(NULL, "\0");
 	primSec = atoi(strprimSec);
 	ultSec = atoi(strultSec);
-	memset(bufferConsola, '\0', TAM_SECT);
+	pedido.type = 2;
+	pedido.len = (sizeof(nipc_packet));
+	memset(pedido.payload.contenido, '\0', TAM_SECT);
 	//encolar
 	while(primSec <= ultSec)
 	{
-		escribirSect(primSec, bufferConsola);
+		//setea el sector
+		pedido.payload.sector= primSec;
+		//encolar
+		sem_wait(&semEnc);
+		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
+		sem_post(&semEnc);
 		primSec++;
 	}
 
@@ -343,12 +347,41 @@ void funcClean(char * parametros)
 
 void funcTrace(char * parametros)
 {
-	//int cantparam = 0;
-	//simular el disco
+	/*int cantparam = 0;
+	simular el disco
+	encolar los sectores en el disco como trace
+	char * bufferConsola;
 	memset(bufferConsola, '\0', TAM_SECT);
 	strcpy(bufferConsola, "Funcion en construccion");
-	send(cliente,bufferConsola,strlen(bufferConsola),0);
+	send(cliente,bufferConsola,strlen(bufferConsola),0);*/
+
+	int sec,i;
+	nipc_packet pedido;
+
+	pedido.type = 5;
+	pedido.len = (sizeof(nipc_packet));
+	memset(pedido.payload.contenido, '\0', TAM_SECT);
+	//encolar
+	for(i=0; i<=5; i++)
+	{
+		//setea el sector
+		pedido.payload.sector= sec;
+		//encolar
+		sem_wait(&semEnc);
+		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
+		sem_post(&semEnc);
+
+	}
+
 	return;
+}
+
+void traceSect(int sect, int32_t nextsect)
+{
+	char * bufferConsola;
+	memset(bufferConsola, '\0', TAM_SECT);
+	sprintf(bufferConsola, "%d,%d,%d", sect, nextsect, vecConfig.posactual);
+	send(cliente, bufferConsola, strlen(bufferConsola),0);
 }
 
 //------------Prueba-----------------//

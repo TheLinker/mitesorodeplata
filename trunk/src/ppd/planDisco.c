@@ -1,16 +1,17 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "planDisco.h"
+#include "ppd.h"
 
+extern config_t vecConfig;
 
-void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCab)
+extern int sectxpis;
+
+void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCab, nipc_socket socket)
 {
 	cola_t *newptr = 0;
 	div_t pisec;
 
 	newptr = initPtr();
-	msjtocol(msj, newptr);
+	msjtocol(msj, newptr, socket);
 
 	pisec = div(newptr->ped.sect, 100 /*CANTIDAD DE SECTORES POR PISTA (HAY Q PASARSELO)*/);
 	if(pisec.quot >= posCab)
@@ -31,6 +32,10 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 
 	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
 	{
+		if(NULL == (*colaptr))
+			newptr->ped.nextsect = -1;
+		else
+			newptr->ped.nextsect = (*colaptr)->ped.sect;
 		newptr->sig = (*colaptr);
 		(*colaptr) = newptr;
 	}else
@@ -45,11 +50,13 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 	return;
 }
 
-void msjtocol(nipc_packet msj, cola_t * newptr)
+void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket)
 {
 	newptr->ped.sect = msj.payload.sector;
 	newptr->ped.oper = msj.type;
 	memcpy(newptr->ped.buffer, (char *) msj.payload.contenido, TAM_SECT);
+	newptr->ped.socket = socket;
+	newptr->ped.nextsect = -1;
 
 }
 
@@ -86,8 +93,10 @@ ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
 	{
 		if(NULL != *saltoprt)
 		{
-			pout = *saltoprt;
-			*saltoprt = (*saltoprt)->sig;
+			*headprt = *saltoprt;  //preguntar si esto esta bien TODO
+			*saltoprt = NULL;
+			pout = *headprt;
+			*headprt = (*headprt)->sig;
 		}
 	}
 
@@ -103,3 +112,57 @@ void insertFifo(nipc_packet msj, cola_t * headptr)
 
 	return;
 }
+
+
+///////////////////////////////////////
+// Funciones simulacion tiempo disco //
+///////////////////////////////////////
+
+int pista(int sector)
+{
+	div_t pista;
+
+	pista = div(sector, sectxpis);
+
+	return pista.quot;
+}
+
+int sectpis(int sector)
+{
+	div_t sect;
+
+	sect = div(sector, sectxpis);
+
+	return sect.rem;
+}
+
+float timesect (void)
+{
+	return (sectxpis / vecConfig.rpm);
+}
+
+
+
+float timemovdisco(int sector)
+{
+	int pisrec = 0;
+	int sectrec = 0;
+	float tiempo = 0;
+
+	if (sector < vecConfig.posactual)
+		pisrec =  vecConfig.pistas + pista(sector) - pista(vecConfig.posactual);
+	else
+		pisrec = pista(sector) - pista(vecConfig.posactual);
+
+	if(sectpis(sector) < sectpis(vecConfig.posactual))
+		sectrec = sectxpis + sectpis(sector) - sectpis(vecConfig.posactual);
+	else
+		sectrec = sectpis(sector) - sectpis(vecConfig.posactual);
+
+	tiempo = sectrec * timesect() + pisrec * vecConfig.tiempoentrepistas;
+
+	vecConfig.posactual = sector;
+	return tiempo;
+}
+
+
