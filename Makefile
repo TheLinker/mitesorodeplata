@@ -1,6 +1,6 @@
 #Magia, no tocar.
 
-FLAGS      = -Wall -Isrc/common/ -Wno-unused-label -g
+FLAGS      = -Wall -Isrc/common/ -Wno-unused-label
 LIBFLAGS   = -licui18n -licuuc
 BUILD_PATH = tmp
 BIN_PATH   = bin
@@ -9,8 +9,9 @@ SRC_PATH   = src
 include pfs.mk
 include praid.mk
 include ppd.mk
+include consolappd.mk
 
-all: pfs praid ppd
+all: pfs praid ppd consolappd
 
 ##############################
 #Reglas para el Proceso File System
@@ -50,6 +51,18 @@ $(PPD_BIN): $(PPD_OBJS) $(PPD_INCLUDES)
 	@echo 'LINKEANDO $@'
 	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PPD_OBJS) -o $@
 
+##############################
+#Reglas para la consola
+##############################
+
+consolappd: $(CONSOLAPPD_BIN)
+
+CONSOLAPPD_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(CONSOLAPPD_SRC) ) ) )
+
+$(CONSOLAPPD_BIN): $(CONSOLAPPD_OBJS) $(CONSOLAPPD_INCLUDES)
+	@echo 'LINKEANDO $@'
+	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(CONSOLAPPD_OBJS) -o $@
+
 
 ##############################
 #Reglas de compilacion
@@ -71,10 +84,14 @@ $(BUILD_PATH)/%.o: $(SRC_PATH)/ppd/%.c $(PPD_INCLUDES)
 	@echo 'COMPILANDO $< -> $@'
 	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
 
+$(BUILD_PATH)/%.o: $(SRC_PATH)/consolappd/%.c $(CONSOLAPPD_INCLUDES)
+	@echo 'COMPILANDO $< -> $@'
+	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+
 
 clean:
 	@echo 'Limpiando todo'
-	@rm $(BUILD_PATH)/* $(PFS_BIN) $(PRAID_BIN) $(PPD_BIN) 2> /dev/null || true
+	@rm $(BUILD_PATH)/* $(PFS_BIN) $(PRAID_BIN) 2> /dev/null || true
 
-.PHONY: pfs praid ppd clean all
+.PHONY: pfs praid ppd consolappd clean all
 
