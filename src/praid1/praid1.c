@@ -13,8 +13,17 @@
 #include "praid1.h"
 #include "praid_func.h"
 
+void sig_pipe(int signal)
+{
+  printf("Señal PIPE: %d\n",signal);
+  //limpio_discos_caidos(info_ppal,aux_pedidos->sock);
+}
+
+
 int main(int argc, char *argv[])
 {
+  //signal(SIGPIPE,SIG_IGN);
+  
   config_t *config;
   config = calloc(sizeof(config_t), 1);
   config_read(config);
@@ -24,7 +33,7 @@ int main(int argc, char *argv[])
   // log_error(log, "Principal", "Message error: %s", "Crash!!!!");
   
   datos               *info_ppal = (datos *)malloc(sizeof(datos));
-  pfs                 *aux_pfs;
+  lista_socket        *aux_pfs;
   uint32_t             max_sock;
   nipc_packet          mensaje;
   nipc_socket          sock_new;
@@ -61,10 +70,10 @@ int main(int argc, char *argv[])
     aux_pfs = info_ppal->lista_pfs;
     while(aux_pfs != NULL)
     {
-      if(aux_pfs->sock > max_sock)
-	max_sock = aux_pfs->sock;
-      FD_SET (aux_pfs->sock, &set_socket);
-      aux_pfs=aux_pfs->sgte;
+		if(aux_pfs->sock > max_sock)
+		max_sock = aux_pfs->sock;
+		FD_SET (aux_pfs->sock, &set_socket);
+		aux_pfs = aux_pfs->sgte;
     }
     
     //listar_pedidos_discos(info_ppal->discos);
@@ -186,8 +195,8 @@ int main(int argc, char *argv[])
 	      if(info_ppal->discos!=NULL)
 	      {
 		  printf("Nueva conexion PFS: %d\n",sock_new);
-		  pfs *nuevo_pfs;
-		  nuevo_pfs = (pfs *)malloc(sizeof(pfs));
+		  lista_socket *nuevo_pfs;
+		  nuevo_pfs = (lista_socket *)malloc(sizeof(lista_socket));
 		  nuevo_pfs->sock=sock_new;
 		  nuevo_pfs->sgte = info_ppal->lista_pfs;
 		  info_ppal->lista_pfs = nuevo_pfs;

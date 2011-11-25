@@ -39,17 +39,18 @@ typedef struct _disco{
     struct _disco   *sgte;
 } __attribute__ ((packed)) disco;
 
-typedef struct _pfs{
-    uint32_t       sock;
-    struct _pfs   *sgte;
-} __attribute__ ((packed)) pfs;
+typedef struct _lista_socket{
+    nipc_socket             sock;
+    struct _lista_socket   *sgte;
+} __attribute__ ((packed)) lista_socket;
 
 typedef struct datos{
-    nipc_socket   sock_raid;
-    pfs	         *lista_pfs;
-    disco        *discos;
-    uint32_t      max_sector;
-    sem_t         semaforo;
+    nipc_socket     sock_raid;
+    lista_socket   *lista_pfs;
+    disco          *discos;
+    uint32_t        max_sector;
+    sem_t           semaforo;
+    lista_socket   *sock_x_liberar;
 }datos;
 
 typedef struct config_t{
