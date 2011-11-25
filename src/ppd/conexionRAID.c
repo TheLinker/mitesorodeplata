@@ -9,14 +9,14 @@ struct hostent *server;
 
 void conectarConRAID(config_t vecConfig)
 {
-  port = atoi(config.puertopraid);
+  port = atoi(vecConfig.puertopraid);
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
   if (sockfd < 0) 
     error("ERROR opening socket");
 
-  server = gethostbyname(config.ippraid);
+  server = gethostbyname(vecConfig.ippraid);
 
   if (server == NULL) 
   {
