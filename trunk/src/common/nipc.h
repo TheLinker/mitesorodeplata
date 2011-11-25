@@ -12,6 +12,7 @@ enum {
     nipc_req_write  = 2,
     nipc_error      = 3,
     nipc_CHS        = 4,
+    nipc_req_trace  = 5,
 };
 
 typedef struct payload_t{
