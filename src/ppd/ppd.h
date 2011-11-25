@@ -53,6 +53,8 @@ void funcClean(char *);
 
 void funcTrace(char *);
 
+void traceSect(int sect, int32_t nextsect);
+
 int my_itoa(int val, char* buf);
 
 void errorparam(void);

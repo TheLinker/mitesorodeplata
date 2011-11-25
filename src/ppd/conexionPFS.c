@@ -72,72 +72,6 @@ void conectarConPFS(config_t vecConfig)
 		    select(max_sock+1, &set_socket, NULL, NULL, NULL);
 
 		    /*
-		     * Lista de socket PFS
-			 * Recorro la lista de las conexiones PFS y consulto si tubo algun cambio
-			 * De ser asi, se recbe el mensaje y se procesa
-		     */
-		    /*aux_pfs=info_ppal->lista_pfs;
-		    while(aux_pfs != NULL)
-		    {
-		      if(FD_ISSET(aux_pfs->sock, &set_socket)>0)   // se consulta si ese socket tubo algun cambio
-		      {
-				if(recv_socket(&mensaje,aux_pfs->sock)>0)   // si el mensaje recibido es mayor a 0 bytes se procesa, en caso contrario se perdio la conexion
-				{
-				 if(mensaje.type == nipc_handshake)     // pregunto si es de tipo HANDSHAKE
-				 {
-				   printf("BASTA DE HANDSHAKE!!!!\n");   //en este paso no debo resivir un HANDSHAKE, ya que los HANDSHAKE lo resive el socket principal
-				   //log_warning(log, "Principal", "Message warning: %s", "Ya se realizo el HANDSHAKE");
-				 }
-				  if(mensaje.type == nipc_req_read)    // si es de tipo lectura
-				  {
-					if(mensaje.len == 4)       // se trata de un pedido nuevo de lectura
-					{
-					  //uint8_t *id_disco;
-					  printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
-
-					  //id_disco = distribuir_pedido_lectura(&info_ppal->discos,mensaje,aux_pfs->sock);
-					  //log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
-					  printf("------------------------------\n");
-					}
-					else
-					{
-					  printf("MANDASTE CUALQUIER COSA\n");
-					  //log_warning(log, "Principal", "Message warning: %s", "Formato de mensaje no reconocido");
-					}
-				  }
-				  if(mensaje.type == nipc_req_write)   // si es de tipo escritura
-				  {
-					if(mensaje.len != 4)      // se trata de un pedido nuevo de escritura
-					{
-					  printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-					  //distribuir_pedido_escritura(&info_ppal->discos,mensaje,aux_pfs->sock);
-					  //log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
-					  printf("------------------------------\n");
-					}
-					else
-					{
-					  printf("MANDASTE CUALQUIER COSA\n");
-					  //log_warning(log, "Principal", "Message warning: %s", "Formato de mensaje no reconocido");
-					}
-				  }
-				  if(mensaje.type == nipc_error)     // si es de tipo error       HAY QUE CHARLAR SI MANEJAMOS ERRORES CON UN TIPO NUEVO O NO
-				  {
-					printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-					//log_error(log, "Principal", "Message error: Sector:%d Error: %s", mensaje.payload.sector,mensaje.payload.contenido);
-				  }
-				}
-				else // en caso de que la recepcion del mensaje retorne 0 o negativo significa que se ha perdido la conexion
-				{
-				  printf("Se cayo la conexion con el PFS: %d\n",aux_pfs->sock);
-				  //log_warning(log, "Principal", "Message warning: Se cayo la conexion con el PFS:%d",aux_pfs->sock);
-				  liberar_pfs_caido(&info_ppal->lista_pfs,aux_pfs->sock);  	// elimino la conexion caida de la lista de conexiones PFS
-				  printf("------------------------------\n");
-				}
-		      }
-		      aux_pfs = aux_pfs->sgte;
-		    }*/
-
-		    /*
 		     * SOCKECT PRINCIPAL DE ESCUCHA
 		     */
 		    // Consulto si el socket principal tubo algun cambio
@@ -159,21 +93,12 @@ void conectarConPFS(config_t vecConfig)
 					{
 					 	printf("Nueva conexion PFS: %d\n",sock_new);
 						pfs *nuevo_pfs;
-						int env;
+						//int env;
 						nuevo_pfs = (pfs *)malloc(sizeof(pfs));
 						nuevo_pfs->sock=sock_new;
 						nuevo_pfs->sgte = info_ppal->lista_pfs;
 						info_ppal->lista_pfs = nuevo_pfs;
 						FD_SET (nuevo_pfs->sock, &set_socket);  // se agrega la nueva conexion PFS a la lista de PFS
-						//log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
-						/*nipc_packet buffer2;
-						buffer2.type = 0;
-						buffer2.len = 0;
-						buffer2.payload.sector = -3;
-						strcpy(buffer2.payload.contenido, "lllllllll");
-						env = send_socket(&buffer2 ,nuevo_pfs->sock);
-						printf("%s,%d, %d \n", buffer2.payload.contenido, nuevo_pfs->sock, env);
-						printf("------------------------------\n");*/
 
 						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, (void*) mensajet);
 
@@ -193,29 +118,22 @@ void conectarConPFS(config_t vecConfig)
 				  {
 					printf("ATENCION!!! Formato de mensaje no reconocido: %d - %d - %d - %s\n",mensaje.type, mensaje.len,
 						mensaje.payload.sector, mensaje.payload.contenido);
-					//log_warning(log, "Principal", "Message warning: Formato de mensaje no reconocido: %d - %d - %d - %s",
-					//	mensaje.type, mensaje.len, mensaje.payload.sector, mensaje.payload.contenido);
+
 					printf("------------------------------\n");
 				  }
 				  if(mensaje.type == nipc_req_write) // no debe recibir ningun tipo escritura
 				  {
 					printf("ATENCION!!! Formato de mensaje no reconocido: %d - %d - %d - %s\n",mensaje.type, mensaje.len,mensaje.payload.sector, mensaje.payload.contenido);
-					//log_warning(log, "Principal", "Message warning: Formato de mensaje no reconocido: %d - %d - %d - %s",
-					//	mensaje.type, mensaje.len, mensaje.payload.sector, mensaje.payload.contenido);
 					printf("------------------------------\n");
 				  }
 				  if(mensaje.type == nipc_error)  // IGUAL QUE ANTES CON RESPECTO A LOS ERRORES
 				  {
 					printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
-					//log_error(log, "Principal", "Message error: Sector:%d Error: %s",
-					//	  mensaje.payload.sector,mensaje.payload.contenido);
 				  }
 				}
 		      }
 		    }
 		  printf("\n\n POR ALGO SALIII \n\n");
-		  //log_warning(log, "Principal", "Message warning: Sali del sistema, cosa dificil");
-		  //log_delete(log);
 		  exit(EXIT_SUCCESS);
 
 }
