@@ -28,7 +28,7 @@ int main()
 	if(!(strncmp(vecConfig.modoinit, "CONNECT",7)))
 	{
 		printf("Conexion con praid\n");
-		conectarConPraid();
+		conectarConPraid(vecConfig);
 	}
 	else
 		if(!(strncmp(vecConfig.modoinit, "LISTEN",6)))
@@ -47,12 +47,6 @@ int main()
 
 	return 1;
 }
-
- void conectarConPraid()  //ver tipos de datos
-{
-	ppd_socket = create_socket(vecConfig.ippraid,vecConfig.puertopraid);  // ver tipos de datos
-}
-
 
 void escucharPedidos(void)
 {
