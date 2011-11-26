@@ -22,7 +22,7 @@ void sig_pipe(int signal)
 
 int main(int argc, char *argv[])
 {
-  //signal(SIGPIPE,SIG_IGN);
+  signal(SIGPIPE,SIG_IGN);
   
   config_t *config;
   config = calloc(sizeof(config_t), 1);
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
   // log_error(log, "Principal", "Message error: %s", "Crash!!!!");
   
   datos               *info_ppal = (datos *)malloc(sizeof(datos));
-  lista_socket        *aux_pfs;
+  lista_pfs           *aux_pfs;
   uint32_t             max_sock;
   nipc_packet          mensaje;
   nipc_socket          sock_new;
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
   fd_set               set_socket;
   
   info_ppal->sock_raid = -1;
-  info_ppal->lista_pfs = NULL;
+  info_ppal->pfs_activos = NULL;
   info_ppal->discos    = NULL;
   
   info_ppal->sock_raid = create_socket();
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
     
     max_sock = info_ppal->sock_raid;
     
-    aux_pfs = info_ppal->lista_pfs;
+    aux_pfs = info_ppal->pfs_activos;
     while(aux_pfs != NULL)
     {
 		if(aux_pfs->sock > max_sock)
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     /*
      * Lista de socket PFS
      */
-    aux_pfs=info_ppal->lista_pfs;
+    aux_pfs=info_ppal->pfs_activos;
     while(aux_pfs != NULL)
     {
       if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
@@ -112,10 +112,10 @@ int main(int argc, char *argv[])
 	    if(mensaje.len == 4)
 	    {
 	      uint8_t *id_disco;
-	      printf("Pedido de lectura del FS: %d\n",mensaje.payload.sector);
 	      id_disco = distribuir_pedido_lectura(&info_ppal,mensaje,aux_pfs->sock);
 	      log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
-	      printf("------------------------------\n");
+	      //printf("Pedido de lectura del FS: %d en PPD: %s\n",mensaje.payload.sector,id_disco);
+	      //printf("------------------------------\n");
 	    }
 	    else
 	    {
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 	      printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
 	      distribuir_pedido_escritura(&info_ppal,mensaje,aux_pfs->sock);
 	      log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
-	      printf("------------------------------\n");
+	      //printf("------------------------------\n");
 	    }
 	    else
 	    {
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 	{
 	  printf("Se cayo la conexion con el PFS: %d\n",aux_pfs->sock);
 	  log_warning(log, "Principal", "Message warning: Se cayo la conexion con el PFS:%d",aux_pfs->sock);
-	  liberar_pfs_caido(&info_ppal->lista_pfs,aux_pfs->sock);
+	  liberar_pfs_caido(&info_ppal->pfs_activos,aux_pfs->sock);
 	  printf("------------------------------\n");
 	}
       }
@@ -195,11 +195,11 @@ int main(int argc, char *argv[])
 	      if(info_ppal->discos!=NULL)
 	      {
 		  printf("Nueva conexion PFS: %d\n",sock_new);
-		  lista_socket *nuevo_pfs;
-		  nuevo_pfs = (lista_socket *)malloc(sizeof(lista_socket));
+		  lista_pfs *nuevo_pfs;
+		  nuevo_pfs = (lista_pfs *)malloc(sizeof(lista_pfs));
 		  nuevo_pfs->sock=sock_new;
-		  nuevo_pfs->sgte = info_ppal->lista_pfs;
-		  info_ppal->lista_pfs = nuevo_pfs;
+		  nuevo_pfs->sgte = info_ppal->pfs_activos;
+		  info_ppal->pfs_activos = nuevo_pfs;
 		  FD_SET (nuevo_pfs->sock, &set_socket);
 		  log_info(log, "Principal", "Message info: Nueva conexion PFS: %d", sock_new);
 		  mensaje.type = 0;
