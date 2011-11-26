@@ -1,6 +1,8 @@
 #ifndef __PFS_H_
 #define __PFS_H_
 
+struct file_descriptor;
+
 #include "nipc.h"
 #include "log.h"
 #include "pfs_files.h"

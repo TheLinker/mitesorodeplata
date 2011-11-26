@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "pfs.h"
-#include "pfs_utils.h"
+#include "pfs_consola.h"
 
 void *fat32_consola(void *arg)
 {

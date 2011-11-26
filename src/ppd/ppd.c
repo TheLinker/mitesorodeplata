@@ -28,7 +28,7 @@ int main()
 	if(!(strncmp(vecConfig.modoinit, "CONNECT",7)))
 	{
 		printf("Conexion con praid\n");
-		conectarConPraid(vecConfig);
+		conectarConRAID(vecConfig);
 	}
 	else
 		if(!(strncmp(vecConfig.modoinit, "LISTEN",6)))

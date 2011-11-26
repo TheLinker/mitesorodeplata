@@ -199,6 +199,9 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
 
+    free(fs_tmp->open_files[fi->fh].cache);
+    sem_destroy(&(fs_tmp->open_files[fi->fh].sem_cache));
+
     memset(&(fs_tmp->open_files[fi->fh]), '\0', sizeof(file_descriptor));
 
     return 0;
@@ -461,11 +464,18 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
     memcpy(fs_tmp->open_files[ret].path, path, strlen(path));
     fat32_build_name(&ret_attrs, fs_tmp->open_files[ret].filename);
     fs_tmp->open_files[ret].file_size = ret_attrs.file_size;
-    fs_tmp->open_files[ret].file_pos = (fi->flags & O_APPEND)?0:ret_attrs.file_size-1;
     fs_tmp->open_files[ret].first_cluster = ret_attrs.first_cluster;
     fs_tmp->open_files[ret].busy = TRUE;
     fs_tmp->open_files[ret].container_cluster = container_cluster;
     fs_tmp->open_files[ret].entry_index = ret_attrs.entry_index;
+
+    //Ahora vamos por la cache.
+    fs_tmp->open_files[ret].cache = calloc(fs_tmp->cache_size, sizeof(cache_t));
+    sem_init(&(fs_tmp->open_files[ret].sem_cache), 0, 1);
+
+    int i=0;
+    for(i=0;i < (fs_tmp->cache_size);i++)
+        fs_tmp->open_files[ret].cache[i].number = -1;
 
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;

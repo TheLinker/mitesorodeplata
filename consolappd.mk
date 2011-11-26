@@ -1,7 +1,7 @@
-PPD_BIN = $(BIN_PATH)/consolappd
+CONSOLAPPD_BIN = $(BIN_PATH)/consolappd
 
-PPD_SRC = $(SRC_PATH)/consolappd/consolappd.c
+CONSOLAPPD_SRC = $(SRC_PATH)/consolappd/consola.c
 
-PPD_INCLUDES = $(SRC_PATH)/consolappd/consolappd.h
+CONSOLAPPD_INCLUDES = $(SRC_PATH)/consolappd/consola.h
 
 
