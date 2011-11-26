@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "pfs.h"
 //Hay que cambiar las func para que acepten un socket y hagan las cosas con ese socket
 
 /**
@@ -15,7 +16,7 @@
  * @fs_tmp:     Estructura privada del file system // Ver Wiki.
  * @return      Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
+uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, struct fs_fat32_t *fs_tmp)
 {
     nipc_packet packet;
     int i;
@@ -55,7 +56,7 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
  * @fs_tmp:     Estructura privada del file system // Ver Wiki.
  * @return      Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
+uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, struct fs_fat32_t *fs_tmp)
 {
     nipc_packet packet;
     int i;
@@ -94,7 +95,7 @@ uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_
  * @fs_tmp:   Estructura privada del file system// Ver Wiki.
  * @return:   Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
+uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, struct fs_fat32_t *fs_tmp)
 {
     //int i=0;
     //for( i = 0 ; i < cantidad ; i++, block++)
@@ -113,7 +114,7 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32
  * @fs_tmp:   Estructura privada del file system// Ver Wiki.
  * @return:   Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp)
+uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, struct fs_fat32_t *fs_tmp)
 {
         printf("Pedido escritura bloque: %d\n", block);
     //int i=0;
@@ -123,67 +124,4 @@ uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat
 
     return 0;
 }
-
-/**
- * Obtiene un *cluster*.
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
- *
- * @cluster: Cluster a pedir.
- * @buffer:  Lugar donde se almacena la información recibida.
- * @fs_tmp:  Estructura privada del file system// Ver Wiki.
- * @return:  Código de error o 0 si fue todo bien.
- */
-uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp)
-{
-    //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
-    if(cluster<2) return -EINVAL;
-
-//// SSA =                  | RSC = Reserved Sector Count  | FN = Number of FAT 
-//// SF = sectors per FAT   | LSN = Logical Sector Number  | CN = Cluster Number  | SC = Sectors per Cluster
-
-////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
-////  LSN=SSA + (CN-2) × SC(0x0D)
-
-    uint32_t block_number = 0;
-
-    block_number = (fs_tmp->system_area_size + (cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) / SECTORS_PER_BLOCK;
-
-    fat32_getblock(block_number,
-                   fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
-                   buffer, fs_tmp);
-
-    return 0;
-}
-
-/**
- * Escribe un *cluster*.
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
- *
- * @cluster: Cluster a escribir.
- * @buffer:  Lugar donde se almacena la información a escribir.
- * @fs_tmp:  Estructura privada del file system// Ver Wiki.
- * @return:  Código de error o 0 si fue todo bien.
- */
-uint8_t fat32_writecluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp)
-{
-    //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
-    if(cluster<2) return -EINVAL;
-
-//// SSA = Size of System Area   | RSC = Reserved Sector Count  | FN = Number of FAT 
-//// SF = sectors per FAT        | LSN = Logical Sector Number  | CN = Cluster Number  | SC = Sectors per Cluster
-
-////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
-////  LSN=SSA + (CN-2) × SC(0x0D)
-
-    uint32_t block_number = 0;
-
-    block_number = (fs_tmp->system_area_size + (cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) / SECTORS_PER_BLOCK;
-
-    fat32_writeblock(block_number,
-                     fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
-                     buffer, fs_tmp);
-
-    return 0;
-}
-
 

@@ -61,6 +61,4 @@ void errorparam(void);
 
 void msjprueba(nipc_packet *);
 
-void conectarConPraid();
-
 #endif /* PPD_H_ */

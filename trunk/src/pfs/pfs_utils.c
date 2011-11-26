@@ -180,7 +180,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
             fs_tmp->server_port = atoi(w2);
         else
         if(strcmp(w1,"tamanio_cache")==0)
-            fs_tmp->cache_size = atoi(w2);
+            fs_tmp->cache_size = atoi(w2) / BLOCK_SIZE;
         else
         if(strcmp(w1,"log_path")==0)
             strcpy(fs_tmp->log_path, w2);
