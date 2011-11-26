@@ -2,8 +2,8 @@
 #include "ppd.h"
 
 extern nipc_socket sock_new;
-pthread_t thEscucharPedidos, thAtenderpedidos;
-int  thidEscucharPedidos, thidAtenderpedidos;
+pthread_t thEscucharPedidos;
+int  thidEscucharPedidos;
 char* mensajet = NULL;
 
 void conectarConPFS(config_t vecConfig)
@@ -91,6 +91,8 @@ void conectarConPFS(config_t vecConfig)
 				  {
 					if(mensaje.len == 0)    // si el tamaño es distinto de 0 se trata de un PPD ya que el mensaje contiene el ID del disco
 					{
+						nipc_packet buffer;
+
 					 	printf("Nueva conexion PFS: %d\n",sock_new);
 						pfs *nuevo_pfs;
 						//int env;
@@ -100,9 +102,16 @@ void conectarConPFS(config_t vecConfig)
 						info_ppal->lista_pfs = nuevo_pfs;
 						FD_SET (nuevo_pfs->sock, &set_socket);  // se agrega la nueva conexion PFS a la lista de PFS
 
+						buffer.type = 0;
+						buffer.len = 0;
+						buffer.payload.sector = -3;
+						strcpy(buffer.payload.contenido, "l");
+						send_socket(&buffer ,sock_new);
+
+
+
 						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, (void*) mensajet);
 
-						thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, atenderPedido, (void*) mensajet);
 					  }
 					  else
 					  {

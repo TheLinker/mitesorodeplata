@@ -33,18 +33,18 @@ ped_t * desencolar(cola_t **, cola_t ** );
 
 void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket);
 
-void initCol(cola_t * headprt, cola_t * tailprt);
-
 cola_t * initPtr();
 
 cola_t * initSaltoPrt();
 
 int pista(int);
 
-float timemovdisco(int);
+double timemovdisco(int);
 
-float timesect (void);
+double timesect (void);
 
 int sectpis(int);
+
+void moverCab(int sect);
 
 #endif /* PLANDISCO_H_ */

@@ -75,6 +75,9 @@ config_t getconfig(char * archivoConfig)
 				if (strncmp("tiempolec",readLine,intDif) == 0)
 					vecConfig.tiempolec = atoi(var+1);
 
+				if (strncmp("posactual",readLine,intDif) == 0)
+					vecConfig.posactual = atoi(var+1);
+
 				if (strncmp("tiempoesc",readLine,intDif) == 0)
 					vecConfig.tiempoesc = atoi(var+1);
 

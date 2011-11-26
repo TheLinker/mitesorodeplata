@@ -28,7 +28,7 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 {
 	cola_t* ordptr = 0;
 
-	printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
+	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
 
 	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
 	{
@@ -136,18 +136,18 @@ int sectpis(int sector)
 	return sect.rem;
 }
 
-float timesect (void)
+double timesect (void)
 {
 	return (sectxpis / vecConfig.rpm);
 }
 
 
 
-float timemovdisco(int sector)
+double timemovdisco(int sector)
 {
 	int pisrec = 0;
 	int sectrec = 0;
-	float tiempo = 0;
+	double tiempo = 0;
 
 	if (sector < vecConfig.posactual)
 		pisrec =  vecConfig.pistas + pista(sector) - pista(vecConfig.posactual);
@@ -162,7 +162,11 @@ float timemovdisco(int sector)
 	tiempo = sectrec * timesect() + pisrec * vecConfig.tiempoentrepistas;
 
 	vecConfig.posactual = sector;
+
 	return tiempo;
 }
 
-
+void moverCab(int sect)
+{
+	vecConfig.posactual = sect;
+}
