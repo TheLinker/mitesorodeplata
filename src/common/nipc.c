@@ -94,12 +94,12 @@ int32_t recv_socket(nipc_packet *packet, nipc_socket sock)
 	return -1;
     //* Mientras no hayamos leido todos los datos solicitados
     aux = recv (sock, packet, 3, 0);
-//printf("Recibido: %d %d %d\n", aux, packet->type, packet->len);
+    //printf("Recibido: %d %d %d\n", aux, packet->type, packet->len);
     leido = leido + aux;
     while (leido < (3 + packet->len))
     {
 	aux = recv(sock, packet->buffer + leido, (3 + packet->len) - leido,0);
-//printf("Recibido: %d bytes.\n", aux);
+	//printf("Recibido: %d bytes.\n", aux);
 	if (aux > 0)
 	{
 		//* Si hemos conseguido leer datos, incrementamos la variable
