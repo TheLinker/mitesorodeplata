@@ -1,7 +1,6 @@
 #include "conexionPFS.h"
 #include "ppd.h"
 
-extern nipc_socket sock_new;
 pthread_t thEscucharPedidos;
 int  thidEscucharPedidos;
 char* mensajet = NULL;
@@ -11,6 +10,8 @@ void conectarConPFS(config_t vecConfig)
 	datos               *info_ppal;
 	pfs                 *aux_pfs;
 	nipc_packet          mensaje;
+	nipc_socket 		*socket;
+	nipc_socket			sock_new;
 
 	//nipc_socket          sock_new;  DECLARADO EN EL MAIN
 
@@ -108,16 +109,15 @@ void conectarConPFS(config_t vecConfig)
 						strcpy(buffer.payload.contenido, "l");
 						send_socket(&buffer ,sock_new);
 
+						socket = malloc(sizeof(nipc_socket));
+						*socket = sock_new;
 
-
-						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, (void*) mensajet);
+						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, socket);
 
 					  }
 					  else
 					  {
 						//ENVIAR ERROR DE CONEXION
-						//printf("No hay discos conectados!\n");
-						//log_error(log, "Principal", "Message error: %s", "No hay discos conectados!");
 						printf("cerrar conexion: %d\n",sock_new);
 						nipc_close(sock_new);
 					  }
