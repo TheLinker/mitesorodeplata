@@ -1,0 +1,46 @@
+Documentacion del PPD
+
+El proceso PPD tiene como funcion planificar los pedidos de lectura y escritura, y realiza las operaciones sobre el Archivo de Volumen en FAT32. Cuenta con un archivo de configuracion, en el cual iran los valores iniciales para poder realizar la conexion con los demas procesos, es decir, tanto con el proceso Raid, como con el proceso PFS.
+El PPD debe aportar las siguientes funcionalidades: 
+leer sector: el disco recibe un sector y lo debe encolar para luego realizar la operacion. Esta operacion de lectura, una vez concluida, debe ser devuelta 		al PFS, o al proceso Raid, para que este se lo entregue al PFS.
+escribir sector: en el caso de tener que escribir un sector, el PPD recibe, un numero de sector el cual debera ser encolado y el contenido a escribir.
+
+Ambas funcionalidades no sera llevado a cabo sobre un disco fisico, sino sobre un archivo que emula ser un disco. Esto se logra por medio de el comando mkfs lo que permite, es formatear el archivo como FAT32, como si se tratara de una particion de disco, determinando el tamaño de sector, cantidad de sectores por clusters, etc.
+Estas funcionalidades, es decir, leer o escribir, deben ser llevadas a cabo mediante alguna de 2 implementaciones, como ser: MAPPING FILE INTO MEMORY o UNLOCKED STREAM OPERATION.
+
+En cuanto a MAPPING FILE INTO MEMORY, podria decirse que tiene como fin facilitar la manipulación y acceso de archivos y mediante esta técnica de proyección de ficheros se pueden realizar modificaciones de ficheros de manera rápida y efectiva a través de una proyección de su contenido en memoria.
+Una ventaja que puede encontrarse utilizando esta metodologia, es que no utiliza llamadas al sistema o cambios de contextos, simplemente se reduce a accesos a memoria.
+Como desventaja, podria considerarse, que al mapearse en memoria un numero entero de paginas, en el caso de tratarse de un archivo pequeño, se desperdiciaria una parte importante del mapeo.
+
+...
+En cuanto a UNLOCKED STREAM OPERATION, podria decirse...
+
+
+Funciones principales de ppd.c
+
+getconfig(): esta funcion recibe como parametro el archivo de configuracion donde iran los valores iniciales que seran tomados por el PPD. En la funcion, se filtra los parametros del archivo de configuracion para luego asignarlos en los distintos campos de la estructura config_t, para poder manejar los parametros en forma independiente.
+
+abrirArchivoV(): recibe como parametro el campo rutaDisco, de la estructura config_t. Esta ruta es en donde se encuentra el archivo formateado fat32 que simula ser un disco. La funcion devueve un puntero a la direccion de memoria en donde se abre el archivo.
+
+conectarConPRaid(): esta funcion es fundamental para realizar la conexion con el proceso PRaid. En la implementacion de la misma, se utiliza la funcion socket(), del tipo INET, la cual permite la interconexion entre procesos, estando estos en pcs separadas. 
+
+escucharPedidos(): esta funcion, se va a llevar a cabo por medio de un hilo, y va a recibir un paquete, siendo este un mensaje, el cual va a contener el numero de sector a pedir. Este sector, es el que se va a encolar, segun el algoritmo determinado por archivo de configuracion, siendo este algoritmo Cscan o NStepScan, para luego poder ser atendido. Esta escucha de pedidos, va a ser llevada a cabo contra el PFS o contra el PRAID, donde ambos nos pueden realizar pedidos indistintamente.
+
+atenderPedidos(): se lleva a cabo sobre un hilo y basicamente va a trabajar sobre el algoritmo de planificacion empleado, ya que una vez que tenemos una lista de pedidos, esta funcion se va a encargar de desencolar aquel sector que se requiera. 
+
+escucharConsola(): esta funcion se maneja sobre un hilo, y maneja un proceso que se encargara de llevar a cabo la conexion entre la consola misma y el PPD, para poder manejar distintos comandos que sirven para obtener informacion de estado del PPD.
+
+atenderConsola(): esta funcion recibe como parametro el comando que devuelve la funcion escucharConsola. El comando que se recibe por parametro, va a ser uno de los 3 pedidos que se deben mostrar por consola, es decir: info, clean o trace.
+Dependiendo del comando recibido, se llamara a la funcion correspondiente para satisfacer la peticion.
+
+leerSector(): es una de las funciones principales del PPD, la cual recibe un numero de sector por parametro y devuelve un mensaje con el contenido del sector pedido. En la implementacion de esta funcion, se utiliza la funcion principal o una de las principales, que permite mapear en memoria cierta cantidad de bytes, del archivo disco, mediante la funcion mmap. 
+
+escribirSector(): esta funcion recibe como parametro un numero de sector y el contenido a escribir. Es la operacion inversa a la funcion leerSector(), ya que en esta funcion, se busca el sector recibido en la porcion de disco mapeado en memoria, se lo reemplaza y se vuelve a copiar al disco. 
+
+paginaMap(): recibe un numero de sector y una direccion de archivo, que es la devuelta por el fopen sobre el archivo fat32.disk. La idea de esta funcion es la de iniciar el mapeo en memoria del archivo disco, mediante la funcion mmap(). Esta funcion mmap(), recibe unan serie de parametros como ser el tamaño de pagina que se quiere mapear en memoria y los distintos permisos con los que va a tratar el archivo mapeado. La funcion mmap() devuelve la direccion de memoria en donde comienza el mapeo, para luego utilizarla para realizar la lectura o escritura de disco.
+
+funcInfo(): esta funcion basicamente lo que hace es mostrar por pantalla la posicion actual del cabezal.
+
+funcClean(): recibe como parametros un sector inicial y un sector final, y limpia ese rango de sectores, seteandolos a 0.
+
+funcTrace(): dada una lista de sectores, la funcion se encarga de imprimir informacion acerca de cada sector, como ser la posicion actual, los sectores recorridos, el tiempo consumido, entre otras informaciones.
