@@ -31,13 +31,13 @@ int8_t * dirMap, * dirSect;
 int sect, cantSect, offset;
 
 
-void escucharPedidos(void);
+void escucharPedidos(nipc_socket *sock);
 
 void atenderPedido(void);
 
-void leerSect(int sect);
+void leerSect(int sect, nipc_socket sock);
 
-void escribirSect(int, char [TAM_SECT]);
+void escribirSect(int, char [TAM_SECT], nipc_socket sock);
 
 int abrirArchivoV(char * pathArch);
 
@@ -60,5 +60,7 @@ int my_itoa(int val, char* buf);
 void errorparam(void);
 
 void msjprueba(nipc_packet *);
+
+void conectarConPraid();
 
 #endif /* PPD_H_ */

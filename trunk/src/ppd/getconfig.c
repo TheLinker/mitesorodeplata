@@ -66,12 +66,6 @@ config_t getconfig(char * archivoConfig)
 				if (strncmp("chs",readLine,intDif) == 0)
 					strcpy(vecConfig.chs , var+1);
 
-				if (strncmp("pistas",readLine,intDif) == 0)
-					vecConfig.pistas = atoi(var+1);
-
-				if (strncmp("sectores",readLine,intDif) == 0)
-					vecConfig.sectores = atoi(var+1);
-
 				if (strncmp("tiempolec",readLine,intDif) == 0)
 					vecConfig.tiempolec = atoi(var+1);
 
@@ -86,8 +80,14 @@ config_t getconfig(char * archivoConfig)
 
 				if (strncmp("tiempoentrepistas",readLine,intDif) == 0)
 					vecConfig.tiempoentrepistas = atoi(var+1);
+
 			}
 		}
+
+
+			vecConfig.pistas = atoi(1 + strtok(vecConfig.chs, ","));
+			int	i = atoi( strtok(NULL, ","));
+			vecConfig.sectores = atoi(strtok(NULL, ")"));
 
 	}
 
