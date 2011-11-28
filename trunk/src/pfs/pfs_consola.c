@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "pfs_consola.h"
+#include "pfs.h"
+#include "pfs_utils.h"
 
 void *fat32_consola(void *arg)
 {
@@ -28,7 +29,8 @@ void *fat32_consola(void *arg)
                    fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_fat / 1024);
         } else if (!strcmp(w1, "finfo") && (argc == 2)) {
             file_attrs file;
-            int32_t ret = fat32_get_file_from_path((uint8_t *)path, &file, fs_tmp);
+            nipc_socket socket = fat32_get_socket(fs_tmp);
+            int32_t ret = fat32_get_file_from_path((uint8_t *)path, &file, fs_tmp, socket);
 
             if(ret == -ENOENT)
             {

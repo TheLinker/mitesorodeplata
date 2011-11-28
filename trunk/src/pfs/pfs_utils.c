@@ -77,7 +77,7 @@ void fat32_handshake(nipc_socket socket)
  * @fs_tmp estructura privada del file system
  * @first_cluster un cluster perteneciente a la cadena donde se desea agregar otro cluster
  */
-void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
+void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int32_t posicion = first_cluster;
 
@@ -85,22 +85,24 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
         posicion = fs_tmp->fat[posicion];
     }
 
-    int32_t free_cluster = fat32_first_free_cluster(fs_tmp);
+    sem_wait(&fs_tmp->mux_fat);
+        int32_t free_cluster = fat32_first_free_cluster(fs_tmp);
 
-    fs_tmp->fat[posicion] = free_cluster;
-    fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
+        fs_tmp->fat[posicion] = free_cluster;
+        fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
+    sem_post(&fs_tmp->mux_fat);
 
     int32_t bloque1 = (fs_tmp->boot_sector.reserved_sectors + (posicion / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
     int32_t bloque2 = (fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(bloque1, 1, (fs_tmp->fat) + (bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp);
+    fat32_writeblock(bloque1, 1, (fs_tmp->fat) + (bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp, socket);
     if(bloque2 != bloque1)
-        fat32_writeblock(bloque2, 1, (fs_tmp->fat) + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp);
+        fat32_writeblock(bloque2, 1, (fs_tmp->fat) + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp, socket);
 
     //Inicializamos los datos del nuevo cluster a 0
     char buffer[fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector];
     memset(buffer, '\0', fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector);
-    fat32_writecluster(free_cluster, buffer, fs_tmp);
+    fat32_writecluster(free_cluster, buffer, fs_tmp, socket);
 }
 
 /**
@@ -111,7 +113,7 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
  * @fs_tmp estructura privada del file system
  * @first_cluster un cluster perteneciente a la cadena donde se desea eliminar el ultimo cluster
  */
-void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
+void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int32_t pos_act = first_cluster;
     int32_t pos_ant = 0;
@@ -124,15 +126,17 @@ void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp)
     if (pos_ant == 0)
         return;
 
-    fs_tmp->fat[pos_ant] = fs_tmp->eoc_marker;
-    fs_tmp->fat[pos_act] = 0;
+    sem_wait(&fs_tmp->mux_fat);
+        fs_tmp->fat[pos_ant] = fs_tmp->eoc_marker;
+        fs_tmp->fat[pos_act] = 0;
+    sem_post(&fs_tmp->mux_fat);
 
     int32_t bloque1 = (fs_tmp->boot_sector.reserved_sectors + (pos_ant / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
     int32_t bloque2 = (fs_tmp->boot_sector.reserved_sectors + (pos_act / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(bloque1, 1, fs_tmp->fat + ((bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp);
+    fat32_writeblock(bloque1, 1, fs_tmp->fat + ((bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp, socket);
     if(bloque2 != bloque1)
-        fat32_writeblock(bloque2, 1, fs_tmp->fat + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp);
+        fat32_writeblock(bloque2, 1, fs_tmp->fat + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp, socket);
 }
 
 /**
@@ -180,7 +184,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
             fs_tmp->server_port = atoi(w2);
         else
         if(strcmp(w1,"tamanio_cache")==0)
-            fs_tmp->cache_size = atoi(w2) / BLOCK_SIZE;
+            fs_tmp->cache_size = atoi(w2);
         else
         if(strcmp(w1,"log_path")==0)
             strcpy(fs_tmp->log_path, w2);
@@ -219,7 +223,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
  * @return 0 si exito
  *         -EINVAL en caso de error
  */
-int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_entry_t *buffer, fs_fat32_t *fs_tmp)
+int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_entry_t *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int32_t cluster_offset = entry_number / (fs_tmp->boot_sector.bytes_per_sector *
                                              fs_tmp->boot_sector.sectors_per_cluster / 32);
@@ -232,7 +236,7 @@ int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_entry_t
         return cluster;
 
     int8_t *cluster_buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
-    fat32_getcluster(cluster, cluster_buffer, fs_tmp);
+    fat32_getcluster(cluster, cluster_buffer, fs_tmp, socket);
     memcpy((int8_t*)buffer, cluster_buffer + (entry_offset * 32), 32);
     free(cluster_buffer);
 
@@ -273,7 +277,7 @@ int32_t fat32_get_link_n_in_chain(int32_t first_cluster, int32_t cluster_offset,
  * @fs_tmp estructura privada del file system.
  * @return cantidad de entradas de directorio halladas.
  */
-uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat32_t *fs_tmp)
+uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     uint8_t directory_entry[32];
     file_attrs nuevo_archivo;
@@ -284,7 +288,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
     uint32_t current_entry=0;
     uint8_t  checksum=0;
 
-    fat32_get_entry(current_entry, first_cluster, (file_entry_t *)directory_entry, fs_tmp);
+    fat32_get_entry(current_entry, first_cluster, (file_entry_t *)directory_entry, fs_tmp, socket);
 
     while ( directory_entry[0] != AVAIL_ENTRY ) {
         switch( ((file_entry_t *)directory_entry)->file_attr ) {
@@ -362,7 +366,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
         }
 
         current_entry++;
-        fat32_get_entry(current_entry, first_cluster, (file_entry_t *)directory_entry, fs_tmp);
+        fat32_get_entry(current_entry, first_cluster, (file_entry_t *)directory_entry, fs_tmp, socket);
     }
 
     return cantidad_entradas;
@@ -380,7 +384,7 @@ uint32_t fat32_get_file_list(int32_t first_cluster, file_attrs *ret_list, fs_fat
  *         -ENOTDIR uno de los 'directorios' en el path no es un directorio.
  *         -ENOENT archivo o directorio inexistente.
  */
-int32_t fat32_get_file_from_path(const uint8_t *path, file_attrs *ret_attrs, fs_fat32_t *fs_tmp)
+int32_t fat32_get_file_from_path(const uint8_t *path, file_attrs *ret_attrs, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     if(!ret_attrs)
         return -EINVAL;
@@ -404,9 +408,9 @@ int32_t fat32_get_file_from_path(const uint8_t *path, file_attrs *ret_attrs, fs_
         if(token_array[i][0] == '\0')
             continue;
 
-        file_list_len = fat32_get_file_list(cluster_actual, NULL, fs_tmp);
+        file_list_len = fat32_get_file_list(cluster_actual, NULL, fs_tmp, socket);
         file_list = calloc(sizeof(file_attrs), file_list_len);
-        fat32_get_file_list(cluster_actual, file_list, fs_tmp);
+        fat32_get_file_list(cluster_actual, file_list, fs_tmp, socket);
 
         j = fat32_get_entry_from_name(token_array[i], file_list, file_list_len );
 
@@ -502,13 +506,13 @@ void fat32_build_name(file_attrs *file, int8_t *ret_name)
  * @return >=0 primer entrada libre.
  *         < 0 error.
  */
-int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp)
+int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int32_t ret_val = -1;
     int32_t entry_n = 0;
     int8_t  buffer[sizeof(file_entry_t)];
 
-    int8_t ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp);
+    int8_t ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp, socket);
 
     while(ret >= 0)
     {
@@ -534,7 +538,7 @@ int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp)
         }
 
         entry_n++;
-        ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp);
+        ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp, socket);
     }
 
     return ret;
@@ -570,5 +574,38 @@ void hex_log(unsigned char * buff, int cantidad)
         else if ((i+1)%16) printf("  ");
         else printf("\n");
     }
+}
+
+nipc_socket fat32_get_socket(fs_fat32_t *fs_tmp)
+{
+    nipc_socket socket = -1;
+    sem_wait(&fs_tmp->mux_sockets);
+    sem_wait(&fs_tmp->sem_recursos);
+        int i = 0;
+        for(i=0;i<sizeof(fs_tmp->sockets);i++) {
+            if(fs_tmp->sockets[i].estado == SOCKET_DISP) {
+                socket = fs_tmp->sockets[i].socket;
+                fs_tmp->sockets[i].estado = SOCKET_OCUP;
+                break;
+            }
+        }
+
+        if(socket == -1) printf("Super error recontra fatal alto loco.");
+    sem_post(&fs_tmp->mux_sockets);
+
+    return socket;
+}
+
+void fat32_free_socket(nipc_socket socket, fs_fat32_t *fs_tmp)
+{
+    int i=0;
+    for(i=0;i<sizeof(fs_tmp->sockets);i++) {
+        if(fs_tmp->sockets[i].socket == socket) {
+            fs_tmp->sockets[i].estado = SOCKET_DISP;
+            break;
+        }
+    }
+
+    sem_post(&fs_tmp->sem_recursos);
 }
 
