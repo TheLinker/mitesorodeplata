@@ -8,8 +8,6 @@
 #include <arpa/inet.h>
 #include "nipc.h"
 
-#define MAX_CONECTIONS 20
-
 // Errores HANDSHAKE
 #define HANDSHAKE_OK     0
 #define NO_DISKS         1
@@ -72,7 +70,7 @@ int8_t nipc_connect_socket(nipc_socket socket, char *host, uint16_t port)
     addr_raid.sin_addr.s_addr=inet_addr(host);
     if (connect(socket,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
     {
-        printf("Error connect %d %s(%d) %d %d\n",socket, host, strlen(host), port, errno);
+        printf("Error connect %d %s(%d) %d %d(%s)\n",socket, host, strlen(host), port, errno, strerror(errno));
         return -EADDRNOTAVAIL;
     }
 
@@ -153,7 +151,7 @@ int32_t recv_socket(nipc_packet *packet, nipc_socket sock)
  *
  * @return cantidad de caracteres enviados
  */
-int32_t send_socket(nipc_packet *packet, uint32_t sock)
+int32_t send_socket(nipc_packet *packet, nipc_socket sock)
 {
     int32_t Escrito = 0;
     int32_t Aux = 0;

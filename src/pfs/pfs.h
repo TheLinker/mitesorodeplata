@@ -1,12 +1,22 @@
 #ifndef __PFS_H_
 #define __PFS_H_
 
-struct file_descriptor;
-
 #include "nipc.h"
 #include "log.h"
 #include "pfs_files.h"
 #include <pthread.h>
+#include <semaphore.h>
+
+enum estado_e {
+    SOCKET_OCUP = 0,
+    SOCKET_DISP
+};
+
+struct sockets_t
+{
+    enum estado_e estado; //SOCKET_DISP o SOCKET_OCUP
+    nipc_socket socket;
+};
 
 typedef union boot_t {
     uint8_t buffer[512];              // Offset   Longitud
@@ -26,6 +36,7 @@ typedef union boot_t {
 typedef struct fs_fat32_t {
     boot_t   boot_sector;
     uint32_t *fat;               // usar estructuras para la fat es inutil =)
+    sem_t    mux_fat;
 
     uint32_t system_area_size;   // 0x0E + 0x10 * 0x24
     int32_t  eoc_marker;         // Marca usada para fin de cadena de clusters
@@ -34,7 +45,9 @@ typedef struct fs_fat32_t {
     uint16_t server_port;
     uint16_t cache_size;
 
-    nipc_socket socket;
+    struct sockets_t sockets[MAX_CONECTIONS];
+    sem_t sem_recursos;
+    sem_t mux_sockets;
 
     struct file_descriptor open_files[MAX_OPEN_FILES];
 
