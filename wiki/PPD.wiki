@@ -1,4 +1,4 @@
-Documentacion del PPD
+=*Documentacion del PPD*=
 
 El proceso PPD tiene como funcion planificar los pedidos de lectura y escritura, y realiza las operaciones sobre el Archivo de Volumen en FAT32. Cuenta con un archivo de configuracion, en el cual iran los valores iniciales para poder realizar la conexion con los demas procesos, es decir, tanto con el proceso Raid, como con el proceso PFS.
 El PPD debe aportar las siguientes funcionalidades: 
@@ -15,6 +15,10 @@ Como desventaja, podria considerarse, que al mapearse en memoria un numero enter
 ...
 En cuanto a UNLOCKED STREAM OPERATION, podria decirse...
 
+------------------------------------------------------------------------------
+En lo que se refiere al proceso *consolappd*, este proceso una vez corrido, estara a la espera de que se le conecte el *proceso ppd*. Una vez que ambos procesos se conectan, por medio de socket UNIX, la consola estara a la espera de que se ingresen comandos, para mostrar por pantalla distintas informaciones.
+
+------------------------------------------------------------------------------
 
 Funciones principales de ppd.c
 
