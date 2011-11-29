@@ -125,31 +125,34 @@ void atenderPedido()
 		ped = desencolar(&headprt, &saltoptr);
 		sem_post(&semEnc);
 
-		if (ped == NULL)
-			continue;
-		if(0 == (ped->sect % 5000))
-			printf("SECTOR PEDIDO %d \n", ped->sect);
-
-		switch(ped->oper)
+		if (ped != NULL)
 		{
+			if(0 == (ped->sect % 5000))
+				printf("SECTOR PEDIDO %d \n", ped->sect);
 
-			case nipc_req_read:
-				leerSect(ped->sect, ped->socket);
-				break;
-			case nipc_req_write:
-				escribirSect(ped->sect, ped->buffer, ped->socket);
-				break;
-			case nipc_req_trace:
-				traceSect(ped->sect, ped->nextsect,(int) ped->buffer);
-				break;
+			switch(ped->oper)
+			{
 
-			default:
-				printf("Error comando PPD %d \n", ped->oper);
-				break;
+				case nipc_req_read:
+					leerSect(ped->sect, ped->socket);
+					break;
+				case nipc_req_write:
+					escribirSect(ped->sect, ped->buffer, ped->socket);
+					break;
+				case nipc_req_trace:
+					traceSect(ped->sect, ped->nextsect,(int) ped->socket);
+					break;
 
-		}
+				default:
+					printf("Error comando PPD %d \n", ped->oper);
+					break;
+
+			}
+
 
 		free(ped);
+
+		}
 
 	}
 }
@@ -428,7 +431,6 @@ void funcTrace(char * parametros, int cliente)
 	pedido.type = nipc_req_trace;
 	pedido.len = (sizeof(nipc_packet));
 	memset(pedido.payload.contenido, '\0', TAM_SECT);
-	sprintf(pedido.payload.contenido,"%d",cliente);
 
 	//encolar
 	for(i=0; i<cantparam; i++)
@@ -437,7 +439,7 @@ void funcTrace(char * parametros, int cliente)
 		pedido.payload.sector= lsectores[i];
 		//encolar
 		sem_wait(&semEnc);
-		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
+		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
 		sem_post(&semEnc);
 
 	}
