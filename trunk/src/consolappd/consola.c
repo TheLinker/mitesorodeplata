@@ -5,11 +5,12 @@ int main ()
 		//inicializo una estructura nipc para la comunicacion
 
 	   /** ---------------------------------------------ME CONECTO AL PPD---------*/
+	sleep(1);
+	printf("Arranco la consola\n");
 
 	int cliente, lengthCliente, resultado;
 	struct sockaddr_un direccionServidor;
 	struct sockaddr* punteroServidor;
-	char comando[10];
 
 	punteroServidor = ( struct sockaddr* ) &direccionServidor;
 	lengthCliente = sizeof (direccionServidor );
@@ -19,7 +20,7 @@ int main ()
 	direccionServidor.sun_family = AF_UNIX;
 
 	/* tipo de dominio server */
-	strcpy ( direccionServidor.sun_path, "fichero" );  /* nombre server */
+	strcpy ( direccionServidor.sun_path, "/tmp/archsocketconsola" );  /* nombre server */
 
 
 
@@ -31,6 +32,8 @@ int main ()
 			sleep(1);   /* reintento */
 
 	}   while ( resultado == -1 );
+
+	printf("Se ha conectado con el PPD \n");
 
 	while (1)
 	{
@@ -64,88 +67,99 @@ int main ()
 
 int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de bytes enviados o recibidos*/
 {
-	char *funcion, *parametros, *resp;
+	char *funcion, *parametros, cantparametros[100], resp[1024];
+	int j, cantparam = 0;
 	char comando[TAM_COMANDO];
 	unsigned int i = 0;
 	//unsigned int cantEnv = 1;
 
+	memset(comando, '\0', sizeof(comando));
 
-	strcpy(comando, "");
-
-	if(0 == strcmp(comando, ""))
-	{
-		printf("\nIngrese comando:\n");
-		fgets(comando, TAM_COMANDO, stdin);
-		comando[strlen(comando) - 1] = 0;
-	}
+	printf("\nIngrese comando:\n");
+	fgets(comando, TAM_COMANDO, stdin);
+	comando[strlen(comando) - 1] = 0;
 
 	funcion = strtok(comando, " ");
 	parametros = strtok(NULL, "\0");
 
-	if(NULL == funcion)
-	{
-		funcion = (char*)malloc(1);
-		*funcion = 0;
-	}
-
-	for(i = 0; funcion[i] != '\0' ; i++)
+	for(i = 0; (funcion != NULL) && (funcion[i] != '\0'); i++)
 		funcion[i] = tolower(funcion[i]);
 
-
-
-	if(strcmp(funcion, "info") == 0)
-	{
-
-		sprintf(comando, "%s()", funcion);
-		//if(!(bytesEnvRec = send(comando)))
-			//return cantEnv;
-		send(cliente,resp,strlen(resp),0);
-		funcInfo(resp);
-
-	}else
-
-	if(strcmp(funcion, "clean") == 0)
-	{
-		if(NULL == parametros) //Control de parametros
+	if(funcion != NULL) {
+		if(strcmp(funcion, "info") == 0)
 		{
-			//errParam();
+
+			sprintf(comando, "%s()", funcion);
+			//if(!(bytesEnvRec = send(comando)))
 			//return cantEnv;
-		}
+			//send(cliente,resp,strlen(resp),0); //ORIGINAL
 
-		//if (0 == errParamClean(parametros)){
-		sprintf(comando, "%s(%s)", funcion, parametros);
-		//if(!(cantEnv = enviar(comando)))
-			//return cantEnv;
+			send(cliente,comando,strlen(comando),0); //LO AGREGUE
 
-		send(cliente,resp,strlen(resp),0);
-		funcClean(resp);
-			//}else
-		//printf("El ingreso de parametros a sido invalido");
+			recv(cliente,resp,strlen(resp),0); //LO CAMBIE
 
-	}else
+			funcInfo(resp);
 
-	if(strcmp(funcion, "trace") == 0)
-	{
-		if(NULL == parametros) //Control de parametros
+		}else
+
+		if(strcmp(funcion, "clean") == 0)
 		{
-			//errParam();
-			//return cantEnv;
-		}
+			if(NULL == parametros) //Control de parametros
+			{
+				//errParam();
+				//return cantEnv;
+			}
 
-		//if(0 == errParamTrace(parametros)){
-		sprintf(comando, "%s(%s)", funcion, parametros);
-		//if(!(cantEnv = enviar(comando)))
-			//return cantEnv;
+			//if (0 == errParamClean(parametros)){
+			sprintf(comando, "%s(%s)", funcion, parametros);
+			//if(!(cantEnv = enviar(comando)))
+				//return cantEnv;
+			send(cliente,comando,strlen(comando),0); //LO CAMBIE
+			//send(cliente,resp,strlen(resp),0); original
 
-		send(cliente,comando,strlen(comando),0);
+			recv(cliente,resp,sizeof(resp),0); //LO CAMBIE
 
-		recv(cliente,resp,sizeof(resp),0);
+			funcClean(resp);
+				//}else
+			//printf("El ingreso de parametros a sido invalido");
 
-		funcTrace(resp);
-		//}else
-		//printf("El ingreso de parametros a sido invalido");
+		}else
+
+		if(strcmp(funcion, "trace") == 0)
+		{
+
+			memset(cantparametros, '\0', 100);
+			strncpy(cantparametros, parametros, 100);
+
+			if (NULL != cantparametros)
+			{
+				strtok(cantparametros , " ");
+				do
+				{
+					cantparam ++;
+				}
+				while( NULL != strtok(NULL , " "));
+
+
+				if(6 > cantparam)
+				{
+					sprintf(comando, "%s(%s)", funcion, parametros);
+					send(cliente,comando,strlen(comando),0);
+					for(j=0; j<cantparam; j++)
+					{
+						recv(cliente,resp,sizeof(resp),0);
+						funcTrace(resp);
+					}
+				}else
+					printf("La función trace espera como maximo 5 sectores\n");
+
+			}else
+
+			printf("La función trace espera una lista de sectores\n");
+
+		} else
+		printf("Has ingresado un comando no reconocido: %s\n", comando);
 	}
-
 	return 1;
 }
 
@@ -171,7 +185,78 @@ void funcClean(char *resp)
 
 void funcTrace(char *resp)
 {
-	printf("%s", resp);
+	int32_t psect, ssect, pnextsect, snextsect, pposactual, sposactual, pposinit, sposinit;
+	char trace[200], aux[20];
+	double tiempo;
+
+	memset(trace, '\0', 200);
+
+	psect = atoi(strtok(resp, ","));
+	ssect = atoi(strtok(NULL, ","));
+	pnextsect = atoi(strtok(NULL, ","));
+	snextsect = atoi(strtok(NULL, ","));
+	pposactual = atoi(strtok(NULL, ","));
+	sposactual = atoi(strtok(NULL, ","));
+	tiempo = atof(strtok(NULL, "\0"));
+	pposinit = pposactual;
+	sposinit = sposactual;
+
+	if(psect < pposactual)
+	{
+		for( ;pposactual<=1023 ; pposactual++)
+		{
+			memset(aux, '\0', 20);
+			sprintf(aux, "%d:%d, ", pposactual,sposactual);
+			strcat(trace, aux);
+
+		}
+		pposactual = 0;
+	}
+
+	for( ; pposactual<=psect; pposactual++)
+	{
+		memset(aux, '\0', 20);
+		sprintf(aux, "%d:%d, ", pposactual,sposactual);
+		strcat(trace, aux);
+	}
+
+	if(ssect < sposactual)
+	{
+		for( ; sposactual<=1023 ; sposactual++)
+					{
+						memset(aux, '\0', 20);
+						sprintf(aux, "%d:%d, ", sposactual,sposactual);
+						strcat(trace, aux);
+					}
+		sposactual = 0;
+	}
+
+	for( ; sposactual<=ssect; sposactual++)
+	{
+			memset(aux, '\0', 20);
+			if(sposactual == ssect)
+			{
+				sprintf(aux, "%d:%d", sposactual,sposactual);
+				strcat(trace, aux);
+			}
+			else
+			{
+			sprintf(aux, "%d:%d, ", sposactual,sposactual);
+			strcat(trace, aux);
+			}
+
+
+	}
+
+
+
+	printf("Posición actual: %d:%d\n", pposinit, sposinit);
+	printf("Sector solicitado: %d:%d\n", psect, ssect);
+	printf("Sectores recorridos: %s\n", trace);
+	printf("Tiempo consumido: %g ms\n", tiempo);
+	printf("Próximo sector: %d:%d\n\n", pnextsect, snextsect);
+
+
 	return;
 }
 
