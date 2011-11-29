@@ -27,11 +27,12 @@ void agregar_disco(datos **info_ppal,uint8_t *id_disco, nipc_socket sock_new)
 	nuevo_disco = (disco *)malloc(sizeof(disco));
 	memcpy(nuevo_disco->id,id_disco,strlen((char *)id_disco)+1);
 	nuevo_disco->sock=sock_new;
-	nuevo_disco->pedido_sincro=0;
+	nuevo_disco->pedido_sincro = 0;
 	nuevo_disco->sector_sincro = (int32_t) -1;
 	nuevo_disco->ya_sincro = NULL;
 	nuevo_disco->cantidad_pedidos = 0;
-	nuevo_disco->pedidos = NULL;
+	nuevo_disco->pedidos_start = NULL;
+	nuevo_disco->pedidos_end = NULL;
 	nuevo_disco->sgte = (*info_ppal)->discos;
 	sem_wait(&((*info_ppal)->semaforo));
 	(*info_ppal)->discos = nuevo_disco;
@@ -52,7 +53,7 @@ void listar_pedidos_discos(disco *discos)
 	{
 		printf("\tDisco %s, Cantidad %d, Sincronizado %d\n", aux_disco->id, aux_disco->cantidad_pedidos, aux_disco->sector_sincro);
 		pedido *aux_pedido;
-		aux_pedido = aux_disco->pedidos;
+		aux_pedido = aux_disco->pedidos_start;
 		while(aux_pedido!=NULL)
 		{
 			printf("\t\ttype_pedido %d, Sector %d\n", aux_pedido->type, aux_pedido->sector);
@@ -62,7 +63,7 @@ void listar_pedidos_discos(disco *discos)
 	}
 }
 /**
- * Lista todos los discos y sus pedidos asignados
+ * Lista todos los discos
  *
  */
 void listar_discos(disco *discos)
@@ -114,9 +115,10 @@ uint8_t* distribuir_pedido_lectura(datos **info_ppal, nipc_packet mensaje,nipc_s
 	nuevo_pedido->type = mensaje.type;
 	nuevo_pedido->sector = mensaje.payload.sector;
 	strcpy((char *)nuevo_pedido->contenido,"");
+	nuevo_pedido->sgte = NULL;
 	
 	sem_wait(&((*info_ppal)->semaforo));
-        sock_disco =  menor_cantidad_pedidos((*info_ppal)->discos,mensaje.payload.sector);
+	sock_disco =  menor_cantidad_pedidos((*info_ppal)->discos,mensaje.payload.sector);
 	disco *aux;
 	aux = (*info_ppal)->discos;
 	while((aux != NULL) && encontrado == 0)
@@ -128,8 +130,19 @@ uint8_t* distribuir_pedido_lectura(datos **info_ppal, nipc_packet mensaje,nipc_s
 	}
 	if (encontrado == 0)
 		return (uint8_t*)"NODISK";
-	nuevo_pedido->sgte = aux->pedidos;
-	aux->pedidos = nuevo_pedido;
+	
+	if (aux->pedidos_start == NULL)
+	{
+		aux->pedidos_start = nuevo_pedido;
+		aux->pedidos_end   = nuevo_pedido;
+	}
+	else
+	{
+		aux->pedidos_end->sgte = nuevo_pedido;
+		aux->pedidos_end       = nuevo_pedido;
+	}
+	//nuevo_pedido->sgte = aux->pedidos;
+	//aux->pedidos = nuevo_pedido;
 	aux->cantidad_pedidos++;
 	sem_post(&((*info_ppal)->semaforo));
 	
@@ -150,7 +163,6 @@ void distribuir_pedido_escritura(datos **info_ppal, nipc_packet mensaje,nipc_soc
 	lista_pfs *aux_pfs = (*info_ppal)->pfs_activos;
 	while(aux_pfs != NULL  && aux_pfs->sock != sock_pfs)
 	  aux_pfs = aux_pfs->sgte;
-	
 	sectores_t *nueva_escritura;
 	nueva_escritura = (sectores_t *)malloc(sizeof(sectores_t));
 	nueva_escritura->sector = mensaje.payload.sector;
@@ -169,9 +181,21 @@ void distribuir_pedido_escritura(datos **info_ppal, nipc_packet mensaje,nipc_soc
 		nuevo_pedido->type = mensaje.type;
 		nuevo_pedido->sector = mensaje.payload.sector;
 		strcpy((char *)nuevo_pedido->contenido,(char *)mensaje.payload.contenido);
+		nuevo_pedido->sgte = NULL;
 		sem_wait(&((*info_ppal)->semaforo));
-		nuevo_pedido->sgte = aux->pedidos;
-		aux->pedidos = nuevo_pedido;
+		if (aux->pedidos_start == NULL)
+		{
+			aux->pedidos_start = nuevo_pedido;
+			aux->pedidos_end   = nuevo_pedido;
+		}
+		else
+		{
+			aux->pedidos_end->sgte = nuevo_pedido;
+			aux->pedidos_end       = nuevo_pedido;
+		}
+		//nuevo_pedido->sgte = aux->pedidos;
+		//aux->pedidos = nuevo_pedido;
+		aux->cantidad_pedidos++;
 		sem_post(&((*info_ppal)->semaforo));
 		if(send_socket(&mensaje,aux->sock)<0)
 		{
@@ -187,7 +211,6 @@ void *pedido_sincronizacion(datos **info_ppal)
 {
 	nipc_packet  mensaje;
 	disco       *el_disco;
-	
 	el_disco = (*info_ppal)->discos;
 	while(el_disco != NULL && el_disco->pedido_sincro != 0)
 		el_disco = el_disco->sgte;
@@ -202,12 +225,12 @@ void *pedido_sincronizacion(datos **info_ppal)
 		{   
 			mensaje.payload.sector = i;
 			id_disco = distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
-			/*if((i%20000)==0)
+			if((i%20000)==0)
 			{
 				printf("------------------------------\n");
 				printf("Pedido Sincronizacion parcial: %d\n",i);
 				listar_discos((*info_ppal)->discos);
-			}*/
+			}
 		}
 		printf("FIN Pedido Sincronizacion %s\n", el_disco->id);
 	}
@@ -239,8 +262,8 @@ void *espera_respuestas(datos **info_ppal)
 	while(el_disco != NULL && el_disco->hilo != pthread_self())
 		el_disco = el_disco->sgte;
 	
-	recv_socket(&mensaje,el_disco->sock);
-	uint32_t cant_sectores = 10000;//mensaje.payload.sector;
+	//recv_socket(&mensaje,el_disco->sock);
+	uint32_t cant_sectores = 100*1024;
 	
 	if ((*info_ppal)->discos->sgte != NULL)
 	{  /** SINCRONIZAR **/
@@ -258,23 +281,6 @@ void *espera_respuestas(datos **info_ppal)
 		pthread_t  hilo_sincro;
 		if(pthread_create(&hilo_sincro,NULL,(void *)pedido_sincronizacion,(void *)info_ppal)!=0)
 			printf("Error en la creacion del hilo\n");
-		
-		/**
-		uint32_t i;
-		uint8_t *id_disco;
-		mensaje.type=1;
-		mensaje.len=4;
-		for(i=0;i<=cant_sectores;i++)
-		{   
-			mensaje.payload.sector = i;
-			id_disco = distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
-			if((i%20000)==0)
-			{
-				printf("------------------------------\n");
-				printf("Pedido Sincronizacion parcial: %d\n",i);
-				listar_discos((*info_ppal)->discos);
-			}
-		} **/
 	}
 	else
 	{    /** UNICO DISCO - MAESTRO **/
@@ -286,7 +292,7 @@ void *espera_respuestas(datos **info_ppal)
 	int32_t recibido=0;
 	while(1)
 	{
-		strcpy((char *)mensaje.buffer, "");
+		//strcpy((char *)mensaje.buffer, "");
 		recibido = 0;
 		recibido = recv_socket(&mensaje,el_disco->sock);
 		if(recibido > 0)
@@ -297,7 +303,6 @@ void *espera_respuestas(datos **info_ppal)
 			//listar_pedidos_discos((*info_ppal)->discos);
 			//printf("----------\n");
 			
-			//getchar();
 			if(mensaje.type != nipc_handshake)
 			{
 				if(mensaje.type == nipc_CHS)
@@ -307,7 +312,7 @@ void *espera_respuestas(datos **info_ppal)
 				}
 				else
 				{      
-					aux_pedidos=el_disco->pedidos;
+					aux_pedidos=el_disco->pedidos_start;
 					anterior=NULL;
 					while((aux_pedidos != NULL) && (aux_pedidos->type != mensaje.type || aux_pedidos->sector != mensaje.payload.sector))
 					{
@@ -322,10 +327,9 @@ void *espera_respuestas(datos **info_ppal)
 							printf("ERROR: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
 							log_error(log, (char *)el_disco->id, "Message error: Sector:%d Error: %s", mensaje.payload.sector,mensaje.payload.contenido);
 						}
-						
 						/**	Enviar a quien hizo el pedido
-							  caso PFS se envia tal cual esta!
-						  caso PPD se modifica el tipo ya que pasa a ser escritura de un disco nuevo
+								caso PFS se envia tal cual esta!
+								caso PPD se modifica el tipo ya que pasa a ser escritura de un disco nuevo
 						*/
 						sem_wait(&((*info_ppal)->semaforo));
 						disco *aux_disco;
@@ -335,7 +339,7 @@ void *espera_respuestas(datos **info_ppal)
 						
 						if (aux_disco != NULL)//(aux_disco->sock == aux_pedidos->sock)
 						{  /** es una sincronizacion de disco **/
-							el_disco->cantidad_pedidos--;
+							//el_disco->cantidad_pedidos--;
 							//printf("Envio de sector %d al PPD %s-%d\n",mensaje.payload.sector,aux_disco->id,aux_pedidos->sock);
 							mensaje.type = 2;
 							pedido *nuevo_pedido;
@@ -344,8 +348,18 @@ void *espera_respuestas(datos **info_ppal)
 							nuevo_pedido->type = mensaje.type;
 							nuevo_pedido->sector = mensaje.payload.sector;
 							strcpy((char *)nuevo_pedido->contenido,(char *)mensaje.payload.contenido);
-							nuevo_pedido->sgte = aux_disco->pedidos;
-							aux_disco->pedidos = nuevo_pedido;
+							nuevo_pedido->sgte = NULL;
+							if (aux_disco->pedidos_start == NULL)
+							{
+								aux_disco->pedidos_start = nuevo_pedido;
+								aux_disco->pedidos_end   = nuevo_pedido;
+							}
+							else
+							{
+								aux_disco->pedidos_end->sgte = nuevo_pedido;
+								aux_disco->pedidos_end       = nuevo_pedido;
+							}
+							aux_disco->cantidad_pedidos++;
 							/** ENVIAR ESCRITURA A DISCO **/
 							if(send_socket(&mensaje,aux_pedidos->sock)<0)
 							{ // Aca viene el problema
@@ -355,13 +369,12 @@ void *espera_respuestas(datos **info_ppal)
 						else
 						{
 							if(aux_pedidos->sock != -1)
-							{   /** es una respuesta a una escritura de un PFS **/
+							{   /** es una respuesta a una escritura de un PFS o sincronizacion **/
 								if(mensaje.type == nipc_req_read)
 								{
 									//printf("Recibida lectura del sector: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
 									log_info(log, (char *)el_disco->id, "Message info: Recibida lectura del sector: %d - %s", mensaje.payload.sector,mensaje.payload.contenido);
-									el_disco->cantidad_pedidos--;
-									
+									//el_disco->cantidad_pedidos--;
 									if(send_socket(&mensaje,aux_pedidos->sock)<=0)
 									{
 										//printf("\nError envio a PFS");
@@ -401,13 +414,16 @@ void *espera_respuestas(datos **info_ppal)
 											//printf("\nError envio a PFS");
 										}
 									}
-									sem_post(&(aux_pfs->semaforo));
-									
+									sem_post(&(aux_pfs->semaforo));	
 								}
-								
 							}
 							else
 							{   /** es una respuesta de sincronizacion **/
+								if((el_disco->sector_sincro%10000)==0)
+								{
+									printf("Sincronizacion parcial: %d\n",el_disco->sector_sincro);
+									listar_discos((*info_ppal)->discos);
+								}
 								if((el_disco->sector_sincro + 1) > mensaje.payload.sector)
 								{  /** ya estaba sincronizado este sector **/
 									printf("Sector YA ESTABA SINCRONIZADO en disco: %s - %d\n",el_disco->id,aux_pedidos->sock);
@@ -449,23 +465,18 @@ void *espera_respuestas(datos **info_ppal)
 									log_info(log, (char *)el_disco->id, "Message info: Finaliza sincronizacion: %s - %s.%.3hu ",el_disco->id,str_time, tmili.millitm);
 									listar_discos((*info_ppal)->discos);
 								}
-								//el_disco->cantidad_pedidos--;
-								/*if((el_disco->sector_sincro%1000)==0)
-								{
-									printf("Sincronizacion parcial: %d\n",el_disco->sector_sincro);
-									//listar_discos((*info_ppal)->discos);
-								}*/
 							}
 						}
 						if(anterior == NULL)
 						{
-							el_disco->pedidos = (el_disco->pedidos)->sgte;
+							el_disco->pedidos_start = (el_disco->pedidos_start)->sgte;
 						}
 						else
 						{
 							anterior->sgte = aux_pedidos->sgte;
 						}
 						free(aux_pedidos);
+						el_disco->cantidad_pedidos--;
 						sem_post(&((*info_ppal)->semaforo));
 					}
 					else
@@ -486,7 +497,6 @@ void *espera_respuestas(datos **info_ppal)
 	}
 	printf("------------------------------\n");
 	pthread_exit(NULL);
-	//pthread_kill(pthread_self(),SIGKILL);
 	return 0;
 }
 
@@ -547,8 +557,6 @@ void liberar_pfs_caido(lista_pfs **pedidos_pfs, nipc_socket sock)
 	{
 		anterior = anterior->sgte;
 	}
-	
-	
 	nipc_close(aux_pfs->sock);
 	free(aux_pfs);
 }
@@ -559,108 +567,98 @@ void liberar_pfs_caido(lista_pfs **pedidos_pfs, nipc_socket sock)
  */
 uint16_t limpio_discos_caidos(datos **info_ppal,nipc_socket sock_ppd)
 {
-  config_t *config;
-  config = calloc(sizeof(config_t), 1);
-  config_read(config);
-  log_t* log = log_new(config->log_path, "PRAID", config->log_mode);
-    
-  uint32_t estado = ESTADO_FAIL; // inicializa como si no hubiera discos sincronizados
-  nipc_packet mensaje;
-  disco *aux_discos;
-  disco *anterior = NULL;
-  
-  /** los dejo a mano para liberar al termino del programa **/
-  sectores_t *aux_sock=(sectores_t *)malloc(sizeof(sectores_t));
-  aux_sock->sector = sock_ppd;
-  aux_sock->sgte = (*info_ppal)->sock_x_liberar;
-  (*info_ppal)->sock_x_liberar = aux_sock;
-  
-  
-  sem_wait(&((*info_ppal)->semaforo));
-  aux_discos = (*info_ppal)->discos;
-  while(aux_discos != NULL && aux_discos->sock != sock_ppd)
-  {
-    anterior = aux_discos;
-    aux_discos = aux_discos->sgte;
-  }
-  //if(aux_discos->sock == sock_ppd) //Saco disco de la lista
-  if(anterior == NULL)
-    (*info_ppal)->discos = ((*info_ppal)->discos)->sgte;
-  else
-    anterior->sgte = aux_discos->sgte;
-  sem_post(&((*info_ppal)->semaforo));
-  
-  //pthread_kill(aux_discos->hilo,SIGKILL);
-
-  printf("Se perdio la conexion con el disco %s\n",aux_discos->id);
-  log_error(log, (char *)aux_discos->id, "Message error: Se perdio la conexion con el disco %s", aux_discos->id);
-  
-  if ((*info_ppal)->discos != NULL)
-  {   //Re-Direcciono pedidos de discos caidos
-    pedido *aux_pedidos;
-    pedido *liberar_pedido;
-    aux_pedidos = aux_discos->pedidos;
-    while(aux_pedidos != NULL)
-    {
-      //saco el pedido del disco
-      if (aux_pedidos->type == nipc_req_read)
-      {
-	mensaje.type = aux_pedidos->type;
-	mensaje.len = 4;
-	mensaje.payload.sector = aux_pedidos->sector;
-	strcpy((char *)mensaje.payload.contenido,(char *)aux_pedidos->contenido);
-	uint8_t *id_disco;
-	id_disco = distribuir_pedido_lectura(info_ppal,mensaje,aux_pedidos->sock);
-	if(id_disco == (uint8_t*)"NODISK")
+	config_t *config;
+	config = calloc(sizeof(config_t), 1);
+	config_read(config);
+	log_t* log = log_new(config->log_path, "PRAID", config->log_mode);
+	uint32_t estado = ESTADO_FAIL; // inicializa como si no hubiera discos sincronizados
+	nipc_packet mensaje;
+	disco *aux_discos;
+	disco *anterior = NULL;
+	/** los dejo a mano para liberar al termino del programa **/
+	sectores_t *aux_sock=(sectores_t *)malloc(sizeof(sectores_t));
+	aux_sock->sector = sock_ppd;
+	aux_sock->sgte = (*info_ppal)->sock_x_liberar;
+	(*info_ppal)->sock_x_liberar = aux_sock;
+	sem_wait(&((*info_ppal)->semaforo));
+	aux_discos = (*info_ppal)->discos;
+	while(aux_discos != NULL && aux_discos->sock != sock_ppd)
 	{
-	  printf("No hay discos SINCRONIZADOS\n");
-	  break;//return (uint16_t) 1;
+		anterior = aux_discos;
+		aux_discos = aux_discos->sgte;
+	}
+	//if(aux_discos->sock == sock_ppd) //Saco disco de la lista
+	if(anterior == NULL)
+		(*info_ppal)->discos = ((*info_ppal)->discos)->sgte;
+	else
+		anterior->sgte = aux_discos->sgte;
+	sem_post(&((*info_ppal)->semaforo));
+	printf("Se perdio la conexion con el disco %s\n",aux_discos->id);
+	log_error(log, (char *)aux_discos->id, "Message error: Se perdio la conexion con el disco %s", aux_discos->id);
+	  
+	if ((*info_ppal)->discos != NULL)
+	{   //Re-Direcciono pedidos de discos caidos
+		pedido *aux_pedidos;
+		pedido *liberar_pedido;
+		aux_pedidos = aux_discos->pedidos_start;
+		while(aux_pedidos != NULL)
+		{
+			//saco el pedido del disco
+			if (aux_pedidos->type == nipc_req_read)
+			{
+				mensaje.type = aux_pedidos->type;
+				mensaje.len = 4;
+				mensaje.payload.sector = aux_pedidos->sector;
+				strcpy((char *)mensaje.payload.contenido,(char *)aux_pedidos->contenido);
+				uint8_t *id_disco;
+				id_disco = distribuir_pedido_lectura(info_ppal,mensaje,aux_pedidos->sock);
+				if(id_disco == (uint8_t*)"NODISK")
+				{
+					printf("No hay discos SINCRONIZADOS\n");
+					break;//return (uint16_t) 1;
+				}
+				else
+				{
+					printf("Re-Distribuir pedido: %d en disco: %s\n",mensaje.payload.sector, id_disco);
+					log_info(log, (char *)aux_discos->id , "Message info: Re-Distribuir pedido: %d en disco: %s", mensaje.payload.sector,id_disco);
+				}
+				aux_discos->cantidad_pedidos--;
+			}
+			aux_discos->pedidos_start = aux_pedidos->sgte;
+			liberar_pedido = aux_pedidos;
+			free(liberar_pedido);
+			aux_pedidos = aux_pedidos->sgte;
+		}
 	}
 	else
-	{
-	  printf("Re-Distribuir pedido: %d en disco: %s\n",mensaje.payload.sector, id_disco);
-	  log_info(log, (char *)aux_discos->id , "Message info: Re-Distribuir pedido: %d en disco: %s", mensaje.payload.sector,id_disco);
+	{  /** Enviar aviso a los PFS que se cerrara el sistema **/
+		printf("No hay discos para redireccionar\n");
+		(*info_ppal)->max_sector = 0;
+		return 1;
 	}
-	aux_discos->cantidad_pedidos--;
-      }
-      aux_discos->pedidos = aux_pedidos->sgte;
-      liberar_pedido = aux_pedidos;
-      free(liberar_pedido);
-      aux_pedidos = aux_pedidos->sgte;
-    }
-  }
-  else
-  {  /** Enviar aviso a los PFS que se cerrara el sistema **/
-    printf("No hay discos para redireccionar\n");
-	(*info_ppal)->max_sector = 0;
-	return 1;
-  }
-  
-  disco *liberar_disco;
-  liberar_disco = aux_discos;
-  free(liberar_disco);
-  aux_discos = (*info_ppal)->discos;
-  while((aux_discos != NULL) && (estado == ESTADO_FAIL))
-  {
-    if(aux_discos->sector_sincro == (*info_ppal)->max_sector)
-      estado = ESTADO_OK;
-    aux_discos = aux_discos->sgte;
-  }
-  if (estado == ESTADO_FAIL)
-  {
-    (*info_ppal)->max_sector = 0;   // informa que no hay discos consistentes 
-    printf("paso por aca\n");
-  }
-  
-  /**   Sockets a liberar cuando termine el programa
-  aux_sock = (*info_ppal)->sock_x_liberar;
-  while(aux_sock != NULL)
-  {
-	printf("Eliminar: %d\n",aux_sock->sock);
-	aux_sock = aux_sock->sgte;
-  } **/
-  
-  return 0;
+	disco *liberar_disco;
+	liberar_disco = aux_discos;
+	free(liberar_disco);
+	aux_discos = (*info_ppal)->discos;
+	while((aux_discos != NULL) && (estado == ESTADO_FAIL))
+	{
+		if(aux_discos->sector_sincro == (*info_ppal)->max_sector)
+			estado = ESTADO_OK;
+		aux_discos = aux_discos->sgte;
+	}
+	if (estado == ESTADO_FAIL)
+	{
+		(*info_ppal)->max_sector = 0;   // informa que no hay discos consistentes 
+		printf("paso por aca\n");
+	}
+	/**   Sockets a liberar cuando termine el programa
+	aux_sock = (*info_ppal)->sock_x_liberar;
+	while(aux_sock != NULL)
+	{
+		printf("Eliminar: %d\n",aux_sock->sock);
+		aux_sock = aux_sock->sgte;
+	} **/
+	return 0;
 }
 
 /**
@@ -669,30 +667,30 @@ uint16_t limpio_discos_caidos(datos **info_ppal,nipc_socket sock_ppd)
  */
 uint16_t limpio_pedidos(datos **info_ppal,nipc_socket sock_caido)
 {
-  disco *aux_discos;
-  //sem_wait(&((*info_ppal)->semaforo));
-  //sem_post(&((*info_ppal)->semaforo));
-  aux_discos = (*info_ppal)->discos;
-  while(aux_discos != NULL)
-  {
-    pedido *aux_pedidos;
-    pedido *liberar_pedido;
-    aux_pedidos = aux_discos->pedidos;
-    while(aux_pedidos != NULL)
-    {
-      //saco el pedido del disco
-      if (aux_pedidos->sock == sock_caido)
-      {
-	aux_discos->cantidad_pedidos--;
-      }
-      aux_discos->pedidos = aux_pedidos->sgte;
-      liberar_pedido = aux_pedidos;
-      free(liberar_pedido);
-      aux_pedidos = aux_pedidos->sgte;
-    }
-    aux_discos = aux_discos->sgte;
-  }
-  return 0;
+	disco *aux_discos;
+	//sem_wait(&((*info_ppal)->semaforo));
+	//sem_post(&((*info_ppal)->semaforo));
+	aux_discos = (*info_ppal)->discos;
+	while(aux_discos != NULL)
+	{
+		pedido *aux_pedidos;
+		pedido *liberar_pedido;
+		aux_pedidos = aux_discos->pedidos_start;
+		while(aux_pedidos != NULL)
+		{
+			//saco el pedido del disco
+			if (aux_pedidos->sock == sock_caido)
+			{
+				aux_discos->cantidad_pedidos--;
+			}
+			aux_discos->pedidos_start = aux_pedidos->sgte;
+			liberar_pedido = aux_pedidos;
+			free(liberar_pedido);
+			aux_pedidos = aux_pedidos->sgte;
+		}
+		aux_discos = aux_discos->sgte;
+	}
+	return 0;
 }
 
 /**
@@ -701,66 +699,64 @@ uint16_t limpio_pedidos(datos **info_ppal,nipc_socket sock_caido)
  */
 int config_read(config_t *config)
 {
-    char line[1024], w1[1024], w2[1024];
-    FILE *fp;
-
-    fp = fopen("./bin/praid.conf","r");
-    if( fp == NULL ) {
-        printf("No se encuentra el archivo de configuración\n");
-        return 1;
+	char line[1024], w1[1024], w2[1024];
+	FILE *fp;
+	fp = fopen("./bin/praid.conf","r");
+    if( fp == NULL )
+	{
+		printf("No se encuentra el archivo de configuración\n");
+		return 1;
     }
+    while( fgets(line, sizeof(line), fp) )
+	{
+		char* ptr;
+		if( line[0] == '/' && line[1] == '/' )
+			continue;
+		if( (ptr = strstr(line, "//")) != NULL )
+			*ptr = '\n'; //Strip comments
+		if( sscanf(line, "%[^:]: %[^\t\r\n]", w1, w2) < 2 )
+			continue;
+		//Strip trailing spaces
+		ptr = w2 + strlen(w2);
+		while (--ptr >= w2 && *ptr == ' ');
+			ptr++;
+		*ptr = '\0';
 
-    while( fgets(line, sizeof(line), fp) ) {
-        char* ptr;
-
-        if( line[0] == '/' && line[1] == '/' )
-            continue;
-        if( (ptr = strstr(line, "//")) != NULL )
-            *ptr = '\n'; //Strip comments
-        if( sscanf(line, "%[^:]: %[^\t\r\n]", w1, w2) < 2 )
-            continue;
-
-        //Strip trailing spaces
-        ptr = w2 + strlen(w2);
-        while (--ptr >= w2 && *ptr == ' ');
-        ptr++;
-        *ptr = '\0';
-
-        if(strcmp(w1,"host")==0)
-            strcpy((char *)(config->server_host), w2);
-        else 
-        if(strcmp(w1,"puerto")==0)
-            config->server_port = atoi(w2);
-        else
-        if(strcmp(w1,"flag_consola")==0)
-        {
-            if(strcmp(w1,"true") == 0)
-                config->console = 1;
-            else
-            if(strcmp(w1,"false") == 0)
-                config->console = 0;
-        }else
-        if(strcmp(w1,"log_path")==0)
-            strcpy(config->log_path, w2);
-        else
-        if(strcmp(w1,"log_mode")==0)
-        {
-            if(strcmp(w2,"none") == 0)
-	    config->log_mode = LOG_OUTPUT_NONE;
-            else
-            if(strcmp(w2,"console") == 0)
-                config->log_mode = LOG_OUTPUT_CONSOLE;
-            else
-            if(strcmp(w2,"file") == 0)
-                config->log_mode = LOG_OUTPUT_FILE;
-            else
-            if(strcmp(w2,"file+console") == 0)
-                config->log_mode = LOG_OUTPUT_CONSOLEANDFILE;
-        }
-        else
-            printf("Configuracion desconocida:'%s'\n", w1);
-    }
-
-    fclose(fp);
-    return 0;
+		if(strcmp(w1,"host")==0)
+			strcpy((char *)(config->server_host), w2);
+		else 
+			if(strcmp(w1,"puerto")==0)
+			config->server_port = atoi(w2);
+			else
+				if(strcmp(w1,"flag_consola")==0)
+				{
+					if(strcmp(w1,"true") == 0)
+						config->console = 1;
+					else
+						if(strcmp(w1,"false") == 0)
+							config->console = 0;
+				}
+				else
+				if(strcmp(w1,"log_path")==0)
+					strcpy(config->log_path, w2);
+				else
+				if(strcmp(w1,"log_mode")==0)
+				{
+					if(strcmp(w2,"none") == 0)
+						config->log_mode = LOG_OUTPUT_NONE;
+					else
+						if(strcmp(w2,"console") == 0)
+							config->log_mode = LOG_OUTPUT_CONSOLE;
+						else
+							if(strcmp(w2,"file") == 0)
+								config->log_mode = LOG_OUTPUT_FILE;
+							else
+							if(strcmp(w2,"file+console") == 0)
+								config->log_mode = LOG_OUTPUT_CONSOLEANDFILE;
+				}
+				else
+					printf("Configuracion desconocida:'%s'\n", w1);
+	}
+	fclose(fp);
+	return 0;
 }
