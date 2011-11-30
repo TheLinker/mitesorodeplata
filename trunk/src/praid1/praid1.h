@@ -36,7 +36,8 @@ typedef struct _disco{
     int32_t          sector_sincro;
     sectores_t      *ya_sincro;
     uint32_t         cantidad_pedidos;
-    pedido          *pedidos;
+    pedido          *pedidos_start;
+    pedido          *pedidos_end;
     struct _disco   *sgte;
 } __attribute__ ((packed)) disco;
 
