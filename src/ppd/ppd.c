@@ -424,7 +424,7 @@ void funcTrace(char * parametros, int cliente)
 
 	for(j=1; j<cantparam; j++ )
 	{
-		strcpy(lsectores[0], strtok(NULL, " "));
+		strcpy(lsectores[j], strtok(NULL, " "));
 	}
 
 	nipc_packet pedido;
