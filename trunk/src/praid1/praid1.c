@@ -36,25 +36,27 @@ int main(int argc, char *argv[])
   lista_pfs           *aux_pfs;
   uint32_t             max_sock;
   nipc_packet          mensaje;
-  nipc_socket          sock_new;
+  nipc_socket          sock_raid,sock_new;
   struct sockaddr_in  *addr_ppd = malloc(sizeof(struct sockaddr_in));
   uint32_t             clilen;
   fd_set               set_socket;
   
-  info_ppal->sock_raid = -1;
+  
+  sock_raid = -1;
+  info_ppal->sock_control = -1;
   info_ppal->pfs_activos = NULL;
   info_ppal->discos    = NULL;
   
-  info_ppal->sock_raid = create_socket();
-  nipc_bind_socket(info_ppal->sock_raid,(char *)config->server_host,config->server_port);
-  nipc_listen(info_ppal->sock_raid);
+  sock_raid = create_socket();
+  nipc_bind_socket(sock_raid,(char *)config->server_host,config->server_port);
+  nipc_listen(sock_raid);
   
   
   
   printf("------------------------------\n");
-  printf("--- Socket escucha RAID: %d ---\n",info_ppal->sock_raid);
+  printf("--- Socket escucha RAID: %d ---\n",sock_raid);
   printf("------------------------------\n");
-  log_info(log, "Principal", "Message info: Socket escucha %d", info_ppal->sock_raid);
+  log_info(log, "Principal", "Message info: Socket escucha %d", sock_raid);
   
   sem_init(&(info_ppal->semaforo),1,1);
   
@@ -63,9 +65,9 @@ int main(int argc, char *argv[])
   {
     FD_ZERO(&set_socket);
     
-    FD_SET(info_ppal->sock_raid, &set_socket);
+    FD_SET(sock_raid, &set_socket);
     
-    max_sock = info_ppal->sock_raid;
+    max_sock = sock_raid;
     
     aux_pfs = info_ppal->pfs_activos;
     while(aux_pfs != NULL)
@@ -159,9 +161,9 @@ int main(int argc, char *argv[])
      * SOCKECT PRINCIPAL DE ESCUCHA
      */
     
-    if(FD_ISSET(info_ppal->sock_raid, &set_socket)>0)
+    if(FD_ISSET(sock_raid, &set_socket)>0)
     {
-      if( (sock_new=accept(info_ppal->sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
+      if( (sock_new=accept(sock_raid,(struct sockaddr *)addr_ppd,(void *)&clilen)) <0)
       {
 	printf("ERROR en la nueva conexion\n");
 	log_error(log, "Principal", "Message error: %s", "No se pudo establecer la conexion");

@@ -10,6 +10,7 @@ void         agregar_disco(datos **info_ppal, uint8_t *id_disco,nipc_socket sock
 void         listar_pedidos_discos(disco *discos);
 void         listar_discos(disco *discos);
 nipc_socket  menor_cantidad_pedidos(disco *discos, int32_t sector);
+nipc_socket  uno_y_uno(datos **info_ppal, int32_t sector);
 uint8_t     *distribuir_pedido_lectura(datos **info_ppal,nipc_packet mensaje,nipc_socket sock_pfs);
 void         distribuir_pedido_escritura(datos **info_ppal,nipc_packet mensaje,nipc_socket sock_pfs);
 void        *espera_respuestas(datos **info_ppal);
