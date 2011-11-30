@@ -184,18 +184,18 @@ void escucharConsola()
 	//unlink( "fichero" );
    
 	if (bind ( servidor, punteroServidor, lengthServidor ) <0)   /* crea el fichero */
-  {   
-       printf("ERROR BIND");
+	{
+       printf("ERROR BIND\n");
        exit(1);
-  }  
+	}
 
 	puts ("\n Estoy a la espera \n");
    
 	if (listen ( servidor, 1 ) <0 )
-  {  
-       printf("ERROR LISTEN");
+	{
+       printf("ERROR LISTEN\n");
        exit(1);
-  }  
+	}
 
 	do	//verifico que se quede esperando la conexion en caso de error
 
@@ -210,7 +210,7 @@ void escucharConsola()
 
 		if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
 		{
-			printf("error recibiendo");
+			printf("error recibiendo\n");
 			exit(0);
 		}
 
@@ -401,15 +401,16 @@ void funcClean(char * parametros, int cliente)
 
 void funcTrace(char * parametros, int cliente)
 {
-	int i, j, cantparam =0, lsectores[5];
-	char cantparametros[100];
-
+	int i, j, cantparam =0;
+	char cantparametros[100],lsectores[5][25];
 	memset(cantparametros, '\0', 100);
 	strncpy(cantparametros, parametros, 100);
 
 	for(i=0; i<5; i++)
 	{
-		lsectores[i] = -1;
+		int k;
+		for (k = 0 ; k < 25 ; k++)
+			lsectores[i][k] = '\0';
 	}
 
 	strtok(cantparametros , " ");
@@ -419,11 +420,11 @@ void funcTrace(char * parametros, int cliente)
 	}
 	while( NULL != strtok(NULL , " "));
 
-	lsectores[0]= atoi(strtok(parametros, " "));
+	strcpy(lsectores[0], strtok(parametros, " "));
 
 	for(j=1; j<cantparam; j++ )
 	{
-		lsectores[j]= atoi(strtok(NULL, " "));
+		strcpy(lsectores[0], strtok(NULL, " "));
 	}
 
 	nipc_packet pedido;
@@ -436,7 +437,7 @@ void funcTrace(char * parametros, int cliente)
 	for(i=0; i<cantparam; i++)
 	{
 		//setea el sector
-		pedido.payload.sector= lsectores[i];
+		pedido.payload.sector= calcularSector(lsectores[i]);
 		//encolar
 		sem_wait(&semEnc);
 		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
@@ -445,6 +446,12 @@ void funcTrace(char * parametros, int cliente)
 	}
 
 	return;
+}
+int calcularSector(char structSect[25])
+{
+	int pist = atoi(strtok(structSect, ":"));
+	int sect = atoi(strtok(NULL, "\0"));
+	return ((pist * 1024) + sect); //TODO
 }
 
 void traceSect(int sect, int32_t nextsect, int cliente)
@@ -464,6 +471,7 @@ void traceSect(int sect, int32_t nextsect, int cliente)
 	tiempo = timemovdisco(sect);
 
 	sprintf(bufferConsola, "%d,%d,%d,%d,%d,%d,%g", psect, ssect, pnextsect, snextsect, pposactual, sposactual, tiempo);
+	sleep(1);
 	send(cliente, bufferConsola, strlen(bufferConsola),0);
 	free(bufferConsola);
 }
