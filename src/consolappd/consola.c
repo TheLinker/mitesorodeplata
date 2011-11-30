@@ -36,21 +36,10 @@ int main ()
 	printf("Se ha conectado con el PPD \n");
 
 	while (1)
-	{
 		atenderComando(cliente);
 
-		//printf("INGRESE COMANDO: ");
 
-		//fgets(comando, TAM_COMANDO, stdin); //ingreso info, clean o trace
-
-		//if(send(cliente, comando, sizeof(comando), 0) == -1)	//envio al proceso ppd el comando que contiene el dato(info,clean o trace)
-		//{
-		//printf("error enviando");
-		//exit(0);
-		//}
-	}
-
-	close ( cliente );  //hay que cerrarlo el socket en este momento????????
+	//close ( cliente );  //hay que cerrarlo el socket en este momento????????
 }
 /*--------------------------------------------------------------------------------*/
 
@@ -213,26 +202,31 @@ void funcTrace(char *resp)
 		pposactual = 0;
 	}
 
-	for( ; pposactual<=psect; pposactual++)
+	if (pposactual != psect)
 	{
-		memset(aux, '\0', 20);
-		sprintf(aux, "%d:%d, ", pposactual,sposactual);
-		strcat(trace, aux);
+		for( ; pposactual<=psect; pposactual++)
+		{
+			memset(aux, '\0', 20);
+			sprintf(aux, "%d:%d, ", pposactual,sposactual);
+			strcat(trace, aux);
+		}
+
+		if(ssect < sposactual)
+		{
+			for( ; sposactual<=1023 ; sposactual++)
+			{
+				memset(aux, '\0', 20);
+				sprintf(aux, "%d:%d, ", sposactual,sposactual);
+				strcat(trace, aux);
+			}
+			sposactual = 0;
+		}
 	}
 
-	if(ssect < sposactual)
+	if (sposactual != ssect)
 	{
-		for( ; sposactual<=1023 ; sposactual++)
-					{
-						memset(aux, '\0', 20);
-						sprintf(aux, "%d:%d, ", sposactual,sposactual);
-						strcat(trace, aux);
-					}
-		sposactual = 0;
-	}
-
-	for( ; sposactual<=ssect; sposactual++)
-	{
+		for( ; sposactual<=ssect; sposactual++)
+		{
 			memset(aux, '\0', 20);
 			if(sposactual == ssect)
 			{
@@ -245,10 +239,8 @@ void funcTrace(char *resp)
 			strcat(trace, aux);
 			}
 
-
+		}
 	}
-
-
 
 	printf("Posición actual: %d:%d\n", pposinit, sposinit);
 	printf("Sector solicitado: %d:%d\n", psect, ssect);
