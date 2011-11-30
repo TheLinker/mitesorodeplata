@@ -37,7 +37,7 @@ nipc_socket create_socket()
     }
    if (setsockopt(sock_new, SOL_SOCKET, SO_REUSEADDR, &i,sizeof(sock_new)) < 0)
     {
-      printf("\nError: El socket ya esta siendo utilizado...");
+      printf("\nError: El socket ya esta siendo utilizado...\n");
      exit(EXIT_FAILURE);
    }
 
@@ -53,7 +53,7 @@ int8_t nipc_bind_socket(nipc_socket socket, char *host, uint16_t port)
     addr_raid.sin_addr.s_addr=inet_addr(host);
     if (bind(socket,(struct sockaddr *)&addr_raid,sizeof(struct sockaddr_in))<0)
     {
-        printf("Error bind");
+        printf("Error bind\n");
         return -EADDRNOTAVAIL;
     }
 
