@@ -50,6 +50,62 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 	return;
 }
 
+/*
+****************** Planificacion NStepScan
+*/
+
+void insertNStepScan(nipc_packet msj, cola_t** largaptr, cola_t * acotadaptr, nipc_socket socket)
+{
+  cola_t *newptr = 0;
+
+  newptr = initPtr();
+  msjtocol(msj, newptr, socket);
+
+  if (cantPedidos < 10)
+  {
+    insertOrd(acotadaptr,newptr);
+  }
+  else
+  {
+    insertAlFinal(largaptr,newptr);
+  }
+  return;
+}
+
+void insertAlFinal(cola_t** largaptr, cola_t * newptr)
+{
+  //si la lista largaptr no tiene elementos, tomo newptr como su primer elemento
+  if(largaptr == NULL)
+  {
+    largaptr = newptr;
+    primerNodo = newptr;
+  }
+  else
+  {
+    largaptr.sig = newptr;
+    largaptr.nextsect = newptr.sect;
+    largaptr = newptr;
+  }
+  return;
+}
+
+ped_t * desencolarNStepScan(cola_t ** acotadaptr)
+{
+  ped_t * pedidoSalida = NULL;
+
+  if(NULL != *acotadaptr)
+  {
+    pedidoSalida = *acotadaptr;
+    *acotadaptr = (*acotadaptr)->sig;
+  }
+
+  cantPedidos--;
+
+  return pedidoSalida;
+}
+
+/*****************************************************************/
+
 void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket)
 {
 	newptr->ped.sect = msj.payload.sector;
