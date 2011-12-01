@@ -24,7 +24,7 @@ typedef struct _pedido{
 	nipc_socket      sock;
 	uint8_t          type;
 	uint32_t         sector;
-	uint8_t          contenido[512];
+	//uint8_t          contenido[512];
 	struct _pedido  *sgte;
 } __attribute__ ((packed)) pedido;
 
@@ -39,12 +39,14 @@ typedef struct _disco{
 	uint32_t         cantidad_pedidos;
 	pedido          *pedidos_start;
 	pedido          *pedidos_end;
+	int32_t          encolados;
 	struct _disco   *sgte;
 } __attribute__ ((packed)) disco;
 
 typedef struct _lista_pfs{
 	nipc_socket             sock;
 	sem_t                   semaforo;
+	pedido                 *pedidos;
 	sectores_t             *escrituras; // lista de escrituras para que solo se le envio una confirmacion
 	struct _lista_pfs      *sgte;
 } __attribute__ ((packed)) lista_pfs;
