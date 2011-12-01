@@ -25,7 +25,7 @@
 #define TAM_PAG 4096
 #define PROTOCOLO 0  
 
-char comando[30], buffer[TAM_SECT], bufferent[TAM_SECT];
+char comando[200], buffer[TAM_SECT], bufferent[TAM_SECT];
 char * pathArch;
 int8_t * dirMap, * dirSect;
 int sect, cantSect, offset;
@@ -62,5 +62,7 @@ void errorparam(void);
 void msjprueba(nipc_packet *);
 
 void conectarConPraid();
+
+int calcularSector(char structSect[25]);
 
 #endif /* PPD_H_ */

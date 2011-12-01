@@ -138,7 +138,7 @@ int sectpis(int sector)
 
 double timesect (void)
 {
-	return (sectxpis / vecConfig.rpm);
+	return ((double)sectxpis / vecConfig.rpm);
 }
 
 

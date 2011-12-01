@@ -1,6 +1,7 @@
 #include "ppd.h"
 #include "../common/nipc.h"
 #include "../common/utils.h"
+#include "../common/log.h"
 
 
 config_t vecConfig;
@@ -401,7 +402,7 @@ void funcClean(char * parametros, int cliente)
 
 void funcTrace(char * parametros, int cliente)
 {
-	int i, j, cantparam =0;
+	int i, j, h, cantparam =0;
 	char cantparametros[100],lsectores[5][25];
 	memset(cantparametros, '\0', 100);
 	strncpy(cantparametros, parametros, 100);
@@ -434,10 +435,10 @@ void funcTrace(char * parametros, int cliente)
 	memset(pedido.payload.contenido, '\0', TAM_SECT);
 
 	//encolar
-	for(i=0; i<cantparam; i++)
+	for(h=0; h<cantparam; h++)
 	{
 		//setea el sector
-		pedido.payload.sector= calcularSector(lsectores[i]);
+		pedido.payload.sector= calcularSector(lsectores[h]);
 		//encolar
 		sem_wait(&semEnc);
 		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
@@ -451,7 +452,7 @@ int calcularSector(char structSect[25])
 {
 	int pist = atoi(strtok(structSect, ":"));
 	int sect = atoi(strtok(NULL, "\0"));
-	return ((pist * 1024) + sect); //TODO
+	return ((pist * sectxpis) + sect); //TODO
 }
 
 void traceSect(int sect, int32_t nextsect, int cliente)

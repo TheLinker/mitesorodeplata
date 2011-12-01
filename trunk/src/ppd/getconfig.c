@@ -6,6 +6,7 @@ config_t getconfig(char * archivoConfig)
 {
 	config_t vecConfig;
 	size_t intDif;
+	int32_t secxpis;
 	char * var, * ptr;
 	char readLine[TAM_LINE]; //uso del tamline
 
@@ -86,8 +87,9 @@ config_t getconfig(char * archivoConfig)
 
 
 			vecConfig.pistas = atoi(1 + strtok(vecConfig.chs, ","));
-			int	i = atoi( strtok(NULL, ","));
-			vecConfig.sectores = atoi(strtok(NULL, ")"));
+			strtok(NULL, ",");
+			secxpis = atoi(strtok(NULL, ")"));
+			vecConfig.sectores = (vecConfig.pistas * secxpis);
 
 	}
 
