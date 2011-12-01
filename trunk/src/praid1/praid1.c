@@ -143,17 +143,6 @@ int main(int argc, char *argv[])
 						{
 							uint8_t *id_disco;
 							id_disco = distribuir_pedido_lectura(&info_ppal,mensaje,aux_pfs->sock);
-							if (strcmp((char *)id_disco,"NODISK")!=0)
-							{
-								disco *aux;
-								aux = info_ppal->discos;
-								while((aux != NULL) && (strcmp((char *)id_disco,(char *)aux->id)!=0))
-									aux = aux->sgte;
-								if(send_socket(&mensaje,aux->sock)<=0)
-								{
-									printf("Error envio pedido lectura %d ",mensaje.payload.sector);
-								}
-							}
 							log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
 							printf("Pedido de lectura del FS(%d) - Sector: %d en PPD: %s\n",aux_pfs->sock,mensaje.payload.sector,id_disco);
 							//printf("------------------------------\n");
@@ -165,9 +154,7 @@ int main(int argc, char *argv[])
 						}
 					}
 					if(mensaje.type == nipc_req_write)
-					{{
-			printf("Error envio pedido lectura %d ",mensaje.payload.sector);
-		}
+					{
 						if(mensaje.len != 4)
 						{
 							distribuir_pedido_escritura(&info_ppal,mensaje,aux_pfs->sock);

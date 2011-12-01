@@ -146,8 +146,8 @@ uint8_t* distribuir_pedido_lectura(datos **info_ppal, nipc_packet mensaje,nipc_s
 {
 	nipc_socket sock_disco;
 	sem_wait(&((*info_ppal)->semaforo));
-	sock_disco =  menor_cantidad_pedidos((*info_ppal)->discos,mensaje.payload.sector);
-	//sock_disco =  uno_y_uno(info_ppal,mensaje.payload.sector);
+	//sock_disco =  menor_cantidad_pedidos((*info_ppal)->discos,mensaje.payload.sector);
+	sock_disco =  uno_y_uno(info_ppal,mensaje.payload.sector);
 	
 	if (sock_disco != 0)
 	{
@@ -178,11 +178,10 @@ uint8_t* distribuir_pedido_lectura(datos **info_ppal, nipc_packet mensaje,nipc_s
 		
 		sem_post(&((*info_ppal)->semaforo));
 		
-		/*
 		if(send_socket(&mensaje,aux->sock)<=0)
 		{
 			printf("Error envio pedido lectura %d ",mensaje.payload.sector);
-		}*/
+		}
 		
 		return aux->id;
 	}
