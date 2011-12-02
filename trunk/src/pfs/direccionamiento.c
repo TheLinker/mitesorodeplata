@@ -66,14 +66,14 @@ uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_
     //Pide los sectores necesarios.
     for (i = 0 ; i < cantidad ; i++) {
         packet.payload.sector = sector + i;
-        
+
         memcpy(packet.payload.contenido, buffer+(i*fs_tmp->boot_sector.bytes_per_sector), fs_tmp->boot_sector.bytes_per_sector);
         send_socket(&packet, socket);
     }
 
     //Espera a obtener la confirmacion de la escritura.
     for (i = 0 ; i < cantidad ; i++) {
-        nipc_packet packet; 
+        nipc_packet packet;
         recv_socket(&packet, socket);
         if(packet.type == nipc_error)
         {
@@ -138,7 +138,7 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, nip
     //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
     if(cluster<2) return -EINVAL;
 
-//// SSA =                  | RSC = Reserved Sector Count  | FN = Number of FAT 
+//// SSA =                  | RSC = Reserved Sector Count  | FN = Number of FAT
 //// SF = sectors per FAT   | LSN = Logical Sector Number  | CN = Cluster Number  | SC = Sectors per Cluster
 
 ////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)
@@ -169,7 +169,7 @@ uint8_t fat32_writecluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, n
     //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
     if(cluster<2) return -EINVAL;
 
-//// SSA = Size of System Area   | RSC = Reserved Sector Count  | FN = Number of FAT 
+//// SSA = Size of System Area   | RSC = Reserved Sector Count  | FN = Number of FAT
 //// SF = sectors per FAT        | LSN = Logical Sector Number  | CN = Cluster Number  | SC = Sectors per Cluster
 
 ////  SSA=RSC(0x0E) + FN(0x10) * SF(0x24)

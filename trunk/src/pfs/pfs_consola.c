@@ -7,7 +7,7 @@
 void *fat32_consola(void *arg)
 {
     char w1[1024], path[1024];
-    fs_fat32_t *fs_tmp = (fs_fat32_t *)arg;
+    fs_fat32_t *fs_tmp = (struct fs_fat32_t *)arg;
     int8_t argc;
 
     while(42)

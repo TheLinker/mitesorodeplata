@@ -17,4 +17,5 @@ PFS_INCLUDES = $(SRC_PATH)/common/nipc.h \
                $(SRC_PATH)/pfs/pfs_utils.h \
                $(SRC_PATH)/pfs/pfs_files.h \
                $(SRC_PATH)/pfs/pfs.h \
+               $(SRC_PATH)/pfs/defs.h \
 
