@@ -1,7 +1,8 @@
 #Magia, no tocar.
 
-FLAGS      = -Wall -Isrc/common/ -Wno-unused-label
-LIBFLAGS   = -licui18n -licuuc
+FLAGS      = -Wall -Isrc/common/ -Wno-unused-label `pkg-config fuse --cflags`
+LIBFLAGS   = -licui18n -licuuc `pkg-config fuse --libs`
+
 BUILD_PATH = tmp
 BIN_PATH   = bin
 SRC_PATH   = src
@@ -23,8 +24,7 @@ PFS_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PFS_SRC) 
 
 $(PFS_BIN): $(PFS_OBJS) $(PFS_INCLUDES)
 	@echo 'LINKEANDO $@'
-	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PFS_OBJS) -o $@
-
+	@gcc $(PFS_OBJS) -o $@ $(LIBFLAGS)
 
 ##############################
 #Reglas para el Proceso RAID 1
@@ -36,7 +36,7 @@ PRAID_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PRAID_S
 
 $(PRAID_BIN): $(PRAID_OBJS) $(PRAID_INCLUDES)
 	@echo 'LINKEANDO $@'
-	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PRAID_OBJS) -o $@
+	@gcc $(LIBFLAGS) $(PRAID_OBJS) -o $@
 
 
 ##############################
@@ -49,7 +49,7 @@ PPD_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(PPD_SRC) 
 
 $(PPD_BIN): $(PPD_OBJS) $(PPD_INCLUDES)
 	@echo 'LINKEANDO $@'
-	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(PPD_OBJS) -o $@
+	@gcc $(LIBFLAGS) $(PPD_OBJS) -o $@
 
 ##############################
 #Reglas para la consola
@@ -61,7 +61,7 @@ CONSOLAPPD_OBJS = $(addprefix $(BUILD_PATH)/, $(patsubst %.c, %.o, $(notdir $(CO
 
 $(CONSOLAPPD_BIN): $(CONSOLAPPD_OBJS) $(CONSOLAPPD_INCLUDES)
 	@echo 'LINKEANDO $@'
-	@gcc $(LIBFLAGS) `pkg-config fuse --libs` $(CONSOLAPPD_OBJS) -o $@
+	@gcc $(LIBFLAGS) $(CONSOLAPPD_OBJS) -o $@
 
 
 ##############################
@@ -70,23 +70,23 @@ $(CONSOLAPPD_BIN): $(CONSOLAPPD_OBJS) $(CONSOLAPPD_INCLUDES)
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/common/%.c $(SRC_PATH)/common/%.h
 	@echo 'COMPILANDO $< -> $@'
-	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+	@gcc $(FLAGS) $< -o $@ -c
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/pfs/%.c $(PFS_INCLUDES)
 	@echo 'COMPILANDO $< -> $@'
-	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+	@gcc $(FLAGS) $< -o $@ -c
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/praid1/%.c $(PRAID_INCLUDES)
 	@echo 'COMPILANDO $< -> $@'
-	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+	@gcc $(FLAGS) $< -o $@ -c
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/ppd/%.c $(PPD_INCLUDES)
 	@echo 'COMPILANDO $< -> $@'
-	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+	@gcc $(FLAGS) $< -o $@ -c
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/consolappd/%.c $(CONSOLAPPD_INCLUDES)
 	@echo 'COMPILANDO $< -> $@'
-	@gcc $(FLAGS) `pkg-config fuse --cflags` $< -o $@ -c
+	@gcc $(FLAGS) $< -o $@ -c
 
 
 clean:

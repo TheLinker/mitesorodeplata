@@ -1,8 +1,5 @@
 #define FUSE_USE_VERSION  28
 
-#define MAX(a,b) (a)>(b)?(a):(b)
-#define MIN(a,b) (a)<(b)?(a):(b)
-
 #include <fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +11,8 @@
 #include "pfs_utils.h"
 #include "pfs_consola.h"
 #include "utils.h"
+#include "pfs_files.h"
+#include "pfs_files.h"
 #include "pfs.h"
 #include "direccionamiento.h"
 
@@ -140,7 +139,7 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 
 int fat32_write (const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-     struct fuse_context* context = fuse_get_context();
+    struct fuse_context* context = fuse_get_context();
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
 
@@ -214,6 +213,9 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
 
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
+
+    free(fs_tmp->open_files[fi->fh].cache);
+    sem_destroy(&(fs_tmp->open_files[fi->fh].sem_cache));
 
     memset(&(fs_tmp->open_files[fi->fh]), '\0', sizeof(file_descriptor));
 
@@ -333,7 +335,7 @@ int fat32_rename (const char *from, const char *to)
 
     //modificar bloque nuevo
     ((lfn_entry_t *)&lfn_entry_new)->seq_number = 0x41;
-    
+
     uint16_t utf16_name[14];
     memset(utf16_name, 0xff, sizeof(utf16_name));
     unicode_utf8_to_utf16_inbuffer((unsigned char*)nombre_arch, MAX(strlen((char*)nombre_arch) + 1, 13),
@@ -507,11 +509,18 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
     memcpy(fs_tmp->open_files[ret].path, path, strlen(path));
     fat32_build_name(&ret_attrs, fs_tmp->open_files[ret].filename);
     fs_tmp->open_files[ret].file_size = ret_attrs.file_size;
-    fs_tmp->open_files[ret].file_pos = (fi->flags & O_APPEND)?0:ret_attrs.file_size-1;
     fs_tmp->open_files[ret].first_cluster = ret_attrs.first_cluster;
     fs_tmp->open_files[ret].busy = TRUE;
     fs_tmp->open_files[ret].container_cluster = container_cluster;
     fs_tmp->open_files[ret].entry_index = ret_attrs.entry_index;
+
+    //Ahora vamos por la cache.
+    fs_tmp->open_files[ret].cache = calloc(fs_tmp->cache_size, sizeof(cache_t));
+    sem_init(&(fs_tmp->open_files[ret].sem_cache), 0, 1);
+
+    int i=0;
+    for(i=0;i < (fs_tmp->cache_size);i++)
+        fs_tmp->open_files[ret].cache[i].number = -1;
 
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;
@@ -553,7 +562,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     size -= size_to_read;
 
     memcpy(buf, cluster_buffer + offset, size_to_read);
-    
+
     while((size > 0) && (cluster_actual != fs_tmp->eoc_marker))
     {
         cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
