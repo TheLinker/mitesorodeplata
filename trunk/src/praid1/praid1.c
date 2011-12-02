@@ -13,31 +13,10 @@
 #include "praid1.h"
 #include "praid_func.h"
 
-
-datos *info_ppal;
-
-
 void sig_pipe(int signal)
 {
 	printf("Señal PIPE: %d\n",signal);
-	pedido      *aux_ped;
-	disco       *aux_disk;
-	
-	aux_disk = (info_ppal)->discos;
-	while(aux_disk != NULL)
-	{
-		printf("Disco %s - %d\n",aux_disk->id,aux_disk->sock );
-		aux_ped = aux_disk->pedidos_start;
-		while(aux_ped != NULL)
-		{
-			printf("\t Type %d - Sector %d - PFS %d\n",aux_ped->type,aux_ped->sector,aux_ped->sock );
-			aux_ped = aux_ped->sgte;
-		}
-		//getchar();
-		aux_disk = aux_disk->sgte;
-	}
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -51,8 +30,7 @@ int main(int argc, char *argv[])
 	// log_warning(log, "Principal", "Message warning: %s", "not load configuration file");
 	// log_error(log, "Principal", "Message error: %s", "Crash!!!!");
 	
-	//datos               *info_ppal = (datos *)malloc(sizeof(datos));
-	info_ppal = (datos *)malloc(sizeof(datos));
+	datos               *info_ppal = (datos *)malloc(sizeof(datos));
 	lista_pfs           *aux_pfs;
 	uint32_t             max_sock;
 	nipc_packet          mensaje;
@@ -75,12 +53,10 @@ int main(int argc, char *argv[])
 	
 	printf("------------------------------\n");
 	printf("--- Socket escucha RAID: %d ---\n",sock_raid);
-	printf("------------------------------\n");
+	printf("---%s-------%d---\n",(char *)config->server_host,config->server_port);
 	log_info(log, "Principal", "Message info: Socket escucha %d", sock_raid);
 	
 	sem_init(&(info_ppal->semaforo),0,1);
-	
-	nipc_socket control = 0;
 	  
 	while(1)
 	{
@@ -98,10 +74,7 @@ int main(int argc, char *argv[])
 			FD_SET (aux_pfs->sock, &set_socket);
 			aux_pfs = aux_pfs->sgte;
 		}
-    
-		//listar_pedidos_discos(info_ppal->discos);
-		//if (info_ppal->discos!=NULL)printf("------------------------------\n");
-		
+    	
 		select(max_sock+1, &set_socket, NULL, NULL, NULL);  
 		
 		/*
@@ -121,17 +94,9 @@ int main(int argc, char *argv[])
 		{ 
 			if(FD_ISSET(aux_pfs->sock, &set_socket)>0)
 			{
-				if (control!=aux_pfs->sock)
-				{
-					printf("PFS: %d - %d",control,aux_pfs->sock);
-					control = aux_pfs->sock;
-					//getchar();
-				}
-				
 				if(recv_socket(&mensaje,aux_pfs->sock)>0)
-				{  //usleep(2);
+				{
 					mensaje.payload.contenido[mensaje.len-4]='\0';
-					//printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 					if(mensaje.type == nipc_handshake)
 					{
 						printf("BASTA DE HANDSHAKE!!!!\n");
@@ -178,7 +143,9 @@ int main(int argc, char *argv[])
 				{
 					printf("Se cayo la conexion con el PFS: %d\n",aux_pfs->sock);
 					log_warning(log, "Principal", "Message warning: Se cayo la conexion con el PFS:%d",aux_pfs->sock);
-					liberar_pfs_caido(&info_ppal->pfs_activos,aux_pfs->sock);
+					sem_wait(&((info_ppal)->semaforo));
+					liberar_pfs_caido(&info_ppal,aux_pfs->sock);
+					sem_post(&((info_ppal)->semaforo));
 					printf("------------------------------\n");
 				}
 			}
@@ -199,9 +166,8 @@ int main(int argc, char *argv[])
 			else
 			{
 				if(recv_socket(&mensaje,sock_new)>=0)
-				{ //usleep(2);
+				{
 					mensaje.payload.contenido[mensaje.len-4]='\0';
-					//printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 					if(mensaje.type == nipc_handshake)
 					{
 						if(mensaje.len != 0)
@@ -209,8 +175,6 @@ int main(int argc, char *argv[])
 							if(info_ppal->discos == NULL) 
 								log_info(log, "Principal", "Message info: %s", "Entra en funcionamiento el PRAID");
 							printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
-							//char id_disco[20];
-							//memcpy(&id_disco,mensaje.payload.contenido,20);
 							agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo
 							FD_SET (sock_new, &set_socket);
 							log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", mensaje.payload.contenido);
@@ -229,6 +193,9 @@ int main(int argc, char *argv[])
 								nuevo_pfs = (lista_pfs *)malloc(sizeof(lista_pfs));
 								nuevo_pfs->sock=sock_new;
 								sem_init(&(nuevo_pfs->semaforo),0,1);
+								nuevo_pfs->escrituras = NULL;
+								nuevo_pfs->lecturas = NULL;
+								
 								nuevo_pfs->sgte = info_ppal->pfs_activos;
 								info_ppal->pfs_activos = nuevo_pfs;
 								FD_SET (nuevo_pfs->sock, &set_socket);

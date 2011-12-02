@@ -17,14 +17,12 @@ typedef struct _sectores_t{
 struct mensaje_cola{
 	uint32_t   type;
 	uint32_t   sector;
-	uint8_t    contenido[512];
 }__attribute__ ((packed));
 
 typedef struct _pedido{
 	nipc_socket      sock;
 	uint8_t          type;
 	uint32_t         sector;
-	//uint8_t          contenido[512];
 	struct _pedido  *sgte;
 } __attribute__ ((packed)) pedido;
 
@@ -46,8 +44,8 @@ typedef struct _disco{
 typedef struct _lista_pfs{
 	nipc_socket             sock;
 	sem_t                   semaforo;
-	pedido                 *pedidos;
 	sectores_t             *escrituras; // lista de escrituras para que solo se le envio una confirmacion
+	sectores_t             *lecturas;   
 	struct _lista_pfs      *sgte;
 } __attribute__ ((packed)) lista_pfs;
 
