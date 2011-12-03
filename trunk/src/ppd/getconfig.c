@@ -55,9 +55,6 @@ config_t getconfig(char * archivoConfig)
 				if (strncmp("algplan",readLine,intDif) == 0)
 					strcpy(vecConfig.algplan , var+1);
 
-				if (strncmp("puertoconso",readLine,intDif) == 0)
-					vecConfig.puertoconso = atoi(var+1);
-
 				if (strncmp("flaglog",readLine,intDif) == 0)
 					vecConfig.flaglog = atoi(var+1);
 
@@ -81,6 +78,9 @@ config_t getconfig(char * archivoConfig)
 
 				if (strncmp("tiempoentrepistas",readLine,intDif) == 0)
 					vecConfig.tiempoentrepistas = atoi(var+1);
+
+				if (strncmp("rutalog",readLine,intDif) == 0)
+					strcpy(vecConfig.rutalog, var+1);
 
 			}
 		}
@@ -106,7 +106,6 @@ config_t getconfig(char * archivoConfig)
 		vecConfig->puertopraid = 0;
 		vecConfig->puertopfs = 0;
 		vecConfig->algplan[0] = '\0';
-		vecConfig->puertoconso = 0;
 		vecConfig->flaglog = -1;
 	 	vecConfig->rutadisco[0] = '\0';
 	 	vecConfig->chs[0] = '\0';
@@ -118,4 +117,6 @@ config_t getconfig(char * archivoConfig)
 	 	vecConfig->tiempoesc = -1;
 	 	vecConfig->rpm = -1;
 	 	vecConfig->tiempoentrepistas = -1;
+	 	vecConfig->rutalog[0] = '\0';
+
 }

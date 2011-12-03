@@ -41,7 +41,7 @@ void escribirSect(int, char [TAM_SECT], nipc_socket sock);
 
 int abrirArchivoV(char * pathArch);
 
-void * paginaMap (int sect, int dirArch);
+void * discoMap (int sectores, int dirArch);
 
 void escucharConsola(void);
 

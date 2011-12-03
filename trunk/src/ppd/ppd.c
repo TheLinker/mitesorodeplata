@@ -5,10 +5,12 @@
 
 
 config_t vecConfig;
-int posCabAct, dirArch, sectxpis;
+int32_t posCabAct, dirArch, sectxpis;
+void * diskMap;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
-sem_t semEnc;
+sem_t semEnc, semAten;
+log_t* logppd;
 
 int main()
 {
@@ -16,16 +18,25 @@ int main()
 
 	pthread_t thConsola, thAtenderpedidos;
 	char* mensaje = NULL;
-	int  thidConsola,thidAtenderpedidos;
+	int32_t  thidConsola,thidAtenderpedidos, tam, sectores;
+	div_t res;
 
 	sem_init(&semEnc,1,1);
+	sem_init(&semAten,1,0);
+
+	res = div(vecConfig.sectores, 8);
+	if(0 != res.rem)
+		sectores = (vecConfig.sectores - res.rem) + 8;
 
 	//pid = getpid();
 	vecConfig = getconfig("config.txt");
+	logppd = log_new(vecConfig.rutalog, "PPD", vecConfig.flaglog);
 	sectxpis = (vecConfig.sectores/vecConfig.pistas);
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
+	diskMap = discoMap(vecConfig.sectores, dirArch);
 	posCabAct = vecConfig.posactual;
 	cantSect = vecConfig.sectores * vecConfig.pistas;
+
 
 	printf("%s\n", vecConfig.modoinit);
 
@@ -100,14 +111,15 @@ void escucharPedidos(nipc_socket *socket)
 
 	while(1)
 	{
-		//sleep(1);
 		if (0 > recv_socket(&msj, *socket));
-		{	if(0 == (msj.payload.sector % 5000))
-				printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
-
+		{
+			//if(0 == (msj.payload.sector % 5000))
+			//printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
+			//log_info(logppd, "Escuchar Pedidos", "Message info: Pedido escritura sector %d", msj.payload.sector);
 			sem_wait(&semEnc);
 			insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual, *socket);
 			sem_post(&semEnc);
+			sem_post(&semAten);
 		}
 	}
 
@@ -116,32 +128,63 @@ return;
 
 void atenderPedido()
 {
-
 	ped_t * ped;
+	char buffer[1024], bufferaux[11];
+	int32_t cola[20], l;
 
 	while(1)
 	{
-
-		sem_wait(&semEnc);
-		ped = desencolar(&headprt, &saltoptr);
-		sem_post(&semEnc);
+		if((vecConfig.flaglog == 3) || (vecConfig.flaglog == 4))
+		{
+			sem_wait(&semAten);
+			sem_wait(&semEnc);
+			obtenercola(&headprt, &saltoptr, cola);
+			memset(buffer, '\0', sizeof(buffer));
+			for(l=0;(l<sizeof(cola)) && (cola[l] != -1); l++)
+			{
+				memset(bufferaux, '\0', sizeof(bufferaux));
+				sprintf(bufferaux, "%d:%d,", pista(cola[l]), sectpis(cola[l]));
+				strcat(buffer, bufferaux);
+			}
+			ped = desencolar(&headprt, &saltoptr);
+			sem_post(&semEnc);
+		}else
+		{
+			sem_wait(&semAten);
+			sem_wait(&semEnc);
+			ped = desencolar(&headprt, &saltoptr);
+			sem_post(&semEnc);
+		}
 
 		if (ped != NULL)
 		{
-			if(0 == (ped->sect % 5000))
-				printf("SECTOR PEDIDO %d \n", ped->sect);
+			if((vecConfig.flaglog == 3) || (vecConfig.flaglog == 4))
+			{
+			char trace[200000];
+			double time;
+
+			memset(trace, '\0', 200000);
+			obtenerrecorrido(ped->sect, trace);
+			time= timemovdisco(ped->sect);
+			log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño:\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
+			}
+			//if(0 == (ped->sect % 5000))
+				//printf("SECTOR PEDIDO %d \n", ped->sect);
 
 			switch(ped->oper)
 			{
 
 				case nipc_req_read:
 					leerSect(ped->sect, ped->socket);
+					moverCab(ped->sect);
 					break;
 				case nipc_req_write:
 					escribirSect(ped->sect, ped->buffer, ped->socket);
+					moverCab(ped->sect);
 					break;
 				case nipc_req_trace:
 					traceSect(ped->sect, ped->nextsect,(int) ped->socket);
+					moverCab(ped->sect);
 					break;
 
 				default:
@@ -161,13 +204,13 @@ void atenderPedido()
 void escucharConsola()
 {
 	//while que escuche consola
+	//char infodisc[30];
 
 	int servidor, cliente, lengthServidor, lengthCliente;
 	struct sockaddr_un direccionServidor;
 	struct sockaddr_un direccionCliente;
 	struct sockaddr* punteroServidor;
 	struct sockaddr* punteroCliente;
-
 
 	signal ( SIGCHLD, SIG_IGN );
 
@@ -204,6 +247,9 @@ void escucharConsola()
 
 	while (cliente == -1);
    
+	//memset(infodisc,'\0', 30);
+	//sprintf(infodisc, "%d,%d", vecConfig.pistas, vecConfig.sectores);
+	//send(cliente, infodisc, strlen(infodisc),0);
 	//puts ("\n Acepto la conexion \n");
 
 	while(1)
@@ -215,7 +261,6 @@ void escucharConsola()
 			exit(0);
 		}
 
-		// SEND DATOS NECESARIOS TODO
 
 		atenderConsola(comando, cliente);
 	}
@@ -262,19 +307,18 @@ void atenderConsola(char comando[100], int cliente)
 
 void leerSect(int sect, nipc_socket sock)
 {
-	div_t res;
 	nipc_packet resp;
 
 	if( (0 <= sect) && (cantSect >= sect))
 	{
-		if(0 == (sect % 5000))
-			printf("----------------Entro a Leer------------------- \n");
-		dirMap = paginaMap(sect, dirArch);
-		res = div(sect, 8);
-		dirSect = dirMap + ((res.rem  *512));
+		//if(0 == (sect % 5000))
+			//printf("----------------Entro a Leer------------------- \n");
+		//dirMap = paginaMap(sect, dirArch);
+		//res = div(sect, 8);
+		dirSect = diskMap + (sect *512);
 		memcpy(&buffer, dirSect, TAM_SECT);
-		if(0 != munmap(dirMap,TAM_PAG))
-			printf("Fallo la eliminacion del mapeo\n");
+		//if(0 != munmap(dirMap,TAM_PAG))
+			//printf("Fallo la eliminacion del mapeo\n");
 
 		resp.type = 1;
 		resp.payload.sector = sect;
@@ -299,15 +343,15 @@ void escribirSect(int sect, char buffer[512], nipc_socket sock)
 
 		if((0 <= sect) && (cantSect >= sect))
 		{
-			if(0 == (sect % 5000))
-				printf("----------------Entro a Escribir------------------- \n");
-			dirMap = paginaMap(sect, dirArch);
-			res = div(sect, 8);
-			dirSect = dirMap + ((res.rem *512 ));
+			//if(0 == (sect % 5000))
+				//printf("----------------Entro a Escribir------------------- \n");
+			//dirMap = paginaMap(sect, dirArch);
+			//res = div(sect, 8);
+			dirSect = diskMap + (sect *512 );
 			memcpy(dirSect, buffer, TAM_SECT);
-			msync(dirMap, TAM_PAG, MS_ASYNC);
-			if(0 != munmap(dirMap,TAM_PAG))
-				printf("Fallo la eliminacion del mapeo\n");
+			msync(dirSect, 512, MS_ASYNC);
+			//if(0 != munmap(dirMap,TAM_PAG))
+				//printf("Fallo la eliminacion del mapeo\n");
 
 			resp.type = 2;
 			resp.payload.sector = sect;
@@ -340,18 +384,17 @@ return 0;
 
 //---------------Funciones Aux PPD------------------//
 
-void * paginaMap(int sect, int dirArch)
+void * discoMap(int32_t sectores, int32_t dirArch)
 {
 	div_t res;
-	int ret;
-	res = div(sect, 8);
-	offset = (res.quot * TAM_PAG);
-	dirMap = mmap(NULL,TAM_PAG, PROT_READ | PROT_WRITE, MAP_SHARED, dirArch , offset);
-	if(ret = posix_madvise(dirMap, TAM_PAG, POSIX_MADV_SEQUENTIAL))
+	int32_t ret, tam;
+	tam = (sectores * 512);
+	diskMap = mmap(NULL, tam, PROT_READ | PROT_WRITE, MAP_SHARED, dirArch , 0);
+	if(ret = posix_madvise(diskMap, tam, POSIX_MADV_RANDOM))
 			printf("El madvise ha fallado. Número de error: %d \n", ret);
 	//printf("%d %X\n", errno, dirMap[0]);
 
-	return dirMap;
+	return diskMap;
 }
 
 //---------------Funciones Consola------------------//
@@ -379,18 +422,21 @@ void funcClean(char * parametros, int cliente)
 	strultSec = strtok(NULL, "\0");
 	primSec = atoi(strprimSec);
 	ultSec = atoi(strultSec);
-	pedido.type = 2;
-	pedido.len = (sizeof(nipc_packet));
+	pedido.type = nipc_req_write;
 	memset(pedido.payload.contenido, '\0', TAM_SECT);
+	pedido.len = (sizeof(nipc_packet));
 	//encolar
 	while(primSec <= ultSec)
 	{
+		if (0 == (primSec % 30))
+			//usleep(6000);
 		//setea el sector
 		pedido.payload.sector= primSec;
 		//encolar
 		sem_wait(&semEnc);
 		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
 		sem_post(&semEnc);
+		sem_post(&semAten);
 		primSec++;
 	}
 
@@ -440,9 +486,12 @@ void funcTrace(char * parametros, int cliente)
 		//setea el sector
 		pedido.payload.sector= calcularSector(lsectores[h]);
 		//encolar
+
+		log_info(logppd, "Escuchar Consola", "Message info: Pedido trace sector %d", pedido.payload.sector);
 		sem_wait(&semEnc);
 		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
 		sem_post(&semEnc);
+		sem_post(&semAten);
 
 	}
 
@@ -452,7 +501,7 @@ int calcularSector(char structSect[25])
 {
 	int pist = atoi(strtok(structSect, ":"));
 	int sect = atoi(strtok(NULL, "\0"));
-	return ((pist * sectxpis) + sect); //TODO
+	return ((pist * sectxpis) + sect);
 }
 
 void traceSect(int sect, int32_t nextsect, int cliente)

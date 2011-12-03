@@ -13,7 +13,7 @@ void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCa
 	newptr = initPtr();
 	msjtocol(msj, newptr, socket);
 
-	pisec = div(newptr->ped.sect, 100 /*CANTIDAD DE SECTORES POR PISTA (HAY Q PASARSELO)*/);
+	pisec = div(newptr->ped.sect, sectxpis /*CANTIDAD DE SECTORES POR PISTA (HAY Q PASARSELO)*/);
 	if(pisec.quot >= posCab)
 	{
 		insertOrd(headprt, newptr);
@@ -63,7 +63,7 @@ void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket)
 
 cola_t * initPtr()
 {
-	cola_t * newptr = 0;
+	cola_t * newptr = NULL;
 
 	newptr = (cola_t *) malloc (sizeof(cola_t));
 	   if(newptr==NULL)
@@ -93,7 +93,7 @@ ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
 	{
 		if(NULL != *saltoprt)
 		{
-			*headprt = *saltoprt;  //preguntar si esto esta bien TODO
+			*headprt = *saltoprt;
 			*saltoprt = NULL;
 			pout = *headprt;
 			*headprt = (*headprt)->sig;
@@ -143,7 +143,7 @@ double timesect (void)
 
 
 
-double timemovdisco(int sector)
+double timemovdisco(int32_t sector)
 {
 	int pisrec = 0;
 	int sectrec = 0;
@@ -161,12 +161,106 @@ double timemovdisco(int sector)
 
 	tiempo = sectrec * timesect() + pisrec * vecConfig.tiempoentrepistas;
 
-	vecConfig.posactual = sector;
-
 	return tiempo;
 }
 
-void moverCab(int sect)
+void moverCab(int32_t sect)
 {
 	vecConfig.posactual = sect;
+}
+
+void obtenerrecorrido(int32_t sect, char * trace)
+{
+	div_t s,p;
+	char aux[20];
+	int32_t a, psect, ssect, pposactual, sposactual, pposactual2;
+
+	s = div(sect, sectxpis);
+	p = div(vecConfig.posactual, sectxpis);
+
+	psect= s.quot;
+	ssect= s.rem;
+	pposactual= p.quot;
+	sposactual= p.rem;
+	pposactual2= p.quot;
+
+	if(pposactual != psect)
+		{
+			a = 1;
+			if(pposactual > psect)
+			{
+				for( ;pposactual<=1023 ; pposactual++)
+						{
+							memset(aux, '\0', 20);
+							sprintf(aux, "%d:%d, ", pposactual,sposactual);
+							strcat(trace, aux);
+
+						}
+						pposactual = 0;
+			}
+
+			for( ; pposactual<=psect; pposactual++)
+					{
+						memset(aux, '\0', 20);
+						sprintf(aux, "%d:%d, ", pposactual,sposactual);
+						strcat(trace, aux);
+						pposactual2 = pposactual;
+					}
+
+
+		}
+
+		if(sposactual != ssect)
+		{
+			if (a == 1)
+				sposactual++;
+			if(sposactual > ssect)
+			{
+				for( ;sposactual<=1023 ; sposactual++)
+					{
+						memset(aux, '\0', 20);
+						sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+						strcat(trace, aux);
+
+					}
+					sposactual = 0;
+			}
+
+			for( ; sposactual<=ssect; sposactual++)
+						{
+							memset(aux, '\0', 20);
+							sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+							strcat(trace, aux);
+						}
+		}
+}
+
+void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
+{
+	cola_t * busqptr;
+	int32_t i=0, j;
+
+	for(j=0;j<20;j++)
+		cola[j] = -1;
+
+	if((*headprt) != NULL)
+	{
+		busqptr = (*headprt);
+		while((busqptr != NULL) && (i<20) )
+		{
+			cola[i] = busqptr->ped.sect;
+			i++;
+			busqptr = busqptr->sig;
+		}
+		if(i<30)
+		{
+			busqptr = (* saltoprt);
+			while((busqptr != NULL) && (i<20))
+			{
+				cola[i] = busqptr->ped.sect;
+				i++;
+				busqptr = busqptr->sig;
+			}
+		}
+	}
 }

@@ -23,14 +23,16 @@ typedef struct
 	char			flaglog;
 	char			rutadisco[100];
 	char			chs[20];
-	int				pistas;
-	int				cabezas;
-	int				sectores;
-	int				posactual;
-	int				tiempolec;
-	int				tiempoesc;
-	int				rpm;
-	int				tiempoentrepistas;
+	int32_t			pistas;
+	int32_t			cabezas;
+	int32_t			sectores;
+	int32_t			posactual;
+	int32_t			tiempolec;
+	int32_t			tiempoesc;
+	int32_t			rpm;
+	int32_t			tiempoentrepistas;
+	char			rutalog[100];
+
 
 
 } __attribute__ ((packed))	config_t;
