@@ -6,7 +6,7 @@
 
 config_t vecConfig;
 int32_t posCabAct, sectxpis;
-void * diskmap;
+void * diskmap, dirArch;
 cola_t *headprt = NULL, *saltoptr = NULL;
 size_t len = 100;
 sem_t semEnc;
@@ -62,7 +62,7 @@ int main()
 				printf("Error de modo de inicialización\n");
 	}
 
-	if(0 != munmap(dirMap,TAM_PAG))
+	if(0 != munmap(diskmap,tam))
 		printf("Fallo la eliminacion del mapeo\n");
 
 		return 1;

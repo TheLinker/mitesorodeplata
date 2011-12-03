@@ -11,7 +11,7 @@
 typedef struct
 {
 	unsigned int	sect;
-	int		 		oper;
+	int32_t		 	oper;
 	nipc_socket		socket;
 	int32_t			nextsect;
 	char			buffer[TAM_SECT];
@@ -23,7 +23,7 @@ typedef struct
 	struct cola_t *		sig;
 } cola_t;
 
-void insertCscan(nipc_packet, cola_t**, cola_t**, int, nipc_socket);
+void insertCscan(nipc_packet, cola_t**, cola_t**, int32_t, nipc_socket);
 
 void insertOrd (cola_t ** colaptr, cola_t * newptr);
 
@@ -37,14 +37,18 @@ cola_t * initPtr();
 
 cola_t * initSaltoPrt();
 
-int pista(int);
+int pista(int32_t);
 
-double timemovdisco(int);
+double timemovdisco(int32_t);
 
 double timesect (void);
 
-int sectpis(int);
+int sectpis(int32_t);
 
-void moverCab(int sect);
+void moverCab(int32_t sect);
+
+void obtenerrecorrido(int32_t sect, char * trace);
+
+void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola);
 
 #endif /* PLANDISCO_H_ */
