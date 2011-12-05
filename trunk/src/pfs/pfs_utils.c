@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <ctype.h>
 
 /**
  * Obtiene la cantidad de clusters libres en la FAT
@@ -77,7 +78,7 @@ void fat32_handshake(nipc_socket socket)
  * @fs_tmp estructura privada del file system
  * @first_cluster un cluster perteneciente a la cadena donde se desea agregar otro cluster
  */
-void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket)
+void fat32_add_cluster(int32_t first_cluster, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int32_t posicion = first_cluster;
 
@@ -95,14 +96,14 @@ void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket so
     int32_t bloque1 = (fs_tmp->boot_sector.reserved_sectors + (posicion / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
     int32_t bloque2 = (fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(bloque1, 1, (fs_tmp->fat) + (bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp, socket);
+    fat32_writeblock(bloque1, 1, (fs_tmp->fat) + (bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)), NO_CACHE, fs_tmp, socket);
     if(bloque2 != bloque1)
-        fat32_writeblock(bloque2, 1, (fs_tmp->fat) + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp, socket);
+        fat32_writeblock(bloque2, 1, (fs_tmp->fat) + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))), NO_CACHE, fs_tmp, socket);
 
     //Inicializamos los datos del nuevo cluster a 0
     char buffer[fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector];
     memset(buffer, '\0', fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector);
-    fat32_writecluster(free_cluster, buffer, fs_tmp, socket);
+    fat32_writecluster(free_cluster, buffer, fid, fs_tmp, socket);
 }
 
 /**
@@ -134,9 +135,9 @@ void fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket
     int32_t bloque1 = (fs_tmp->boot_sector.reserved_sectors + (pos_ant / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
     int32_t bloque2 = (fs_tmp->boot_sector.reserved_sectors + (pos_act / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(bloque1, 1, fs_tmp->fat + ((bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp, socket);
+    fat32_writeblock(bloque1, 1, fs_tmp->fat + ((bloque1 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))), NO_CACHE, fs_tmp, socket);
     if(bloque2 != bloque1)
-        fat32_writeblock(bloque2, 1, fs_tmp->fat + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))) , fs_tmp, socket);
+        fat32_writeblock(bloque2, 1, fs_tmp->fat + ((bloque2 - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t))), NO_CACHE, fs_tmp, socket);
 }
 
 /**
@@ -151,7 +152,7 @@ int fat32_config_read(fs_fat32_t *fs_tmp)
 
     memcpy((char *) (fs_tmp->server_host), "localhost", 10);
     fs_tmp->server_port = 1337;
-    fs_tmp->cache_size = 1024;
+    fs_tmp->cache_size = 0;
     memcpy((char *) (fs_tmp->log_path), "/tmp/pfs.log", 13);
     fs_tmp->log_mode = LOG_OUTPUT_CONSOLEANDFILE;
 
@@ -236,7 +237,7 @@ int8_t fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_entry_t
         return cluster;
 
     int8_t *cluster_buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
-    fat32_getcluster(cluster, cluster_buffer, fs_tmp, socket);
+    fat32_getcluster(cluster, cluster_buffer, NO_CACHE, fs_tmp, socket);
     memcpy((int8_t*)buffer, cluster_buffer + (entry_offset * 32), 32);
     free(cluster_buffer);
 
@@ -561,18 +562,33 @@ int32_t fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, 
 
 }
 
-void hex_log(unsigned char * buff, int cantidad)
+void hex_log(FILE* fp, unsigned char * buff, int cantidad)
 {
-    int i=0;
-    for (i=0;i<cantidad;i++)
+    int i=0, j=0;
+
+    for (i=0;i < (cantidad / 16);i++) // filas
     {
-        if (!(i%16)) printf("%.4X  ", i);
+        fprintf(fp, "%.6x  ", i*16);
 
-        printf("%.2X", buff[i]);
+        for (j=0;j < 16;j++) // columnas
+        {
+            if(i*16 + j > cantidad) fprintf(fp, "  ");
+            else fprintf(fp, "%.2x", buff[i*16+j]);
 
-        if ((i+1)%8) printf(" ");
-        else if ((i+1)%16) printf("  ");
-        else printf("\n");
+            if ((j+1)%8) fprintf(fp, " ");
+            else if ((j+1)%16) fprintf(fp, "  ");
+        }
+
+        fprintf (fp, "  |");
+
+        for (j=0;j < 16;j++) // columnas
+        {
+            if(i*16 + j > cantidad) fprintf(fp, " ");
+            else if (isprint(buff[i*16+j])) fprintf(fp, "%c", buff[i*16+j]);
+            else fprintf(fp, ".");
+        }
+
+        fprintf(fp, "|\n");
     }
 }
 

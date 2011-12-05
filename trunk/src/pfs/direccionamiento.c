@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-//Hay que cambiar las func para que acepten un socket y hagan las cosas con ese socket
+void hex_log(unsigned char * buff, int cantidad);
 
 /**
  * Obtiene una *cantidad* de sectores a partir de un *sector* dado como base.
@@ -15,7 +15,7 @@
  * @fs_tmp:     Estructura privada del file system // Ver Wiki.
  * @return      Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+int8_t fat32_getsectors_pet(uint32_t sector, uint32_t cantidad, nipc_socket socket)
 {
     nipc_packet packet;
     int i;
@@ -31,18 +31,42 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
         packet.payload.sector += 1;
     }
 
-    //Espera a obtener todos los sectores pedidos.
-    for (i = 0 ; i < cantidad ; i++) {
-        nipc_packet packet;
-        recv_socket(&packet, socket);
-        memcpy(buffer+((packet.payload.sector - sector)*fs_tmp->boot_sector.bytes_per_sector), packet.payload.contenido, fs_tmp->boot_sector.bytes_per_sector);
-
-    }
-//int j=0;
-//        for(j=0;j<fs_tmp->boot_sector.bytes_per_sector *2;j++)
-//            printf("%.2X%c", ((uint8_t *) buffer)[j], ((j+1)%16)?' ':'\n');
-
     return 0;
+}
+
+int32_t fat32_getsectors_rsp(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+{
+    int i;
+    nipc_packet packet;
+    int32_t ret=-1;
+
+    for (i = 0 ; i < cantidad ; i++) {
+        recv_socket(&packet, socket);
+        //printf("%d\n", packet.payload.sector);
+        memcpy(buffer+((packet.payload.sector - sector)*fs_tmp->boot_sector.bytes_per_sector), packet.payload.contenido, fs_tmp->boot_sector.bytes_per_sector);
+        //hex_log(packet.payload.contenido, 512);
+
+        if(ret<0) ret=packet.payload.sector;
+    }
+
+    return ret;
+}
+
+int32_t fat32_getsectors_rsp2(void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+{
+    int i;
+    nipc_packet packet;
+    int32_t ret=-1;
+
+    for (i = 0 ; i < 2 ; i++) {
+        recv_socket(&packet, socket);
+        //printf("%d\n", packet.payload.sector);
+        memcpy(buffer+((packet.payload.sector % 2)*fs_tmp->boot_sector.bytes_per_sector), packet.payload.contenido, fs_tmp->boot_sector.bytes_per_sector);
+
+        if(ret<0) ret=packet.payload.sector;
+    }
+
+    return ret;
 }
 
 /**
@@ -55,7 +79,7 @@ uint8_t fat32_getsectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fa
  * @fs_tmp:     Estructura privada del file system // Ver Wiki.
  * @return      Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+uint8_t fat32_writesectors_pet(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     nipc_packet packet;
     int i;
@@ -71,7 +95,12 @@ uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_
         send_socket(&packet, socket);
     }
 
-    //Espera a obtener la confirmacion de la escritura.
+    return 0;
+}
+
+uint8_t fat32_writesectors_rsp(uint32_t sector, uint32_t cantidad, fs_fat32_t *fs_tmp, nipc_socket socket)
+{
+    int i;
     for (i = 0 ; i < cantidad ; i++) {
         nipc_packet packet;
         recv_socket(&packet, socket);
@@ -94,14 +123,55 @@ uint8_t fat32_writesectors(uint32_t sector, uint32_t cantidad, void *buffer, fs_
  * @fs_tmp:   Estructura privada del file system// Ver Wiki.
  * @return:   Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
-    //int i=0;
-    //for( i = 0 ; i < cantidad ; i++, block++)
-    //    fat32_getsectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
-    fat32_getsectors(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer /*+ (i * BLOCK_SIZE)*/, fs_tmp, socket);
+    //printf("Pedido lectura bloque: %d\n", block);
 
-    return 0;
+    //Si se llama desde un lugar sin cache
+    if (fid == NO_CACHE || !fs_tmp->cache_size) {
+        fat32_getsectors_pet(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, socket);
+        fat32_getsectors_rsp(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer, fs_tmp, socket);
+        return 0;
+    } else {
+        int i=0, fallos=0;
+        int8_t block_cache[BLOCK_SIZE];
+        cache_t *cache = fs_tmp->open_files[fid].cache;
+
+        for(i=0;i<cantidad;i++)
+            if(fat32_is_in_cache(block+i, cache, block_cache, fs_tmp)) {
+//                printf("Pedido lectura bloque %d: %s\n", block+i, fid==NO_CACHE?"Sin cache":"Con Cache (acierto)");
+                memcpy(buffer+(i*BLOCK_SIZE), block_cache, BLOCK_SIZE);
+            } else {
+//                printf("Pedido lectura bloque %d: %s\n", block+i, fid==NO_CACHE?"Sin cache":"Con Cache (fallo)");
+                fallos++;
+                fat32_getsectors_pet((block+i) * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, socket);
+            }
+
+        for(i=0;i<fallos;i++)
+        {
+            //lugar donde guardar el bloque
+            int32_t slot = fat32_get_cache_slot(cache, fs_tmp);
+            int32_t rsp_block=0;
+
+            //si el bloque a reemplazar fue modificado, lo escribo.
+            if(cache[slot].modificado == 1)
+            {
+                fat32_writeblock(cache[slot].number, 1, cache[slot].contenido, NO_CACHE, fs_tmp, socket);
+                cache[slot].modificado = 0;
+            }
+
+            //obtengo uno de los bloques
+            rsp_block = fat32_getsectors_rsp2(block_cache, fs_tmp, socket) / SECTORS_PER_BLOCK;
+
+            //lo almaceno en la cache
+            fat32_save_in_cache(slot, rsp_block, block_cache, 0, cache);
+
+            //Copio la resp en el buffer
+            memcpy(buffer+((rsp_block-block)*BLOCK_SIZE), block_cache, BLOCK_SIZE);
+        }
+
+        return 0;
+    }
 }
 
 /**
@@ -113,15 +183,18 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32
  * @fs_tmp:   Estructura privada del file system// Ver Wiki.
  * @return:   Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
-        printf("Pedido escritura bloque: %d\n", block);
-    //int i=0;
-    //for( i = 0 ; i < cantidad ; i++, block++)
-    //    fat32_writesectors(block * SECTORS_PER_BLOCK, SECTORS_PER_BLOCK, buffer + (i * BLOCK_SIZE), fs_tmp);
-    fat32_writesectors(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer /*+ (i * BLOCK_SIZE)*/, fs_tmp, socket);
 
-    return 0;
+    //Si se llama desde un lugar sin cache
+    if (fid == NO_CACHE || !fs_tmp->cache_size) {
+        fat32_writesectors_pet(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer, fs_tmp, socket);
+        fat32_writesectors_rsp(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, fs_tmp, socket);
+        return 0;
+    } else {
+
+        return 0;
+    }
 }
 
 /**
@@ -133,7 +206,7 @@ uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, fs_fat
  * @fs_tmp:  Estructura privada del file system// Ver Wiki.
  * @return:  Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+uint8_t fat32_getcluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
     if(cluster<2) return -EINVAL;
@@ -150,7 +223,7 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, nip
 
     fat32_getblock(block_number,
                    fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
-                   buffer, fs_tmp, socket);
+                   buffer, fid, fs_tmp, socket);
 
     return 0;
 }
@@ -164,7 +237,7 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, nip
  * @fs_tmp:  Estructura privada del file system// Ver Wiki.
  * @return:  Código de error o 0 si fue todo bien.
  */
-uint8_t fat32_writecluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
+uint8_t fat32_writecluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     //cluster 0 y 1 estan reservados y es invalido pedir esos clusters
     if(cluster<2) return -EINVAL;
@@ -181,7 +254,7 @@ uint8_t fat32_writecluster(uint32_t cluster, void *buffer, fs_fat32_t *fs_tmp, n
 
     fat32_writeblock(block_number,
                      fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
-                     buffer, fs_tmp, socket);
+                     buffer, fid, fs_tmp, socket);
 
     return 0;
 }

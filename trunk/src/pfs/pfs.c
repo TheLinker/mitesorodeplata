@@ -1,4 +1,11 @@
-#define FUSE_USE_VERSION  28
+#include "defs.h"
+#include "pfs_utils.h"
+#include "pfs_consola.h"
+#include "utils.h"
+#include "pfs_files.h"
+#include "pfs_files.h"
+#include "pfs.h"
+#include "direccionamiento.h"
 
 #include <fuse.h>
 #include <stdio.h>
@@ -7,14 +14,54 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/statvfs.h>
 
-#include "pfs_utils.h"
-#include "pfs_consola.h"
-#include "utils.h"
-#include "pfs_files.h"
-#include "pfs_files.h"
-#include "pfs.h"
-#include "direccionamiento.h"
+fs_fat32_t *sig_fs=0;
+void fat32_sigusr_handler(int sig)
+{
+    log_info(sig_fs->log, "SIGUSR1", "Detectado SIGUSR1. Dump de caches.");
+
+    int arch, num_cache;
+    time_t timestamp;
+    FILE *fp;
+    
+    if(!(fp = fopen("cache_dump.txt", "a"))) {
+        log_info(sig_fs->log, "SIGUSR1", "No se pudo abrir (o crear) el archivo para dump de cache, Error: %d (%s)", errno, strerror(errno));
+        return;
+    }
+
+    for( arch = 0 ; arch < MAX_OPEN_FILES ; arch++ ) {
+        if (sig_fs->open_files[arch].busy) {
+            char buff[1024];
+            timestamp = time(NULL);
+            strftime(buff, 1024, "%Y.%m.%d %H:%M:%S", localtime(&timestamp));
+
+            fprintf(fp, "---------------------------------------------\n");
+            fprintf(fp, "Archivo: %s\n", sig_fs->open_files[arch].path);
+            fprintf(fp, "Timestamp: %s\n", buff);
+            fprintf(fp, "Tamaño de Bloque de Cache: %d\n", BLOCK_SIZE);
+            fprintf(fp, "Cantidad de Bloques de Cache: %d\n", sig_fs->cache_size);
+
+            if(sig_fs->open_files[arch].cache != NULL)
+                for( num_cache = 0 ; num_cache < sig_fs->cache_size ; num_cache++ ) {
+                    fprintf(fp, "Contenido de Bloque de Cache %d: ", num_cache);
+
+                    if (sig_fs->open_files[arch].cache[num_cache].number != -1) {
+                        fprintf(fp, "Bloque %d\n", sig_fs->open_files[arch].cache[num_cache].number);
+                        hex_log(fp, (unsigned char *)sig_fs->open_files[arch].cache[num_cache].contenido, BLOCK_SIZE);
+                    } else {
+                        fprintf(fp, "Sin Usar\n");
+                    }
+
+                    fprintf(fp, "\n");
+                }
+
+            fprintf(fp, "\n");
+        }
+    }
+
+    fclose(fp);
+}
 
 int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
@@ -75,12 +122,12 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 
         int32_t bloque = (fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
 
-        fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp, socket);
+        fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)), NO_CACHE, fs_tmp, socket);
 
         //Inicializamos los datos del nuevo cluster a 0
         char buffer[fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector];
         memset(buffer, '\0', fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector);
-        fat32_writecluster(free_cluster, buffer, fs_tmp, socket);
+        fat32_writecluster(free_cluster, buffer, NO_CACHE, fs_tmp, socket);
 
         cluster_abm--;
     }
@@ -91,7 +138,7 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
     if(cluster_abm > 0)
         while(cluster_abm)
         {
-            fat32_add_cluster(fs_tmp->open_files[fi->fh].first_cluster, fs_tmp, socket);
+            fat32_add_cluster(fs_tmp->open_files[fi->fh].first_cluster, fi->fh, fs_tmp, socket);
             cluster_abm--;
         }
     else if(cluster_abm < 0)
@@ -114,14 +161,14 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
         entry.first_cluster_hi = 0;
         entry.first_cluster_low = 0;
 
-        fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)) , fs_tmp, socket);
+        fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)), NO_CACHE, fs_tmp, socket);
     }
 
     //Modificamos la entrada en el directorio.
     int32_t target_block = fat32_get_block_from_dentry(fs_tmp->open_files[fi->fh].container_cluster, entry_index, fs_tmp);
 
     int8_t buffer[BLOCK_SIZE];
-    fat32_getblock(target_block, 1, buffer, fs_tmp, socket);
+    fat32_getblock(target_block, 1, buffer, NO_CACHE, fs_tmp, socket);
 
     //modificamos entry_offset para que sea con respecto al comienzo del bloque
     int32_t entry_offset= 0;
@@ -131,7 +178,7 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
     memcpy(buffer + (entry_offset * 32), &entry, sizeof(entry));
 
     //Pedir la escritura del bloque
-    fat32_writeblock(target_block, 1, &buffer, fs_tmp, socket);
+    fat32_writeblock(target_block, 1, &buffer, NO_CACHE, fs_tmp, socket);
 
     fat32_free_socket(socket, fs_tmp);
     return 0;
@@ -168,12 +215,12 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
     size_t data_to_write = size;
     offset = offset % cluster_size;
 
-    fat32_getcluster(cluster_actual, buffer, fs_tmp, socket);
+    fat32_getcluster(cluster_actual, buffer, fi->fh, fs_tmp, socket);
     int32_t data_cluster = MIN(cluster_size - offset, data_to_write);
 
     memcpy(buffer + offset, buf, data_cluster);
 
-    fat32_writecluster(cluster_actual, buffer, fs_tmp, socket);
+    fat32_writecluster(cluster_actual, buffer, NO_CACHE, fs_tmp, socket);
 
     data_to_write -= data_cluster;
 
@@ -183,11 +230,11 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
         cluster_actual = fat32_get_link_n_in_chain( cluster_actual, 1, fs_tmp);
 
         if(data_cluster < cluster_size)
-            fat32_getcluster(cluster_actual, buffer, fs_tmp, socket);
+            fat32_getcluster(cluster_actual, buffer, fi->fh, fs_tmp, socket);
 
         memcpy(buffer, buf+size-data_to_write, data_cluster);
 
-        fat32_writecluster(cluster_actual, buffer, fs_tmp, socket);
+        fat32_writecluster(cluster_actual, buffer, NO_CACHE, fs_tmp, socket);
 
         data_to_write -= data_cluster;
     }
@@ -294,9 +341,9 @@ int fat32_rename (const char *from, const char *to)
 
     int8_t *bloques = calloc(BLOCK_SIZE, 2);
 
-    fat32_getblock(bloque_lfn, 1, bloques, fs_tmp, socket);
+    fat32_getblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
     if (bloque_file != bloque_lfn)
-        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, fs_tmp, socket);
+        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
 
     //modificar bloque(s) viejo(s)
     int32_t entry_offset   = (reg_file_attrs.entry_index - 1) % (fs_tmp->boot_sector.bytes_per_sector *
@@ -313,9 +360,9 @@ int fat32_rename (const char *from, const char *to)
         memcpy(bloques + ((reg_file_attrs.entry_index) * sizeof(file_entry_t)), &file_entry_old, BLOCK_SIZE);
 
     //pedir escritura bloque viejo
-    fat32_writeblock(bloque_lfn, 1, bloques, fs_tmp, socket);
+    fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
     if (bloque_file != bloque_lfn)
-        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, fs_tmp, socket);
+        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
 
     //pedir bloque nuevo
     file_attrs dir_attrs;
@@ -329,9 +376,9 @@ int fat32_rename (const char *from, const char *to)
     bloque_lfn = fat32_get_block_from_dentry(dir_attrs.first_cluster, entry_index, fs_tmp);
     bloque_file= fat32_get_block_from_dentry(dir_attrs.first_cluster, entry_index + 1, fs_tmp);
 
-    fat32_getblock(bloque_lfn, 1, bloques, fs_tmp, socket);
+    fat32_getblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
     if (bloque_file != bloque_lfn)
-        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, fs_tmp, socket);
+        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
 
     //modificar bloque nuevo
     ((lfn_entry_t *)&lfn_entry_new)->seq_number = 0x41;
@@ -362,9 +409,9 @@ int fat32_rename (const char *from, const char *to)
         memcpy(bloques + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, BLOCK_SIZE);
 
     //pedir escritura bloque nuevo
-    fat32_writeblock(bloque_lfn, 1, bloques, fs_tmp, socket);
+    fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
     if (bloque_file != bloque_lfn)
-        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, fs_tmp, socket);
+        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
 
     fat32_free_socket(socket, fs_tmp);
     return 0;
@@ -520,7 +567,11 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
 
     int i=0;
     for(i=0;i < (fs_tmp->cache_size);i++)
+    {
         fs_tmp->open_files[ret].cache[i].number = -1;
+        fs_tmp->open_files[ret].cache[i].modificado = 0;
+        fs_tmp->open_files[ret].cache[i].stamp = -1;
+    }
 
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;
@@ -553,7 +604,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     nipc_socket socket = fat32_get_socket(fs_tmp);
 
     int8_t *cluster_buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
-    fat32_getcluster(cluster_actual, cluster_buffer, fs_tmp, socket);
+    fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket);
 
     int32_t size_to_read = cluster_size - offset;
     int32_t size_aldy_read = 0;
@@ -566,7 +617,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     while((size > 0) && (cluster_actual != fs_tmp->eoc_marker))
     {
         cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
-        fat32_getcluster(cluster_actual, cluster_buffer, fs_tmp, socket);
+        fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket);
         size_to_read = MIN(cluster_size, size);
         memcpy(buf + size_aldy_read, cluster_buffer, size_to_read);
 
@@ -582,10 +633,10 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 
 static void *fat32_init(struct fuse_conn_info *conn)
 {
-    printf("Init1\n");
+    printf("Init1 want:%X capab:%X\n", conn->want, conn->capable);
 
     fs_fat32_t *fs_tmp = calloc(sizeof(fs_fat32_t), 1);
-    fs_tmp->boot_sector.bytes_per_sector = 512;
+    fs_tmp->boot_sector.bytes_per_sector = SECT_SIZE;
 
     fat32_config_read(fs_tmp);
 
@@ -617,14 +668,28 @@ static void *fat32_init(struct fuse_conn_info *conn)
     sem_init(&fs_tmp->mux_sockets, 0, 1);
 /**/
 
+/* Inicializamos los descriptores */
+    memset(fs_tmp->open_files, '\0', sizeof(fs_tmp->open_files));
+/**/
+
+/* Manejador del SIGUSR1 */
+    sig_fs = fs_tmp;
+    struct sigaction act;
+
+    bzero(&act, sizeof(act));
+    act.sa_handler = fat32_sigusr_handler;
+    if (sigaction(SIGUSR1, &act, NULL)==-1)
+        log_warning(fs_tmp->log, "Init", "Error %d al iniciar la señal SIGUSR1: %s\n", errno, strerror(errno));
+/**/
+
     nipc_socket socket = fat32_get_socket(fs_tmp);
 
     int8_t block[BLOCK_SIZE];
 
-    fat32_getblock(0, 1, block, fs_tmp, socket);
+    fat32_getblock(0, 1, block, NO_CACHE, fs_tmp, socket);
 
     memset(block+0x3E8, 0xff, 4);
-    fat32_writeblock(0, 1, block, fs_tmp, socket);
+    fat32_writeblock(0, 1, block, NO_CACHE, fs_tmp, socket);
 
     memcpy(fs_tmp->boot_sector.buffer, block, fs_tmp->boot_sector.bytes_per_sector);
     fs_tmp->system_area_size = fs_tmp->boot_sector.reserved_sectors + ( fs_tmp->boot_sector.fat_count * fs_tmp->boot_sector.sectors_per_fat );
@@ -636,9 +701,9 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fs_tmp->fat = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_fat);
     fat32_getblock(fs_tmp->boot_sector.reserved_sectors / SECTORS_PER_BLOCK,
-                   fs_tmp->boot_sector.sectors_per_fat / SECTORS_PER_BLOCK, fs_tmp->fat, fs_tmp, socket);
+                   fs_tmp->boot_sector.sectors_per_fat / SECTORS_PER_BLOCK, fs_tmp->fat, NO_CACHE, fs_tmp, socket);
 
-    hex_log((unsigned char *)fs_tmp->fat,512);
+//    hex_log((unsigned char *)fs_tmp->fat,SECT_SIZE);
 
     memcpy(&(fs_tmp->eoc_marker), fs_tmp->fat + 1, 4);
 
@@ -647,13 +712,14 @@ static void *fat32_init(struct fuse_conn_info *conn)
     //creamos el thread de la consola
     pthread_create(&(fs_tmp->thread_consola), NULL, fat32_consola, fs_tmp);
 
-//    char buffer[1024];
-//    memset(buffer, '!', 1024);
-//    fat32_writeblock(1000, 1, buffer, fs_tmp, socket);
+    unsigned char buffer[1024];
+    memset(buffer, '!', 1024);
+    fat32_getblock(16, 1, buffer, NO_CACHE, fs_tmp, socket);
+    hex_log(stdout, buffer, 1024);
 //    memset(buffer, '5', 1024);
-//    fat32_writeblock(10000, 1, buffer, fs_tmp, socket);
+//    fat32_writeblock(10000, 1, buffer, NO_CACHE, fs_tmp, socket);
 
-    log_info(fs_tmp->log, "un_thread", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d EOC:%ld-",
+    log_info(fs_tmp->log, "Init", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d EOC:%ld-",
                                        fs_tmp->boot_sector.bytes_per_sector,
                                        fs_tmp->boot_sector.sectors_per_cluster,
                                        fs_tmp->boot_sector.reserved_sectors,
@@ -666,6 +732,23 @@ static void *fat32_init(struct fuse_conn_info *conn)
 
     fat32_free_socket(socket, fs_tmp);
     return fs_tmp;
+
+}
+
+int fat32_statfs(const char *path, struct statvfs *statvfs)
+{
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Statvfs: path: %s", path);
+
+    statvfs->f_bsize = BLOCK_SIZE;
+    statvfs->f_blocks = fs_tmp->boot_sector.total_sectors / SECTORS_PER_BLOCK;
+    statvfs->f_bavail = statvfs->f_bfree = (fat32_free_clusters(fs_tmp) * fs_tmp->boot_sector.sectors_per_cluster) / SECTORS_PER_BLOCK;
+
+    return 0;
 
 }
 
@@ -698,6 +781,7 @@ static struct fuse_operations fat32_oper = {
     .rmdir     = fat32_rmdir,
     .mkdir     = fat32_mkdir,
     .rename    = fat32_rename,
+    .statfs    = fat32_statfs
 };
 
 int main(int argc, char *argv[])
