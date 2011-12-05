@@ -8,6 +8,7 @@
 #include "pfs_files.h"
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
 
 enum estado_e {
     SOCKET_OCUP = 0,
@@ -21,7 +22,7 @@ struct sockets_t
 };
 
 typedef union boot_t {
-    uint8_t buffer[512];              // Offset   Longitud
+    uint8_t buffer[SECT_SIZE];              // Offset   Longitud
     struct {
         uint8_t  no_usado[11];        //  0x03      11
         uint16_t bytes_per_sector;    //  0x0B       2

@@ -28,17 +28,25 @@ void *fat32_consola(void *arg)
                    fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_cluster,
                    fs_tmp->boot_sector.bytes_per_sector * fs_tmp->boot_sector.sectors_per_fat / 1024);
         } else if (!strcmp(w1, "finfo") && (argc == 2)) {
-            file_attrs file;
-            nipc_socket socket = fat32_get_socket(fs_tmp);
-            int32_t ret = fat32_get_file_from_path((uint8_t *)path, &file, fs_tmp, socket);
+            int32_t cluster_actual;
 
-            if(ret == -ENOENT)
-            {
-                printf("Archivo o directorio no encontrado\n");
-                continue;
+            if(memcmp(path, "/", 2) == 0) {
+                cluster_actual = 2;
+            } else {
+                file_attrs file;
+                nipc_socket socket = fat32_get_socket(fs_tmp);
+
+                int32_t ret = fat32_get_file_from_path((uint8_t *)path, &file, fs_tmp, socket);
+
+                if(ret == -ENOENT)
+                {
+                    printf("Archivo o directorio no encontrado\n");
+                    continue;
+                }
+
+                cluster_actual = file.first_cluster;
             }
 
-            int32_t cluster_actual = file.first_cluster;
 
             if(!cluster_actual)
             {

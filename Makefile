@@ -1,6 +1,6 @@
 #Magia, no tocar.
 
-FLAGS      = -Wall -Isrc/common/ -Wno-unused-label `pkg-config fuse --cflags`
+FLAGS      = -Wall -Isrc/common/ -Wno-unused-label `pkg-config fuse --cflags` -g3
 LIBFLAGS   = -licui18n -licuuc `pkg-config fuse --libs`
 
 BUILD_PATH = tmp
