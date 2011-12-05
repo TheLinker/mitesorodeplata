@@ -10,15 +10,15 @@
 || fat32_readdir || Si || Si || ||
 || fat32_open || Si || Si || ||
 || fat32_read || Si || Si || ||
-|| fat32_init || Si || Si || Tal vez haya que mover cosas afuera. ||
+|| fat32_init || Si || Si || ||
 || fat32_destroy || Si || Si || ||
 || fat32_write || Si || Si || ||
 || fat32_flush || <font color=red> No || <font color=red> No || Falta Cache ||
 || fat32_release || Si || Si || ||
 || fat32_ftruncate || Si || Si || ||
 |||||||| *Extras* ||
-|| Cache || <font color=red>No || <font color=red>No || ||
-|| Señales || <font color=red>No || <font color=red>No || ||
+|| Cache || Si || <font color=red>No || Falta la escritura ||
+|| Señales || Si || Si || ||
 || Sockets || Si || Si || ||
 || Protección FAT || Si || Si || ||
 |||||||| *No Obligatorios* ||
