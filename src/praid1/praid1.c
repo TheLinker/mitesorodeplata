@@ -38,8 +38,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in  *addr_ppd = malloc(sizeof(struct sockaddr_in));
 	uint32_t             clilen;
 	fd_set               set_socket;
-  
-  
+    
 	sock_raid = -1;
 	info_ppal->sock_control = -1;
 	info_ppal->pfs_activos = NULL;
@@ -48,8 +47,6 @@ int main(int argc, char *argv[])
 	sock_raid = create_socket();
 	nipc_bind_socket(sock_raid,(char *)config->server_host,config->server_port);
 	nipc_listen(sock_raid);
-	
-	
 	
 	printf("------------------------------\n");
 	printf("--- Socket escucha RAID: %d ---\n",sock_raid);
@@ -74,7 +71,7 @@ int main(int argc, char *argv[])
 			FD_SET (aux_pfs->sock, &set_socket);
 			aux_pfs = aux_pfs->sgte;
 		}
-    	
+    
 		select(max_sock+1, &set_socket, NULL, NULL, NULL);  
 		
 		/*
@@ -97,6 +94,7 @@ int main(int argc, char *argv[])
 				if(recv_socket(&mensaje,aux_pfs->sock)>0)
 				{
 					mensaje.payload.contenido[mensaje.len-4]='\0';
+					//printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 					if(mensaje.type == nipc_handshake)
 					{
 						printf("BASTA DE HANDSHAKE!!!!\n");
@@ -168,20 +166,32 @@ int main(int argc, char *argv[])
 				if(recv_socket(&mensaje,sock_new)>=0)
 				{
 					mensaje.payload.contenido[mensaje.len-4]='\0';
+					//printf("El mensaje es: %d - %d - %d - %s\n",mensaje.type,mensaje.len,mensaje.payload.sector,mensaje.payload.contenido);
 					if(mensaje.type == nipc_handshake)
 					{
 						if(mensaje.len != 0)
 						{
-							if(info_ppal->discos == NULL) 
-								log_info(log, "Principal", "Message info: %s", "Entra en funcionamiento el PRAID");
-							printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
-							agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo
-							FD_SET (sock_new, &set_socket);
-							log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", mensaje.payload.contenido);
-							mensaje.type = 0;
-							mensaje.len = 0;
-							if(send_socket(&mensaje,sock_new)<0)
-								printf("Error ennvio de HANDSHAKE OK");
+							if (validar_disco(info_ppal, (char *)mensaje.payload.contenido) == 0)
+							{
+								if(info_ppal->discos == NULL) 
+									log_info(log, "Principal", "Message info: %s", "Entra en funcionamiento el PRAID");
+								printf("Nueva conexion PPD: %s - %d \n",mensaje.payload.contenido, sock_new);
+								agregar_disco(&info_ppal,(uint8_t *)mensaje.payload.contenido,sock_new);//crea hilo
+								FD_SET (sock_new, &set_socket);
+								log_info(log, "Principal", "Message info: Nueva conexion PPD: %s", mensaje.payload.contenido);
+								mensaje.type = 0;
+								mensaje.len = 0;
+								if(send_socket(&mensaje,sock_new)<0)
+									printf("Error ennvio de HANDSHAKE OK");
+							}
+							else
+							{
+								mensaje.type = 0;
+								strcpy((char *)mensaje.payload.contenido,"Nombre de disco repetido");
+								mensaje.len = 4+strlen("Nombre de disco repetido");
+								if(send_socket(&mensaje,sock_new)<0)
+									printf("Nombre de disco repetido");
+							}
 							printf("------------------------------\n");
 						}
 						else
@@ -195,7 +205,6 @@ int main(int argc, char *argv[])
 								sem_init(&(nuevo_pfs->semaforo),0,1);
 								nuevo_pfs->escrituras = NULL;
 								nuevo_pfs->lecturas = NULL;
-								
 								nuevo_pfs->sgte = info_ppal->pfs_activos;
 								info_ppal->pfs_activos = nuevo_pfs;
 								FD_SET (nuevo_pfs->sock, &set_socket);
@@ -211,8 +220,7 @@ int main(int argc, char *argv[])
 								//ENVIAR ERROR DE CONEXION
 								printf("No hay discos conectados!\n");
 								log_error(log, "Principal", "Message error: %s", "No hay discos conectados!");
-						
-										printf("cerrar conexion: %d\n",sock_new);
+								printf("cerrar conexion: %d\n",sock_new);
 								mensaje.type = 0;
 								memcpy(mensaje.payload.contenido,"No hay discos conectados!",strlen("No hay discos conectados")+1);
 								mensaje.len = 4+strlen("No hay discos conectados")+1;

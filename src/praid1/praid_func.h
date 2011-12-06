@@ -18,5 +18,6 @@ void         liberar_pfs_caido(datos **info_ppal,nipc_socket sock_pfs);
 uint16_t     limpio_discos_caidos(datos **info_ppal,nipc_socket sock_ppd);
 void         insertar(sectores_t **lista, uint32_t sector);
 int32_t      config_read(config_t *config);
+uint16_t     validar_disco(datos *info_ppal, char * nombre_disco);
 
 #endif //__FUNC_H_
