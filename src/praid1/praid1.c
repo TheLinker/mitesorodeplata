@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 					{
 						if(mensaje.len != 0)
 						{
-							if (validar_disco(info_ppal, (char *)mensaje.payload.contenido) == 0)
+							//if (validar_disco(info_ppal, (char *)mensaje.payload.contenido) == 0)
 							{
 								if(info_ppal->discos == NULL) 
 									log_info(log, "Principal", "Message info: %s", "Entra en funcionamiento el PRAID");
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 								mensaje.len = 0;
 								if(send_socket(&mensaje,sock_new)<0)
 									printf("Error ennvio de HANDSHAKE OK");
-							}
+							}/*
 							else
 							{
 								mensaje.type = 0;
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 								mensaje.len = 4+strlen("Nombre de disco repetido");
 								if(send_socket(&mensaje,sock_new)<0)
 									printf("Nombre de disco repetido");
-							}
+							}*/
 							printf("------------------------------\n");
 						}
 						else

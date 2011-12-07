@@ -94,10 +94,10 @@ nipc_socket menor_cantidad_pedidos(disco *discos, int32_t sector)
 	while(aux_disco != NULL)
 	{
 		if (menor_pedido > aux_disco->cantidad_pedidos  &&  sector <= aux_disco->sector_sincro)
-			{
-				sock_disco   = aux_disco->sock;
-				menor_pedido = aux_disco->cantidad_pedidos;
-			}
+		{
+			sock_disco   = aux_disco->sock;
+			menor_pedido = aux_disco->cantidad_pedidos;
+		}
 		aux_disco=aux_disco->sgte;
 	}
 	return sock_disco;
@@ -300,8 +300,8 @@ void *pedido_sincronizacion(datos **info_ppal)
 		{
 			mensaje.payload.sector = i;
 			usleep(1);
-			if(el_disco->encolados > 500)
-				usleep(50);
+			if(el_disco->encolados > 100)
+				usleep(10);
 			if (el_disco->pedido_sincro != 2)
 				id_disco = distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
 			else
@@ -529,31 +529,34 @@ void *espera_respuestas(datos **info_ppal)
 								while(aux_pfs != NULL  && aux_pfs->sock != aux_pedidos->sock)
 									aux_pfs = aux_pfs->sgte;
 								
-								sem_wait(&(aux_pfs->semaforo));
-								sectores_t *anterior = NULL;
-								sectores_t *pedido = aux_pfs->lecturas;
-								while(pedido != NULL  && pedido->sector != mensaje.payload.sector)
+								if (aux_pfs != NULL)
 								{
-									anterior = pedido;
-									pedido = pedido->sgte;
+									sem_wait(&(aux_pfs->semaforo));
+									sectores_t *anterior = NULL;
+									sectores_t *pedido = aux_pfs->lecturas;
+									while(pedido != NULL  && pedido->sector != mensaje.payload.sector)
+									{
+										anterior = pedido;
+										pedido = pedido->sgte;
+									}
+									if(pedido != NULL)
+									{
+										if(anterior == NULL)
+										{
+											aux_pfs->lecturas = (aux_pfs->lecturas)->sgte;
+										}
+										else
+										{
+											anterior->sgte = pedido->sgte;
+										}
+										free(pedido);
+										if(send_socket(&mensaje,aux_pedidos->sock)<=0)
+										{
+											printf("error envio a PFS escritura\n");
+										}
+									}
+									sem_post(&(aux_pfs->semaforo));
 								}
-								if(pedido != NULL)
-								{
-									if(anterior == NULL)
-									{
-										aux_pfs->lecturas = (aux_pfs->lecturas)->sgte;
-									}
-									else
-									{
-										anterior->sgte = pedido->sgte;
-									}
-									free(pedido);
-									if(send_socket(&mensaje,aux_pedidos->sock)<=0)
-									{
-										printf("error envio a PFS escritura\n");
-									}
-								}
-								sem_post(&(aux_pfs->semaforo));
 							}
 							if(mensaje.type == nipc_req_write)
 							{
@@ -722,8 +725,10 @@ void *espera_respuestas(datos **info_ppal)
 			break;
 		}
 	}
+	sleep(5);
 	printf("------------------------------\n");
 	pthread_exit(NULL);
+	return 0;
 }
 
 /**
