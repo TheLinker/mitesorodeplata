@@ -545,6 +545,14 @@ int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_
     return ret;
 }
 
+/**
+ * Obtiene el numero de bloque a partir de un numero de entrada de directorio
+ *
+ * @first_cluster: Primer cluster del directorio contenedor.
+ * @entry_index:   Indice de la directory entry en el directorio contenedor.
+ * @fs_tmp:        estructura privada del file system.
+ * @return:        Numero de bloque donde se encuentra la entrada dada.
+ */
 int32_t fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, fs_fat32_t *fs_tmp)
 {
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
@@ -562,6 +570,13 @@ int32_t fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, 
 
 }
 
+/**
+ * Imprime el hexdump de datos a un stream.
+ *
+ * @fp:       Descriptor de archivo donde imprimr la información.
+ * @buff:     Ubicacion de la informacion a imprimir.
+ * @cantidad: Cantidad de bytes a imprimir.
+ */
 void hex_log(FILE* fp, unsigned char * buff, int cantidad)
 {
     int i=0, j=0;
@@ -592,6 +607,12 @@ void hex_log(FILE* fp, unsigned char * buff, int cantidad)
     }
 }
 
+/**
+ * Obtiene un socket libre del pool de conexiones, o bloques hasta obtener uno.
+ *
+ * @fs_tmp: Estructura privada del file system.
+ * @return: Socket libre del pool.
+ */
 nipc_socket fat32_get_socket(fs_fat32_t *fs_tmp)
 {
     nipc_socket socket = -1;
@@ -612,6 +633,12 @@ nipc_socket fat32_get_socket(fs_fat32_t *fs_tmp)
     return socket;
 }
 
+/**
+ * Libera un socket.
+ *
+ * @socket: Socket a ser liberado
+ * @fs_tmp: Estructura privada del file system.
+ */
 void fat32_free_socket(nipc_socket socket, fs_fat32_t *fs_tmp)
 {
     int i=0;

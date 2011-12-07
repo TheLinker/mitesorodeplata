@@ -6,14 +6,12 @@
 void hex_log(unsigned char * buff, int cantidad);
 
 /**
- * Obtiene una *cantidad* de sectores a partir de un *sector* dado como base.
- * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
+ * Pide una *cantidad* de sectores a partir de un *sector* dado como base.
  *
- * @sector:     Primer sector a pedir.
- * @cantidad:   Cantidad de sectores a pedir a partir de *sector*(inclusive).
- * @buffer:     Lugar donde se almacena la información recibida.
- * @fs_tmp:     Estructura privada del file system // Ver Wiki.
- * @return      Código de error o 0 si fue todo bien.
+ * @sector:   Primer sector a pedir.
+ * @cantidad: Cantidad de sectores a pedir a partir de *sector*(inclusive).
+ * @socket:   Socket de comunicacion.
+ * @return    Código de error o 0 si fue todo bien.
  */
 int8_t fat32_getsectors_pet(uint32_t sector, uint32_t cantidad, nipc_socket socket)
 {
@@ -33,6 +31,17 @@ int8_t fat32_getsectors_pet(uint32_t sector, uint32_t cantidad, nipc_socket sock
     return 0;
 }
 
+/**
+ * Obtiene una *cantidad* de sectores a partir de un *sector* dado como base.
+ * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
+ *
+ * @sector:   Primer sector a pedir.
+ * @cantidad: Cantidad de sectores a pedir a partir de *sector*(inclusive).
+ * @buffer:   Lugar donde se almacena la información recibida.
+ * @fs_tmp:   Estructura privada del file system // Ver Wiki.
+ * @socket:   Socket de comunicacion.
+ * @return    Primer sector obtenido o -1 en caso de error.
+ */
 int32_t fat32_getsectors_rsp(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int i;
@@ -61,6 +70,15 @@ int32_t fat32_getsectors_rsp(uint32_t sector, uint32_t cantidad, void *buffer, f
     return ret;
 }
 
+/**
+ * Obtiene 2 sectores para terminar obteniendo un bloque.
+ * NOTA: el *buffer* debe tener el tamaño suficiente para aceptar los datos.
+ *
+ * @buffer: Lugar donde se almacena la información recibida.
+ * @fs_tmp: Estructura privada del file system // Ver Wiki.
+ * @socket: Socket de comunicacion.
+ * @return  Primer sector obtenido o -1 en caso de error.
+ */
 int32_t fat32_getsectors_rsp2(void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int i;
@@ -89,14 +107,15 @@ int32_t fat32_getsectors_rsp2(void *buffer, fs_fat32_t *fs_tmp, nipc_socket sock
 }
 
 /**
- * Escribe una *cantidad* de sectores a partir de un *sector* dado como base.
+ * Pide la escritura de una *cantidad* de sectores a partir de un *sector* dado como base.
  * NOTA: el *buffer* debe tener los datos a escribir.
  *
- * @sector:     Primer sector a escribir.
- * @cantidad:   Cantidad de sectores a escribir a partir de *sector*(inclusive).
- * @buffer:     Lugar donde se almacena la información a escribir.
- * @fs_tmp:     Estructura privada del file system // Ver Wiki.
- * @return      Código de error o 0 si fue todo bien.
+ * @sector:   Primer sector a escribir.
+ * @cantidad: Cantidad de sectores a escribir a partir de *sector*(inclusive).
+ * @buffer:   Lugar donde se almacena la información a escribir.
+ * @fs_tmp:   Estructura privada del file system // Ver Wiki.
+ * @socket:   Socket de comunicacion.
+ * @return    Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_writesectors_pet(uint32_t sector, uint32_t cantidad, void *buffer, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
@@ -117,7 +136,15 @@ uint8_t fat32_writesectors_pet(uint32_t sector, uint32_t cantidad, void *buffer,
     return 0;
 }
 
-uint8_t fat32_writesectors_rsp(uint32_t sector, uint32_t cantidad, fs_fat32_t *fs_tmp, nipc_socket socket)
+/**
+ * Obtiene confirmacion de una operacion de escritura de una *cantidad* de sectores
+ *
+ * @cantidad: Cantidad de sectores a escribir a partir de *sector*(inclusive).
+ * @fs_tmp:   Estructura privada del file system // Ver Wiki.
+ * @socket:   Socket de comunicacion.
+ * @return    Código de error o 0 si fue todo bien.
+ */
+uint8_t fat32_writesectors_rsp(uint32_t cantidad, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int i;
     for (i = 0 ; i < cantidad ; i++) {
@@ -144,7 +171,9 @@ uint8_t fat32_writesectors_rsp(uint32_t sector, uint32_t cantidad, fs_fat32_t *f
  * @block:    Primer bloque a pedir.
  * @cantidad: Cantidad de bloques a pedir.
  * @buffer:   Lugar donde se almacena la información recibida.
+ * @fid:      Id del archivo o NO_BUFFER para omitir el buffer.
  * @fs_tmp:   Estructura privada del file system// Ver Wiki.
+ * @socket:   Socket de comunicacion.
  * @return:   Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
@@ -201,7 +230,9 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t 
  * @block:    Primer bloque a escribir.
  * @cantidad: Cantidad de bloques a escribir.
  * @buffer:   Lugar donde se almacena la información recibida.
+ * @fid:      Id del archivo o NO_BUFFER para omitir el buffer.
  * @fs_tmp:   Estructura privada del file system// Ver Wiki.
+ * @socket:   Socket de comunicacion.
  * @return:   Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
@@ -210,7 +241,7 @@ uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, int32_
     //Si se llama desde un lugar sin cache
     if (fid == NO_CACHE || !fs_tmp->cache_size) {
         fat32_writesectors_pet(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer, fs_tmp, socket);
-        fat32_writesectors_rsp(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, fs_tmp, socket);
+        fat32_writesectors_rsp(cantidad * SECTORS_PER_BLOCK, fs_tmp, socket);
         return 0;
     } else {
         int i=0, rsp=0;
@@ -246,7 +277,9 @@ uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, int32_
  *
  * @cluster: Cluster a pedir.
  * @buffer:  Lugar donde se almacena la información recibida.
+ * @fid:     Id del archivo o NO_BUFFER para omitir el buffer.
  * @fs_tmp:  Estructura privada del file system// Ver Wiki.
+ * @socket:  Socket de comunicacion.
  * @return:  Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_getcluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
@@ -277,7 +310,9 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32_t
  *
  * @cluster: Cluster a escribir.
  * @buffer:  Lugar donde se almacena la información a escribir.
+ * @fid:     Id del archivo o NO_BUFFER para omitir el buffer.
  * @fs_tmp:  Estructura privada del file system// Ver Wiki.
+ * @socket:  Socket de comunicacion.
  * @return:  Código de error o 0 si fue todo bien.
  */
 uint8_t fat32_writecluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)

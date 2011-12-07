@@ -509,8 +509,8 @@ static int fat32_getattr(const char *path, struct stat *stbuf)
     stbuf->st_uid = context->uid; /* user ID of owner */
     stbuf->st_gid = context->gid; /* group ID of owner */
     stbuf->st_size = ret_attrs.file_size; /* total size, in bytes */
-    stbuf->st_blksize = BLOCK_SIZE; /* blocksize for filesystem I/O */
-    stbuf->st_blocks = (ret_attrs.file_size / BLOCK_SIZE) + 1; /* number of blocks allocated */
+    stbuf->st_blksize = 2048 /*BLOCK_SIZE*/; /* blocksize for filesystem I/O */
+    stbuf->st_blocks = (ret_attrs.file_size / 2048 /*BLOCK_SIZE*/) + 1; /* number of blocks allocated */
 
     if (ret_attrs.file_type == ATTR_SUBDIRECTORY)
         stbuf->st_mode |= S_IFDIR;
