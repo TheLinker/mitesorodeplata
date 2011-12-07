@@ -13,11 +13,11 @@
 || fat32_init || Si || Si || ||
 || fat32_destroy || Si || Si || ||
 || fat32_write || Si || Si || ||
-|| fat32_flush || <font color=red> No || <font color=red> No || Falta Cache ||
+|| fat32_flush || Si || Si || ||
 || fat32_release || Si || Si || ||
 || fat32_ftruncate || Si || Si || ||
 |||||||| *Extras* ||
-|| Cache || Si || <font color=red>No || Falta la escritura ||
+|| Cache || Si || Si || ||
 || Señales || Si || Si || ||
 || Sockets || Si || Si || ||
 || Protección FAT || Si || Si || ||
