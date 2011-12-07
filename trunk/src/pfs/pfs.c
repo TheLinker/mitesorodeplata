@@ -24,7 +24,7 @@ void fat32_sigusr_handler(int sig)
     int arch, num_cache;
     time_t timestamp;
     FILE *fp;
-    
+
     if(!(fp = fopen("cache_dump.txt", "a"))) {
         log_info(sig_fs->log, "SIGUSR1", "No se pudo abrir (o crear) el archivo para dump de cache, Error: %d (%s)", errno, strerror(errno));
         return;
@@ -32,6 +32,7 @@ void fat32_sigusr_handler(int sig)
 
     for( arch = 0 ; arch < MAX_OPEN_FILES ; arch++ ) {
         if (sig_fs->open_files[arch].busy) {
+            cache_t *cache=sig_fs->open_files[arch].cache;
             char buff[1024];
             timestamp = time(NULL);
             strftime(buff, 1024, "%Y.%m.%d %H:%M:%S", localtime(&timestamp));
@@ -41,13 +42,17 @@ void fat32_sigusr_handler(int sig)
             fprintf(fp, "Timestamp: %s\n", buff);
             fprintf(fp, "Tamaño de Bloque de Cache: %d\n", BLOCK_SIZE);
             fprintf(fp, "Cantidad de Bloques de Cache: %d\n", sig_fs->cache_size);
+            fprintf(fp, "\n");
 
-            if(sig_fs->open_files[arch].cache != NULL)
+            sem_wait(&sig_fs->open_files[arch].sem_cache);
+
+            if(cache != NULL)
                 for( num_cache = 0 ; num_cache < sig_fs->cache_size ; num_cache++ ) {
                     fprintf(fp, "Contenido de Bloque de Cache %d: ", num_cache);
 
-                    if (sig_fs->open_files[arch].cache[num_cache].number != -1) {
-                        fprintf(fp, "Bloque %d\n", sig_fs->open_files[arch].cache[num_cache].number);
+                    if (cache[num_cache].number != -1) {
+                        fprintf(fp, "Bloque: %d - Modificado: %s\n", cache[num_cache].number,
+                                                                    (cache[num_cache].modificado)?"Si":"No");
                         hex_log(fp, (unsigned char *)sig_fs->open_files[arch].cache[num_cache].contenido, BLOCK_SIZE);
                     } else {
                         fprintf(fp, "Sin Usar\n");
@@ -55,6 +60,8 @@ void fat32_sigusr_handler(int sig)
 
                     fprintf(fp, "\n");
                 }
+
+            sem_post(&sig_fs->open_files[arch].sem_cache);
 
             fprintf(fp, "\n");
         }
@@ -138,7 +145,7 @@ int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
     if(cluster_abm > 0)
         while(cluster_abm)
         {
-            fat32_add_cluster(fs_tmp->open_files[fi->fh].first_cluster, fi->fh, fs_tmp, socket);
+            fat32_add_cluster(fs_tmp->open_files[fi->fh].first_cluster, fs_tmp, socket);
             cluster_abm--;
         }
     else if(cluster_abm < 0)
@@ -220,7 +227,7 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
 
     memcpy(buffer + offset, buf, data_cluster);
 
-    fat32_writecluster(cluster_actual, buffer, NO_CACHE, fs_tmp, socket);
+    fat32_writecluster(cluster_actual, buffer, fi->fh, fs_tmp, socket);
 
     data_to_write -= data_cluster;
 
@@ -234,7 +241,7 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
 
         memcpy(buffer, buf+size-data_to_write, data_cluster);
 
-        fat32_writecluster(cluster_actual, buffer, NO_CACHE, fs_tmp, socket);
+        fat32_writecluster(cluster_actual, buffer, fi->fh, fs_tmp, socket);
 
         data_to_write -= data_cluster;
     }
@@ -245,7 +252,61 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
 
 int fat32_flush (const char *path, struct fuse_file_info *fi)
 {
-    printf("Flush: path: %s\n", path);
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Flush: path: %s", path);
+
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    int cache_idx=0;
+    cache_t *cache = fs_tmp->open_files[fi->fh].cache;
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    sem_wait(&fs_tmp->open_files[fi->fh].sem_cache);
+    for ( cache_idx = 0 ; cache_idx < fs_tmp->cache_size ; cache_idx++ )
+        if(cache->modificado)
+        {
+            fat32_writeblock(cache[cache_idx].number, 1, cache[cache_idx].contenido, NO_CACHE, fs_tmp, socket);
+            cache[cache_idx].modificado = 0;
+        }
+    sem_post(&fs_tmp->open_files[fi->fh].sem_cache);
+
+    fat32_free_socket(socket, fs_tmp);
+
+    return 0;
+}
+
+int fat32_fsync (const char *path, int datasync, struct fuse_file_info *fi)
+{
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Fsync: path: %s", path);
+
+    if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
+        return -EINVAL;
+
+    int cache_idx=0;
+    cache_t *cache = fs_tmp->open_files[fi->fh].cache;
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    sem_wait(&fs_tmp->open_files[fi->fh].sem_cache);
+    for ( cache_idx = 0 ; cache_idx < fs_tmp->cache_size ; cache_idx++ )
+        if(cache->modificado)
+        {
+            fat32_writeblock(cache[cache_idx].number, 1, cache[cache_idx].contenido, NO_CACHE, fs_tmp, socket);
+            cache[cache_idx].modificado = 0;
+        }
+    sem_post(&fs_tmp->open_files[fi->fh].sem_cache);
+
+    fat32_free_socket(socket, fs_tmp);
+
     return 0;
 }
 
@@ -261,7 +322,6 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
     if (strcmp((char *)fs_tmp->open_files[fi->fh].path, path) != 0)
         return -EINVAL;
 
-    free(fs_tmp->open_files[fi->fh].cache);
     sem_destroy(&(fs_tmp->open_files[fi->fh].sem_cache));
 
     memset(&(fs_tmp->open_files[fi->fh]), '\0', sizeof(file_descriptor));
@@ -297,7 +357,7 @@ int fat32_rename (const char *from, const char *to)
 
     char buff[10];
     sprintf(buff,"%d",context->pid);
-    log_info(fs_tmp->log, buff, "Rename: from: %s to: %s\n", from, to);
+    log_info(fs_tmp->log, buff, "Rename: from: %s to: %s", from, to);
 
     nipc_socket socket = fat32_get_socket(fs_tmp);
 
@@ -614,15 +674,16 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 
     memcpy(buf, cluster_buffer + offset, size_to_read);
 
+    cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
     while((size > 0) && (cluster_actual != fs_tmp->eoc_marker))
     {
-        cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
         fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket);
         size_to_read = MIN(cluster_size, size);
         memcpy(buf + size_aldy_read, cluster_buffer, size_to_read);
 
         size_aldy_read += size_to_read;
         size -= size_to_read;
+        cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
     }
 
     free(cluster_buffer);
@@ -633,8 +694,6 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 
 static void *fat32_init(struct fuse_conn_info *conn)
 {
-    printf("Init1 want:%X capab:%X\n", conn->want, conn->capable);
-
     fs_fat32_t *fs_tmp = calloc(sizeof(fs_fat32_t), 1);
     fs_tmp->boot_sector.bytes_per_sector = SECT_SIZE;
 
@@ -712,13 +771,6 @@ static void *fat32_init(struct fuse_conn_info *conn)
     //creamos el thread de la consola
     pthread_create(&(fs_tmp->thread_consola), NULL, fat32_consola, fs_tmp);
 
-    unsigned char buffer[1024];
-    memset(buffer, '!', 1024);
-    fat32_getblock(16, 1, buffer, NO_CACHE, fs_tmp, socket);
-    hex_log(stdout, buffer, 1024);
-//    memset(buffer, '5', 1024);
-//    fat32_writeblock(10000, 1, buffer, NO_CACHE, fs_tmp, socket);
-
     log_info(fs_tmp->log, "Init", "BPS:%d - SPC:%d - RS:%d - FC:%d - TS:%d - SPF:%d - SAS:%d clusters libres:%d EOC:%ld-",
                                        fs_tmp->boot_sector.bytes_per_sector,
                                        fs_tmp->boot_sector.sectors_per_cluster,
@@ -775,6 +827,7 @@ static struct fuse_operations fat32_oper = {
     .create    = fat32_create,
     .write     = fat32_write,
     .flush     = fat32_flush,
+    .fsync     = fat32_fsync,
     .release   = fat32_release,
     .ftruncate = fat32_ftruncate,
     .unlink    = fat32_unlink,

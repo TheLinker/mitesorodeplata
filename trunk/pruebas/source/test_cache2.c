@@ -8,6 +8,7 @@
  ============================================================================
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -53,7 +54,7 @@ int main(int argc, char **argv) {
 	fread(buffer, BUFFER_SIZE, 1, file);
     printf("leido en: %f ms\n\n", getTime());
 
-	sleep(3);
+//	sleep(3);
 
 	fseek(file, 0, SEEK_SET);
 
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
 	fread(buffer, BUFFER_SIZE, 1, file);
     printf("leido en: %f ms\n\n", getTime());
 
-	sleep(6);
+//	sleep(6);
 
 	int cont;
 
@@ -72,19 +73,19 @@ int main(int argc, char **argv) {
         start();
 		fread(buffer, BUFFER_SIZE, 1, file);
         printf("leido en: %f ms\n", getTime());
-		sleep(1);
+		//sleep(1);
 	}
 
 	printf("\n");
 
-	sleep(6);
+//	sleep(6);
 
 	printf("La cache no tiene espacio, la siguiente lectura reemplaza un elemento ...\n");
     start();
 	fread(buffer, BUFFER_SIZE, 1, file);
     printf("leido en: %f ms\n\n", getTime());
 
-	sleep(6);
+//	sleep(6);
 	fseek(file, 0, SEEK_SET);
 
 	printf("Leyendo todo nuevamente, todo debe esta cacheado salvo un elemento ...\n");
@@ -93,77 +94,103 @@ int main(int argc, char **argv) {
         start();
 		fread(buffer, BUFFER_SIZE, 1, file);
         printf("leido en: %f ms\n", getTime());
-		sleep(1);
+//		sleep(1);
 	}
 
-    return 0;
-	puts("\n\n[[ PRUEBAS DE ESCRITURA ]]\n\n");
+	printf("\n\n[[ PRUEBAS DE ESCRITURA ]]\n\n");
+//    fgetc(stdin);
 
 	fseek(file, 0, SEEK_SET);
 	memset(buffer, 'A', BUFFER_SIZE);
 
-	puts("Generando escrituras ( todos los pedidos deben ser cacheados ) ...\n");
+	printf("Generando escrituras ( todos los pedidos deben ser cacheados ) ...\n");
 	for(cont=0; cont<cache_size; cont ++){
-		puts("- Escribiendo 1Kb");
+		printf("- Escribiendo 1Kb ");
+        start();
 		fwrite(buffer, BUFFER_SIZE, 1, file);
-		sleep(1);
+        printf("escrito en: %f ms\n", getTime());
+//		sleep(1);
 	}
+	printf("\n");
 
-	sleep(5);
-	puts("Vaciando toda la cache ... \n");
-	fflush(file);
+//	sleep(5);
+//    fgetc(stdin);
+	printf("Vaciando toda la cache ... ");
+    start();
+    int ret;
+	if ((ret = fflush(file))!=0)
+        printf("Error %d %s", errno, strerror(errno));
+    printf("flusheado en: %f ms\n", getTime());
+	printf("\n");
+//    fgetc(stdin);
 
 	fseek(file, 0, SEEK_SET);
 
-	puts("Validando todo lo escrito ...\n");
+	printf("Validando todo lo escrito ...\n");
 	for(cont=0; cont<cache_size; cont ++){
 		char tmp_buffer[BUFFER_SIZE];
-		puts("- Leyendo y comparando");
+		printf("- Leyendo y comparando\n");
 		fread(tmp_buffer, BUFFER_SIZE, 1, file);
 
 		if( memcmp(buffer, tmp_buffer, BUFFER_SIZE) != 0 ){
-			puts("[ERROR] Bloque mal persistido");
+			printf("[ERROR] Bloque mal persistido\n");
 			exit(0);
 		}
-		sleep(1);
+//		sleep(1);
 	}
 
+	printf("\n");
+//    fgetc(stdin);
 	memset(buffer, 'B', BUFFER_SIZE);
 	fseek(file, 0, SEEK_SET);
 
-	puts("Generando escrituras ( todos los pedidos deben ser cacheados ) ...\n");
+	printf("Generando escrituras ( todos los pedidos deben ser cacheados ) ...\n");
 	for(cont=0; cont<cache_size; cont ++){
 		puts("- Escribiendo 1Kb");
+        ftell(file);
+        start();
 		fwrite(buffer, BUFFER_SIZE, 1, file);
-		sleep(1);
+        printf("escrito en: %f ms\n", getTime());
+		//sleep(1);
+		/*printf("- Escribiendo 1Kb bloque:%d ", ftell(file)/BUFFER_SIZE);
+		fwrite(buffer, BUFFER_SIZE, 1, file);
+		sleep(1);*/
 	}
 
-	sleep(3);
+	printf("--\n");
+//    fgetc(stdin);
+//	sleep(3);
 
-	puts("Generando lecturas para forzar la limpieza de la cache ...\n");
+	printf("Generando lecturas para forzar la limpieza de la cache ...\n");
 	for(cont=0; cont<cache_size; cont ++){
 		char tmp_buffer[BUFFER_SIZE];
-		puts("- Leyendo 1Kb");
+		printf("- Leyendo 1Kb ");
+        start();
 		fread(tmp_buffer, BUFFER_SIZE, 1, file);
-		sleep(1);
+        printf("leido en: %f ms\n", getTime());
+//		sleep(1);
 	}
 
-	sleep(3);
+	printf("\n");
+//    fgetc(stdin);
+//	sleep(3);
 	fseek(file, 0, SEEK_SET);
 
-	puts("Validando todo lo escrito ...\n");
+	printf("Validando todo lo escrito ...\n");
 	for(cont=0; cont<cache_size; cont ++){
 		char tmp_buffer[BUFFER_SIZE];
-		puts("- Leyendo y comparando");
+		printf("- Leyendo y comparando\n");
 		fread(tmp_buffer, BUFFER_SIZE, 1, file);
 
 		if( memcmp(buffer, tmp_buffer, BUFFER_SIZE) != 0 ){
-			puts("[ERROR] Bloque mal persistido");
+			printf("[ERROR] Bloque mal persistido\n");
 			exit(0);
 		}
-		sleep(1);
+//		sleep(1);
 	}
 
+	printf("\n");
+//    fgetc(stdin);
 	fclose(file);
 
 	puts("Finished");

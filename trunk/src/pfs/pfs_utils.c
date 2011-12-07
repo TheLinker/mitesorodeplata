@@ -78,7 +78,7 @@ void fat32_handshake(nipc_socket socket)
  * @fs_tmp estructura privada del file system
  * @first_cluster un cluster perteneciente a la cadena donde se desea agregar otro cluster
  */
-void fat32_add_cluster(int32_t first_cluster, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket)
+void fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
     int32_t posicion = first_cluster;
 
@@ -103,7 +103,7 @@ void fat32_add_cluster(int32_t first_cluster, int32_t fid, fs_fat32_t *fs_tmp, n
     //Inicializamos los datos del nuevo cluster a 0
     char buffer[fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector];
     memset(buffer, '\0', fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector);
-    fat32_writecluster(free_cluster, buffer, fid, fs_tmp, socket);
+    fat32_writecluster(free_cluster, buffer, NO_CACHE, fs_tmp, socket);
 }
 
 /**
