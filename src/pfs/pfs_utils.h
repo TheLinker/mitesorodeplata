@@ -8,7 +8,7 @@
 uint32_t    fat32_free_clusters(fs_fat32_t *fs_tmp);
 int32_t     fat32_first_free_cluster(fs_fat32_t *fs_tmp);
 void        fat32_handshake(nipc_socket socket);
-void        fat32_add_cluster(int32_t first_cluster, int32_t fid, fs_fat32_t *fs_tmp, nipc_socket socket);
+void        fat32_add_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket);
 void        fat32_remove_cluster(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket);
 int         fat32_config_read(fs_fat32_t *fs_tmp);
 int8_t      fat32_get_entry(int32_t entry_number, int32_t first_cluster, file_entry_t *buffer, fs_fat32_t *fs_tmp, nipc_socket socket);

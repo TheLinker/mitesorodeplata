@@ -21,11 +21,11 @@ int8_t fat32_is_in_cache(int32_t block, cache_t *cache, int8_t *buffer, struct f
     for(i=0;i<fs_tmp->cache_size;i++)
         if(cache[i].number == block)
         {
-            memcpy(buffer, cache[i].contenido, BLOCK_SIZE);
-            return TRUE;
+            if(buffer) memcpy(buffer, cache[i].contenido, BLOCK_SIZE);
+            return i;
         }
 
-    return FALSE;
+    return -1;
 }
 
 int32_t fat32_get_cache_slot(cache_t *cache, struct fs_fat32_t *fs_tmp)
