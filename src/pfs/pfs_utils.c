@@ -509,6 +509,8 @@ void fat32_build_name(file_attrs *file, int8_t *ret_name)
  */
 int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_socket socket)
 {
+#define is_free(entry) (((file_entry_t*)(entry))->file_attr == ATTR_LONG_FILE_NAME && (entry)[0] & 0x80) || (entry)[0] == 0xE5 || (entry)[0] == 0x00
+
     int32_t ret_val = -1;
     int32_t entry_n = 0;
     int8_t  buffer[sizeof(file_entry_t)];
@@ -520,23 +522,13 @@ int32_t fat32_first_dual_fentry(int32_t first_cluster, fs_fat32_t *fs_tmp, nipc_
         if(&buffer[0] == 0x00)
             return entry_n;
 
-        if(((file_entry_t*)buffer)->file_attr == ATTR_LONG_FILE_NAME)
-        {
-            if(buffer[0] & 0x80) {
-                if(ret_val == -1)
-                    ret_val = entry_n;
-                else
-                    return ret_val;
-            } else if (ret_val != -1) ret_val = -1;
-
-        } else {
-            if(buffer[0] == 0xE5) {
-                if(ret_val == -1)
-                    ret_val = entry_n;
-                else
-                    return ret_val;
-            } else if (ret_val != -1) ret_val = -1;
-        }
+        if(is_free(buffer)) {
+            if(ret_val == -1) {
+                ret_val = entry_n;
+            } else {
+                return ret_val;
+            }
+        } else if (ret_val != -1) ret_val = -1;
 
         entry_n++;
         ret = fat32_get_entry(entry_n, first_cluster,(file_entry_t *) buffer, fs_tmp, socket);
