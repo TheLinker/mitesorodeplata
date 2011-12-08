@@ -5,6 +5,10 @@ extern config_t vecConfig;
 
 extern int sectxpis;
 
+///////////////////////////
+///      CSCAN          ///
+///////////////////////////
+
 void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCab, nipc_socket socket)
 {
 	cola_t *newptr = 0;
@@ -13,7 +17,7 @@ void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCa
 	newptr = initPtr();
 	msjtocol(msj, newptr, socket);
 
-	pisec = div(newptr->ped.sect, sectxpis /*CANTIDAD DE SECTORES POR PISTA (HAY Q PASARSELO)*/);
+	pisec = div(newptr->ped.sect, sectxpis);
 	if(pisec.quot >= posCab)
 	{
 		insertOrd(headprt, newptr);
@@ -23,6 +27,92 @@ void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCa
 	}
 	return;
 }
+
+ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
+{
+	ped_t * pout = NULL;
+
+	if(NULL != *headprt)
+	{
+		pout = *headprt;
+		*headprt = (cola_t*) (*headprt)->sig;
+	}else
+	{
+		if(NULL != *saltoprt)
+		{
+			*headprt = *saltoprt;
+			*saltoprt = NULL;
+			pout = *headprt;
+			*headprt = (cola_t*) (*headprt)->sig;
+		}
+	}
+
+	//printf("%d, %d DESENCOLA", pout->oper, pout->sect);
+
+	return pout;
+}
+
+//////////////////////////
+///     N-STEP-SCAN    ///
+//////////////////////////
+
+void insertNStepScan(nipc_packet msj, cola_t ** acotadaptr, cola_t** largaptr,int32_t posCab, nipc_socket socket)
+{
+	/*cola_t *newptr = 0;
+
+	newptr = initPtr();
+	msjtocol(msj, newptr, socket);
+
+	if (cantPedidos < 10)
+	{
+		insertOrd(acotadaptr,newptr);
+	}else
+	{
+		insertAlFinal(largaptr,newptr);
+	}
+	return;*/
+}
+
+
+void insertAlFinal(cola_t** largaptr, cola_t * newptr)
+{
+/*	cola_t * primerNodo;
+	//si la lista largaptr no tiene elementos, tomo newptr como su primer elemento
+	if(largaptr == NULL)
+	{
+		largaptr = newptr;
+		primerNodo = newptr;
+	}
+	else
+	{
+		(*largaptr)->sig = newptr;
+		(*largaptr)->ped.nextsect = newptr->ped.sect;
+		largaptr = newptr;
+	}
+return;*/
+}
+
+
+ped_t * desencolarNStepScan(cola_t ** acotadaptr)
+{
+/*	ped_t * pedidoSalida = NULL;
+
+	if(NULL != *acotadaptr)
+	{
+		pedidoSalida = *acotadaptr;
+		*acotadaptr = (*acotadaptr)->sig;
+	}
+
+	cantPedidos--;
+
+	return pedidoSalida;*/
+}
+
+
+//////////////////////////
+///   Otras funciones  ///
+//////////////////////////
+
 
 void insertOrd (cola_t ** colaptr, cola_t * newptr)
 {
@@ -42,13 +132,14 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 	{
 		ordptr = (*colaptr);
 		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
-			ordptr = ordptr->sig;
+			ordptr = (cola_t*) ordptr->sig;
 		newptr->sig = ordptr->sig;
 		ordptr->sig = newptr;
 	}
 
 	return;
 }
+
 
 void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket)
 {
@@ -80,39 +171,6 @@ cola_t * initPtr()
 
 	 return newptr;
 }
-
-ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
-{
-	ped_t * pout = NULL;
-
-	if(NULL != *headprt)
-	{
-		pout = *headprt;
-		*headprt = (*headprt)->sig;
-	}else
-	{
-		if(NULL != *saltoprt)
-		{
-			*headprt = *saltoprt;
-			*saltoprt = NULL;
-			pout = *headprt;
-			*headprt = (*headprt)->sig;
-		}
-	}
-
-	//printf("%d, %d DESENCOLA", pout->oper, pout->sect);
-
-	return pout;
-}
-
-
-
-void insertFifo(nipc_packet msj, cola_t * headptr)
-{
-
-	return;
-}
-
 
 ///////////////////////////////////////
 // Funciones simulacion tiempo disco //
@@ -250,7 +308,7 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
 		{
 			cola[i] = busqptr->ped.sect;
 			i++;
-			busqptr = busqptr->sig;
+			busqptr = (cola_t*) busqptr->sig;
 		}
 		if(i<30)
 		{
@@ -259,7 +317,7 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
 			{
 				cola[i] = busqptr->ped.sect;
 				i++;
-				busqptr = busqptr->sig;
+				busqptr = (cola_t*) busqptr->sig;
 			}
 		}
 	}

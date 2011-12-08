@@ -18,7 +18,7 @@ int main()
 
 	pthread_t thConsola, thAtenderpedidos;
 	char* mensaje = NULL;
-	int32_t  thidConsola,thidAtenderpedidos, tam, sectores;
+	int32_t  thidConsola,thidAtenderpedidos, sectores;
 	div_t res;
 
 	sem_init(&semEnc,1,1);
@@ -116,10 +116,20 @@ void escucharPedidos(nipc_socket *socket)
 			//if(0 == (msj.payload.sector % 5000))
 			//printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
 			//log_info(logppd, "Escuchar Pedidos", "Message info: Pedido escritura sector %d", msj.payload.sector);
-			sem_wait(&semEnc);
-			insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual, *socket);
-			sem_post(&semEnc);
-			sem_post(&semAten);
+			if(0 == strcmp(vecConfig.algplan, "cscan"))
+			{
+				sem_wait(&semEnc);
+				insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual, *socket);
+				sem_post(&semEnc);
+				sem_post(&semAten);
+			}else
+			{
+				sem_wait(&semEnc);
+				insertNStepScan(msj, &headprt, &saltoptr, vecConfig.posactual, *socket);
+				sem_post(&semEnc);
+				sem_post(&semAten);
+
+			}
 		}
 	}
 
@@ -146,14 +156,30 @@ void atenderPedido()
 				sprintf(bufferaux, "%d:%d,", pista(cola[l]), sectpis(cola[l]));
 				strcat(buffer, bufferaux);
 			}
-			ped = desencolar(&headprt, &saltoptr);
-			sem_post(&semEnc);
+			if(0 == strcmp(vecConfig.algplan, "cscan"))
+			{
+				ped = desencolar(&headprt, &saltoptr);
+				sem_post(&semEnc);
+			}else
+			{
+				ped = desencolarNStepScan(&headprt);
+				sem_post(&semEnc);
+			}
 		}else
 		{
-			sem_wait(&semAten);
-			sem_wait(&semEnc);
-			ped = desencolar(&headprt, &saltoptr);
-			sem_post(&semEnc);
+			if(0 == strcmp(vecConfig.algplan, "cscan"))
+			{
+				sem_wait(&semAten);
+				sem_wait(&semEnc);
+				ped = desencolar(&headprt, &saltoptr);
+				sem_post(&semEnc);
+			}else
+			{
+				sem_wait(&semAten);
+				sem_wait(&semEnc);
+				ped = desencolarNStepScan(&headprt);
+				sem_post(&semEnc);
+			}
 		}
 
 		if (ped != NULL)
@@ -175,10 +201,12 @@ void atenderPedido()
 			{
 
 				case nipc_req_read:
+					sleep(vecConfig.tiempolec);
 					leerSect(ped->sect, ped->socket);
 					moverCab(ped->sect);
 					break;
 				case nipc_req_write:
+					sleep(vecConfig.tiempoesc);
 					escribirSect(ped->sect, ped->buffer, ped->socket);
 					moverCab(ped->sect);
 					break;
@@ -337,7 +365,6 @@ void leerSect(int sect, nipc_socket sock)
 
 void escribirSect(int sect, char buffer[512], nipc_socket sock)
 {
-	div_t res;
 	nipc_packet resp;
 
 
@@ -386,11 +413,10 @@ return 0;
 
 void * discoMap(int32_t sectores, int32_t dirArch)
 {
-	div_t res;
-	int32_t ret, tam;
+	int32_t ret=0, tam;
 	tam = (sectores * 512);
 	diskMap = mmap(NULL, tam, PROT_READ | PROT_WRITE, MAP_SHARED, dirArch , 0);
-	if(ret = posix_madvise(diskMap, tam, POSIX_MADV_RANDOM))
+	if(ret == posix_madvise(diskMap, tam, POSIX_MADV_RANDOM))
 			printf("El madvise ha fallado. Número de error: %d \n", ret);
 	//printf("%d %X\n", errno, dirMap[0]);
 
@@ -433,11 +459,21 @@ void funcClean(char * parametros, int cliente)
 		//setea el sector
 		pedido.payload.sector= primSec;
 		//encolar
-		sem_wait(&semEnc);
-		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
-		sem_post(&semEnc);
-		sem_post(&semAten);
-		primSec++;
+		if(0 == strcmp(vecConfig.algplan, "cscan"))
+		{
+			sem_wait(&semEnc);
+			insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
+			sem_post(&semEnc);
+			sem_post(&semAten);
+			primSec++;
+		}else
+		{
+			sem_wait(&semEnc);
+			insertNStepScan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
+			sem_post(&semEnc);
+			sem_post(&semAten);
+			primSec++;
+		}
 	}
 
 	strcpy(bufferConsola, "Se han limpiado correctamente los sectores");
@@ -488,11 +524,19 @@ void funcTrace(char * parametros, int cliente)
 		//encolar
 
 		log_info(logppd, "Escuchar Consola", "Message info: Pedido trace sector %d", pedido.payload.sector);
-		sem_wait(&semEnc);
-		insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
-		sem_post(&semEnc);
-		sem_post(&semAten);
-
+		if(0 == strcmp(vecConfig.algplan, "cscan"))
+		{
+			sem_wait(&semEnc);
+			insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
+			sem_post(&semEnc);
+			sem_post(&semAten);
+		}else
+		{
+			sem_wait(&semEnc);
+			insertNStepScan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
+			sem_post(&semEnc);
+			sem_post(&semAten);
+		}
 	}
 
 	return;
@@ -524,13 +568,4 @@ void traceSect(int sect, int32_t nextsect, int cliente)
 	sleep(1);
 	send(cliente, bufferConsola, strlen(bufferConsola),0);
 	free(bufferConsola);
-}
-//------------Prueba-----------------//
-
-void msjprueba(nipc_packet * msj)
-{
-	msj->len = 1024;
-	strcpy((char *) msj->payload.contenido, "1234,hola como estas vos...");
-	msj->type = 2;
-
 }
