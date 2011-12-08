@@ -26,4 +26,4 @@
 || fat32_unlink || <font color=red> No || <font color=red> No || ||
 || fat32_rmdir || <font color=red> No || <font color=red> No || ||
 || fat32_mkdir || <font color=red> No || <font color=red> No || ||
-|| fat32_rename || Si  || <font color=red> No || ||
+|| fat32_rename || Si  || Si || ||
