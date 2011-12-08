@@ -59,8 +59,6 @@ int my_itoa(int val, char* buf);
 
 void errorparam(void);
 
-void msjprueba(nipc_packet *);
-
 void conectarConPraid();
 
 int calcularSector(char structSect[25]);

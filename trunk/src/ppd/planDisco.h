@@ -27,7 +27,11 @@ void insertCscan(nipc_packet, cola_t**, cola_t**, int32_t, nipc_socket);
 
 void insertOrd (cola_t ** colaptr, cola_t * newptr);
 
-void insertFifo(nipc_packet, cola_t *);
+void insertNStepScan(nipc_packet msj, cola_t ** acotadaptr, cola_t** largaptr,int32_t posCab, nipc_socket socket);
+
+void insertAlFinal(cola_t** largaptr, cola_t * newptr);
+
+ped_t * desencolarNStepScan(cola_t ** acotadaptr);
 
 ped_t * desencolar(cola_t **, cola_t ** );
 

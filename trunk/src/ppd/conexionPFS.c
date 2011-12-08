@@ -106,7 +106,7 @@ void conectarConPFS(config_t vecConfig)
 						buffer.type = 0;
 						buffer.len = 0;
 						buffer.payload.sector = -3;
-						strcpy(buffer.payload.contenido, "l");
+						strcpy((char *) buffer.payload.contenido, "l");
 						send_socket(&buffer ,sock_new);
 
 						socket = malloc(sizeof(nipc_socket));
