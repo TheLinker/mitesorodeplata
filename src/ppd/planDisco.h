@@ -55,4 +55,6 @@ void obtenerrecorrido(int32_t sect, char * trace);
 
 void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola);
 
+int tamcola(cola_t ** headprt, cola_t ** saltoprt);
+
 #endif /* PLANDISCO_H_ */

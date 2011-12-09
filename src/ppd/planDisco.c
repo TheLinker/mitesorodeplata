@@ -310,7 +310,7 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
 			i++;
 			busqptr = (cola_t*) busqptr->sig;
 		}
-		if(i<30)
+		if(i<20)
 		{
 			busqptr = (* saltoprt);
 			while((busqptr != NULL) && (i<20))
@@ -321,4 +321,25 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
 			}
 		}
 	}
+}
+
+int tamcola(cola_t ** headprt, cola_t ** saltoprt)
+{
+	cola_t * busqptr;
+	int32_t i=0;
+
+	busqptr = (* headprt);
+	while(NULL != busqptr)
+	{
+		i++;
+		busqptr = (cola_t *) busqptr->sig;
+	}
+	busqptr = (* saltoprt);
+	while(NULL != busqptr)
+	{
+		i++;
+		busqptr =(cola_t *) busqptr->sig;
+	}
+
+	return i;
 }
