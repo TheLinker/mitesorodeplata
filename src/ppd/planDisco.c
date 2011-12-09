@@ -18,7 +18,7 @@ void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCa
 	msjtocol(msj, newptr, socket);
 
 	pisec = div(newptr->ped.sect, sectxpis);
-	if(pisec.quot >= posCab)
+	if(pisec.quot >= pista(posCab))
 	{
 		insertOrd(headprt, newptr);
 	}else
