@@ -1,5 +1,7 @@
 #include "consola.h"
 
+int32_t pistas,sectores,sectxpis;
+
 int main ()
 {
 		//inicializo una estructura nipc para la comunicacion
@@ -7,8 +9,8 @@ int main ()
 	   /** ---------------------------------------------ME CONECTO AL PPD---------*/
 	sleep(1);
 	printf("Arranco la consola\n");
-
-	int cliente, lengthCliente, resultado;
+	//char infodisc[30];
+	int32_t cliente, lengthCliente, resultado;
 	struct sockaddr_un direccionServidor;
 	struct sockaddr* punteroServidor;
 
@@ -32,6 +34,12 @@ int main ()
 			sleep(1);   /* reintento */
 
 	}   while ( resultado == -1 );
+
+
+	//recv(cliente, infodisc, strlen(infodisc),0);
+	//pistas = atoi(strtok(infodisc,","));
+	//sectores = atoi(strtok(NULL,"\0"));
+	//sectxpis = sectores/pistas;
 
 	printf("Se ha conectado con el PPD \n");
 
@@ -83,9 +91,9 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 			//return cantEnv;
 			//send(cliente,resp,strlen(resp),0); //ORIGINAL
 
-			send(cliente,comando,strlen(comando),0); //LO AGREGUE
+			send(cliente,comando,strlen(comando),0); //LO AGREGU
 
-			recv(cliente,resp,strlen(resp),0); //LO CAMBIE
+			recv(cliente,resp,sizeof(resp),0); //LO CAMBIE
 
 			funcInfo(resp);
 
@@ -105,7 +113,6 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 				//return cantEnv;
 			send(cliente,comando,strlen(comando),0); //LO CAMBIE
 			//send(cliente,resp,strlen(resp),0); original
-
 			recv(cliente,resp,sizeof(resp),0); //LO CAMBIE
 
 			funcClean(resp);
@@ -134,6 +141,7 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 				{
 					sprintf(comando, "%s(%s)", funcion, parametros);
 					send(cliente,comando,strlen(comando),0);
+					usleep(500);
 					for(j=0; j<cantparam; j++)
 					{
 						recv(cliente,resp,sizeof(resp),0);

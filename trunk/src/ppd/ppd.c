@@ -36,6 +36,7 @@ int main()
 	diskMap = discoMap(vecConfig.sectores, dirArch);
 	posCabAct = vecConfig.posactual;
 	cantSect = vecConfig.sectores;
+	
 
 
 	printf("%s\n", vecConfig.modoinit);
@@ -45,7 +46,7 @@ int main()
 
 	if (pid == 0)
 	{
-		if(-1 == execle("consolappd", "consolappd", NULL, NULL))
+		if(-1 == execle("../../consolappd/Debug/consolappd", "consolappd", NULL, NULL))
 			printf("Error al ejecutar la consola \n");
 			printf("NUMERO DE ERROR: %d \n", errno);
 	}else
@@ -140,7 +141,7 @@ void atenderPedido()
 {
 	ped_t * ped;
 	char buffer[1024], bufferaux[11];
-	int32_t cola[20], l;
+	int32_t cola[20], l, tamcol;
 
 	while(1)
 	{
@@ -148,6 +149,7 @@ void atenderPedido()
 		{
 			sem_wait(&semAten);
 			sem_wait(&semEnc);
+			tamcol = tamcola(&headprt, &saltoptr);
 			obtenercola(&headprt, &saltoptr, cola);
 			memset(buffer, '\0', sizeof(buffer));
 			for(l=0;(l<sizeof(cola)) && (cola[l] != -1); l++)
@@ -192,7 +194,7 @@ void atenderPedido()
 			memset(trace, '\0', 200000);
 			obtenerrecorrido(ped->sect, trace);
 			time= timemovdisco(ped->sect);
-			log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño:\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
+			log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño: %d\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,tamcol ,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
 			}
 			//if(0 == (ped->sect % 5000))
 				//printf("SECTOR PEDIDO %d \n", ped->sect);
@@ -428,11 +430,15 @@ void * discoMap(int32_t sectores, int32_t dirArch)
 
 void funcInfo(int cliente)
 {
+	int poscab;
+	poscab = vecConfig.posactual;
 	char * bufferConsola = NULL;
 	bufferConsola = (char *) malloc(TAM_SECT);
 	memset(bufferConsola, '\0', TAM_SECT);
-	sprintf(bufferConsola, "%d", vecConfig.posactual);
-	send(cliente,bufferConsola, strlen(bufferConsola) +1 ,0);
+	sprintf(bufferConsola, "%d", poscab);
+	printf("%s-",bufferConsola);
+	send(cliente,bufferConsola, strlen(bufferConsola),0);
+	printf("%d\n",poscab);
 	return;
 }
 
