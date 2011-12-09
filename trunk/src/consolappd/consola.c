@@ -174,11 +174,13 @@ void funcClean(char *resp)
 
 void funcTrace(char *resp)
 {
-	int32_t psect, ssect, pnextsect, snextsect, pposactual, sposactual, pposinit, sposinit;
-	char trace[200], aux[20];
+	int32_t a, psect, ssect, pnextsect, snextsect, pposactual, sposactual, pposinit, sposinit, pposactual2;
+	char trace[200000], aux[20];
 	double tiempo;
 
-	memset(trace, '\0', 200);
+	a = 0;
+
+	memset(trace, '\0', 200000);
 
 	psect = atoi(strtok(resp, ","));
 	ssect = atoi(strtok(NULL, ","));
@@ -190,56 +192,54 @@ void funcTrace(char *resp)
 	pposinit = pposactual;
 	sposinit = sposactual;
 
-	if(psect < pposactual)
+	if(pposactual != psect)
 	{
-		for( ;pposactual<=1023 ; pposactual++)
+		a = 1;
+		if(pposactual > psect)
 		{
-			memset(aux, '\0', 20);
-			sprintf(aux, "%d:%d, ", pposactual,sposactual);
-			strcat(trace, aux);
+			for( ;pposactual<=1023 ; pposactual++)				//TODO
+					{
+						memset(aux, '\0', 20);
+						sprintf(aux, "%d:%d, ", pposactual,sposactual);
+						strcat(trace, aux);
 
+					}
+					pposactual = 0;
 		}
-		pposactual = 0;
-	}
 
-	if (pposactual != psect)
-	{
 		for( ; pposactual<=psect; pposactual++)
-		{
-			memset(aux, '\0', 20);
-			sprintf(aux, "%d:%d, ", pposactual,sposactual);
-			strcat(trace, aux);
-		}
+				{
+					memset(aux, '\0', 20);
+					sprintf(aux, "%d:%d, ", pposactual,sposactual);
+					strcat(trace, aux);
+					pposactual2 = pposactual;
+				}
 
-		if(ssect < sposactual)
-		{
-			for( ; sposactual<=1023 ; sposactual++)
-			{
-				memset(aux, '\0', 20);
-				sprintf(aux, "%d:%d, ", sposactual,sposactual);
-				strcat(trace, aux);
-			}
-			sposactual = 0;
-		}
+
 	}
 
-	if (sposactual != ssect)
+	if(sposactual != ssect)
 	{
-		for( ; sposactual<=ssect; sposactual++)
+		if (a == 1)
+			sposactual++;
+		if(sposactual > ssect)
 		{
-			memset(aux, '\0', 20);
-			if(sposactual == ssect)
-			{
-				sprintf(aux, "%d:%d", sposactual,sposactual);
-				strcat(trace, aux);
-			}
-			else
-			{
-			sprintf(aux, "%d:%d, ", sposactual,sposactual);
-			strcat(trace, aux);
-			}
+			for( ;sposactual<=1023 ; sposactual++)				//TODO
+				{
+					memset(aux, '\0', 20);
+					sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+					strcat(trace, aux);
 
+				}
+				sposactual = 0;
 		}
+
+		for( ; sposactual<=ssect; sposactual++)
+					{
+						memset(aux, '\0', 20);
+						sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+						strcat(trace, aux);
+					}
 	}
 
 	printf("Posición actual: %d:%d\n", pposinit, sposinit);

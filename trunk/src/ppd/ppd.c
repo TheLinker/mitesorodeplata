@@ -35,7 +35,7 @@ int main()
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
 	diskMap = discoMap(vecConfig.sectores, dirArch);
 	posCabAct = vecConfig.posactual;
-	cantSect = vecConfig.sectores * vecConfig.pistas;
+	cantSect = vecConfig.sectores;
 
 
 	printf("%s\n", vecConfig.modoinit);
@@ -45,9 +45,9 @@ int main()
 
 	if (pid == 0)
 	{
-		/*if(-1 == execle("../../consolappd/Debug/consolappd", "consolappd", NULL, NULL))
+		if(-1 == execle("consolappd", "consolappd", NULL, NULL))
 			printf("Error al ejecutar la consola \n");
-			printf("NUMERO DE ERROR: %d \n", errno);*/
+			printf("NUMERO DE ERROR: %d \n", errno);
 	}else
 	{
 		thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
@@ -416,7 +416,7 @@ void * discoMap(int32_t sectores, int32_t dirArch)
 	int32_t ret=0, tam;
 	tam = (sectores * 512);
 	diskMap = mmap(NULL, tam, PROT_READ | PROT_WRITE, MAP_SHARED, dirArch , 0);
-	if(ret == posix_madvise(diskMap, tam, POSIX_MADV_RANDOM))
+	if(ret = posix_madvise(diskMap, tam, POSIX_MADV_RANDOM))
 			printf("El madvise ha fallado. Número de error: %d \n", ret);
 	//printf("%d %X\n", errno, dirMap[0]);
 

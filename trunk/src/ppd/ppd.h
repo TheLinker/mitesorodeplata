@@ -28,7 +28,7 @@
 char comando[200], buffer[TAM_SECT], bufferent[TAM_SECT];
 char * pathArch;
 int8_t * dirMap, * dirSect;
-int sect, cantSect, offset;
+uint32_t sect, cantSect, offset;
 
 
 void escucharPedidos(nipc_socket *sock);
