@@ -7,9 +7,8 @@ int main ()
 		//inicializo una estructura nipc para la comunicacion
 
 	   /** ---------------------------------------------ME CONECTO AL PPD---------*/
-	sleep(1);
 	printf("Arranco la consola\n");
-	//char infodisc[30];
+	char infodisc[30];
 	int32_t cliente, lengthCliente, resultado;
 	struct sockaddr_un direccionServidor;
 	struct sockaddr* punteroServidor;
@@ -34,12 +33,11 @@ int main ()
 			sleep(1);   /* reintento */
 
 	}   while ( resultado == -1 );
-
-
-	//recv(cliente, infodisc, strlen(infodisc),0);
-	//pistas = atoi(strtok(infodisc,","));
-	//sectores = atoi(strtok(NULL,"\0"));
-	//sectxpis = sectores/pistas;
+	
+	recv(cliente, infodisc, sizeof(infodisc),0);
+	pistas = atoi(strtok(infodisc,","));
+	sectores = atoi(strtok(NULL,"\0"));
+	sectxpis = sectores/pistas;
 
 	printf("Se ha conectado con el PPD \n");
 
@@ -205,7 +203,7 @@ void funcTrace(char *resp)
 		a = 1;
 		if(pposactual > psect)
 		{
-			for( ;pposactual<=1023 ; pposactual++)				//TODO
+			for( ;pposactual<=pistas ; pposactual++)				
 					{
 						memset(aux, '\0', 20);
 						sprintf(aux, "%d:%d, ", pposactual,sposactual);
@@ -232,7 +230,7 @@ void funcTrace(char *resp)
 			sposactual++;
 		if(sposactual > ssect)
 		{
-			for( ;sposactual<=1023 ; sposactual++)				//TODO
+			for( ;sposactual<=sectores ; sposactual++)				
 				{
 					memset(aux, '\0', 20);
 					sprintf(aux, "%d:%d, ", pposactual2,sposactual);

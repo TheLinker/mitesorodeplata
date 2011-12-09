@@ -2,7 +2,7 @@
 #include "ppd.h"
 
 extern config_t vecConfig;
-
+//extern sem_t semEnc;
 extern int sectxpis;
 
 ///////////////////////////
@@ -201,21 +201,21 @@ double timesect (void)
 
 
 
-double timemovdisco(int32_t sector)
+double timemovdisco(int32_t sector, int32_t posCab)
 {
 	int pisrec = 0;
 	int sectrec = 0;
 	double tiempo = 0;
 
-	if (sector < vecConfig.posactual)
-		pisrec =  vecConfig.pistas + pista(sector) - pista(vecConfig.posactual);
+	if (pista(sector) < pista(posCab))
+		pisrec =  vecConfig.pistas + pista(sector) - pista(posCab);
 	else
-		pisrec = pista(sector) - pista(vecConfig.posactual);
+		pisrec = pista(sector) - pista(posCab);
 
-	if(sectpis(sector) < sectpis(vecConfig.posactual))
-		sectrec = sectxpis + sectpis(sector) - sectpis(vecConfig.posactual);
+	if(sectpis(sector) < sectpis(posCab))
+		sectrec = sectxpis + sectpis(sector) - sectpis(posCab);
 	else
-		sectrec = sectpis(sector) - sectpis(vecConfig.posactual);
+		sectrec = sectpis(sector) - sectpis(posCab);
 
 	tiempo = sectrec * timesect() + pisrec * vecConfig.tiempoentrepistas;
 
@@ -224,17 +224,19 @@ double timemovdisco(int32_t sector)
 
 void moverCab(int32_t sect)
 {
+	//sem_wait(&semEnc);
 	vecConfig.posactual = sect;
+	//sem_post(&semEnc);
 }
 
-void obtenerrecorrido(int32_t sect, char * trace)
+void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 {
 	div_t s,p;
 	char aux[20];
 	int32_t a, psect, ssect, pposactual, sposactual, pposactual2;
 
 	s = div(sect, sectxpis);
-	p = div(vecConfig.posactual, sectxpis);
+	p = div(posCab, sectxpis);
 
 	psect= s.quot;
 	ssect= s.rem;
