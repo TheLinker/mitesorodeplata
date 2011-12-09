@@ -43,7 +43,7 @@ cola_t * initSaltoPrt();
 
 int pista(int32_t);
 
-double timemovdisco(int32_t);
+double timemovdisco(int32_t sect, int32_t posCab);
 
 double timesect (void);
 
@@ -51,9 +51,9 @@ int sectpis(int32_t);
 
 void moverCab(int32_t sect);
 
-void obtenerrecorrido(int32_t sect, char * trace);
+void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab);
 
-void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola);
+void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int32_t * cola);
 
 int tamcola(cola_t ** headprt, cola_t ** saltoprt);
 
