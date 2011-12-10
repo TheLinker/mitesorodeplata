@@ -185,6 +185,7 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 			newptr->ped.nextsect = -1;
 		else
 			newptr->ped.nextsect = (*colaptr)->ped.sect;
+
 		newptr->sig = (*colaptr);
 		(*colaptr) = newptr;
 	}else
@@ -192,8 +193,22 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 		ordptr = (*colaptr);
 		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
 			ordptr = (cola_t*) ordptr->sig;
-		newptr->sig = ordptr->sig;
-		ordptr->sig = newptr;
+		if(NULL != ordptr->sig)
+		{	
+			newptr->sig = ordptr->sig;
+			ordptr->sig = newptr;
+			ordptr->ped.nextsect = newptr->ped.sect;
+			ordptr = (cola_t*) ordptr->sig;
+			//newptr->ped.nextsect = ordptr->ped.sect;
+			newptr->ped.nextsect = 12;
+		}else
+		{
+			newptr->ped.nextsect = -1;
+					newptr->sig = ordptr->sig;
+			ordptr->sig = newptr;
+			ordptr->ped.nextsect = newptr->ped.sect;
+			
+		}
 	}
 
 	return;
@@ -292,8 +307,9 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 {
 	div_t s,p;
 	char aux[20];
-	int32_t a, psect, ssect, pposactual, sposactual, pposactual2;
+	int32_t a, psect, ssect, pposactual, sposactual, pposactual2, cant, i=0;
 
+	memset(trace, '\0', 20000);
 	s = div(sect, sectxpis);
 	p = div(posCab, sectxpis);
 
@@ -302,56 +318,126 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 	pposactual= p.quot;
 	sposactual= p.rem;
 	pposactual2= p.quot;
+	
+	cant = obtenerRecCant(psect, ssect, pposactual, sposactual);
 
 	if(pposactual != psect)
+	{
+		a = 1;
+		if(pposactual > psect)
 		{
-			a = 1;
-			if(pposactual > psect)
+			for( ;pposactual<=vecConfig.pistas ; pposactual++)				
 			{
-				for( ;pposactual<=1023 ; pposactual++)
-						{
-							memset(aux, '\0', 20);
-							sprintf(aux, "%d:%d, ", pposactual,sposactual);
-							strcat(trace, aux);
-
-						}
-						pposactual = 0;
-			}
-
-			for( ; pposactual<=psect; pposactual++)
-					{
-						memset(aux, '\0', 20);
+				memset(aux, '\0', 30);
+				if(cant>20)
+				{
+					if(i == 9 || i == cant)
+						sprintf(aux, "%d:%d ", pposactual,sposactual);
+					else	
 						sprintf(aux, "%d:%d, ", pposactual,sposactual);
-						strcat(trace, aux);
-						pposactual2 = pposactual;
-					}
-
-
-		}
-
-		if(sposactual != ssect)
-		{
-			if (a == 1)
-				sposactual++;
-			if(sposactual > ssect)
-			{
-				for( ;sposactual<=1023 ; sposactual++)
+					if((i<10) || (i>(cant-10)))
 					{
-						memset(aux, '\0', 20);
-						sprintf(aux, "%d:%d, ", pposactual2,sposactual);
 						strcat(trace, aux);
-
+						if (i==9)
+							strcat(trace, " ... ");
 					}
-					sposactual = 0;
-			}
+				i++;
+				}else
+				{
+					memset(aux, '\0', 20);
+					sprintf(aux, "%d:%d, ", pposactual,sposactual);
+					strcat(trace, aux);
+				}
 
-			for( ; sposactual<=ssect; sposactual++)
-						{
-							memset(aux, '\0', 20);
-							sprintf(aux, "%d:%d, ", pposactual2,sposactual);
-							strcat(trace, aux);
-						}
+			}
+			pposactual = 0;
 		}
+
+		for( ; pposactual<=psect; pposactual++)
+		{
+			memset(aux, '\0', 30);
+			if(cant>20)
+			{
+				if(i == 9 || i == cant)
+					sprintf(aux, "%d:%d ", pposactual,sposactual);
+				else	
+					sprintf(aux, "%d:%d, ", pposactual,sposactual);
+				if((i<10) || (i>(cant-10)))
+				{
+					strcat(trace, aux);
+					if (i==9)
+						strcat(trace, "... ");
+				}
+				i++;
+			}else
+			{
+				memset(aux, '\0', 20);
+				sprintf(aux, "%d:%d, ", pposactual,sposactual);
+				strcat(trace, aux);
+			}
+			pposactual2 = pposactual;
+		}
+
+
+	}
+	
+	if(sposactual != ssect)
+	{
+		if (a == 1)
+			sposactual++;
+		if(sposactual > ssect)
+		{
+			for( ;sposactual<=sectxpis ; sposactual++)				
+			{
+				memset(aux, '\0', 30);
+				if(cant>20)
+				{
+					if(i == 9 || i == cant)
+						sprintf(aux, "%d:%d ", pposactual2,sposactual);
+					else
+						sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+					if((i<10) || (i>(cant-10)))
+					{
+						strcat(trace, aux);
+						if (i==9)
+							strcat(trace, " ... ");
+					}
+				i++;
+				}else
+				{
+					memset(aux, '\0', 20);
+					sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+					strcat(trace, aux);
+				}
+
+			}
+			sposactual = 0;
+		}
+
+		for( ; sposactual<=ssect; sposactual++)
+		{
+			memset(aux, '\0', 30);
+			if(cant>20)
+			{
+				if(i == 9 || i == cant)
+					sprintf(aux, "%d:%d ", pposactual2,sposactual);
+				else	
+					sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+				if((i<10) || (i>(cant-10)))
+				{
+					strcat(trace, aux);
+					if (i==9)
+						strcat(trace, " ... ");
+				}
+			i++;
+			}else
+			{
+				memset(aux, '\0', 20);
+				sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+				strcat(trace, aux);
+			}
+			}
+	}
 }
 
 void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
@@ -403,4 +489,21 @@ int tamcola(cola_t ** headprt, cola_t ** saltoprt)
 	}
 
 	return i;
+}
+
+int32_t obtenerRecCant(int32_t psect,int32_t ssect,int32_t pposactual,int32_t sposactual)
+{	
+	int32_t cantrec = 0;
+	
+	if (psect < pposactual)
+		cantrec = cantrec +  vecConfig.pistas + psect - pposactual +1;
+	else
+		cantrec = cantrec + psect - pposactual;
+
+	if(ssect <  sposactual)
+		cantrec = cantrec + sectxpis + ssect - sposactual +1;
+	else
+		cantrec = cantrec + ssect - sposactual;
+
+	return cantrec;
 }
