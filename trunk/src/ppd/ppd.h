@@ -53,7 +53,7 @@ void funcClean(char *, int cliente);
 
 void funcTrace(char *, int cliente);
 
-void traceSect(int sect, int32_t nextsect, int cliente, int32_t);
+void traceSect(int sect, int32_t nextsect, int cliente, int32_t posCab, int32_t cola[20]);
 
 int my_itoa(int val, char* buf);
 
