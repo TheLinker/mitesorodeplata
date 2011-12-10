@@ -56,56 +56,115 @@ ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
 ///     N-STEP-SCAN    ///
 //////////////////////////
 
-void insertNStepScan(nipc_packet msj, cola_t ** acotadaptr, cola_t** largaptr,int32_t posCab, nipc_socket socket)
+void insertNStepScan(nipc_packet msj, int cantPedidos, cola_t** largaptr, cola_t** acotadaptr, int posCab, nipc_socket socket)
 {
-	/*cola_t *newptr = 0;
+	cola_t *newptr = 0;
 
 	newptr = initPtr();
 	msjtocol(msj, newptr, socket);
 
 	if (cantPedidos < 10)
 	{
-		insertOrd(acotadaptr,newptr);
-	}else
-	{
-		insertAlFinal(largaptr,newptr);
+		insertOrdNStep(acotadaptr, newptr);
+		cantPedidos ++;
 	}
-	return;*/
+	else
+		insertAlFinalNStep(largaptr, newptr);
+
+	return;
 }
 
 
-void insertAlFinal(cola_t** largaptr, cola_t * newptr)
+void insertAlFinalNStep(cola_t **largaptr, cola_t *newptr)
 {
-/*	cola_t * primerNodo;
+	cola_t ** aux;
+
 	//si la lista largaptr no tiene elementos, tomo newptr como su primer elemento
-	if(largaptr == NULL)
+
+	if(&largaptr == NULL)
 	{
-		largaptr = newptr;
-		primerNodo = newptr;
+		largaptr = &newptr;
+		aux = &newptr;
 	}
 	else
 	{
-		(*largaptr)->sig = newptr;
-		(*largaptr)->ped.nextsect = newptr->ped.sect;
-		largaptr = newptr;
+		(*aux) -> sig =  (cola_t *) newptr;
+		aux = &newptr;
 	}
-return;*/
+
+	return;
+
+}
+
+void insertOrdNStep (cola_t **acotadaptr, cola_t *newptr)
+{
+
+	cola_t * aux = 0;
+
+	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
+
+	if (acotadaptr == NULL)
+	{
+		acotadaptr = &newptr;
+		//printf("acotadaPtr: %s %s", *newptr, *acotadaptr);
+	}
+	else if (newptr -> ped.sect <= (*acotadaptr) -> ped.sect)
+	{
+		newptr -> sig = (struct cola_t *) *acotadaptr ;
+		acotadaptr = &newptr;
+	}
+	else if (newptr -> ped.sect > (*acotadaptr) -> ped.sect)
+	{
+		aux = *acotadaptr;
+		while ( (aux -> sig != NULL ) && (aux -> ped. nextsect < newptr -> ped .sect) )
+		{
+			aux = (cola_t *) aux -> sig;
+		}
+		newptr -> sig = aux -> sig;
+		aux -> sig = (struct cola_t *) newptr;
+	}
+
+	return;
 }
 
 
-ped_t * desencolarNStepScan(cola_t ** acotadaptr)
+ped_t * desencolarNStepScan(cola_t ** acotadaptr, cola_t ** largaptr, int32_t cantPedidos)
 {
-/*	ped_t * pedidoSalida = NULL;
+	ped_t * pedidoSalida = NULL;
+	cola_t * aux;
+	int i;
 
-	if(NULL != *acotadaptr)
+	if (cantPedidos == 0)
 	{
-		pedidoSalida = *acotadaptr;
-		*acotadaptr = (*acotadaptr)->sig;
+		acotadaptr = largaptr;
+		//adelanto largaptr hasta la posicion 10, ahi hago null el siguiente de la posicion 10 y pongo largaptr en la posicion 11
+		for (i = 0 ; i < 10 ; i++)
+		{
+			largaptr = (struct cola_t *)(*largaptr)->sig;
+		}
+		aux = *largaptr;
+		largaptr = (struct cola_t *)(*largaptr)->sig;
+		(*aux).sig = NULL;
+
+		cantPedidos = 10;
+		ordenarLista(acotadaptr);
+	}
+	else
+	{
+		if(NULL != *acotadaptr)
+		{
+			pedidoSalida = (void*)acotadaptr;
+			*acotadaptr = (*acotadaptr)->sig;
+		}
 	}
 
-	cantPedidos--;
+	return pedidoSalida;
+}
 
-	return pedidoSalida;*/
+void ordenarLista(cola_t** acotadaptr)
+{
+	
+	return;
 }
 
 
