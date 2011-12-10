@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
 	}
 
 	FILE *file = fopen(argv[1], "r+");
+	setvbuf (file , NULL , _IONBF , 0 );
 
 	// size in KB
 	int cache_size = atoi(argv[2]);

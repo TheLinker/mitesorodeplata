@@ -70,12 +70,6 @@ void fat32_sigusr_handler(int sig)
     fclose(fp);
 }
 
-int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
-{
-    printf("Create: path:%s\n", path);
-    return 0;
-}
-
 int fat32_ftruncate (const char *path, off_t offset, struct fuse_file_info *fi)
 {
     struct fuse_context* context = fuse_get_context();
@@ -329,25 +323,426 @@ int fat32_release (const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-int fat32_unlink (const char *path)
+static int fat32_open(const char *path, struct fuse_file_info *fi)
 {
-    printf("Unlink: path: %s\n", path);
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Open: path: %s", path);
+
+    file_attrs ret_attrs;
+
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    int32_t container_cluster = fat32_get_file_from_path((const uint8_t *) path, &ret_attrs, fs_tmp, socket);
+    if(container_cluster<0) {
+        fat32_free_socket(socket, fs_tmp);
+        return container_cluster;
+    }
+
+    int32_t ret = fat32_get_free_file_entry(fs_tmp->open_files);
+    if(ret<0) {
+        fat32_free_socket(socket, fs_tmp);
+        return ret;
+    }
+
+    memcpy(fs_tmp->open_files[ret].path, path, strlen(path));
+    fat32_build_name(&ret_attrs, fs_tmp->open_files[ret].filename);
+    fs_tmp->open_files[ret].file_size = ret_attrs.file_size;
+    fs_tmp->open_files[ret].first_cluster = ret_attrs.first_cluster;
+    fs_tmp->open_files[ret].busy = TRUE;
+    fs_tmp->open_files[ret].container_cluster = container_cluster;
+    fs_tmp->open_files[ret].entry_index = ret_attrs.entry_index;
+
+    //Ahora vamos por la cache.
+    fs_tmp->open_files[ret].cache = calloc(fs_tmp->cache_size, sizeof(cache_t));
+    sem_init(&(fs_tmp->open_files[ret].sem_cache), 0, 1);
+
+    int i=0;
+    for(i=0;i < (fs_tmp->cache_size);i++)
+    {
+        fs_tmp->open_files[ret].cache[i].number = -1;
+        fs_tmp->open_files[ret].cache[i].modificado = 0;
+        fs_tmp->open_files[ret].cache[i].stamp = -1;
+    }
+
+    //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
+    fi->fh = ret;
+
+    fat32_free_socket(socket, fs_tmp);
     return 0;
 }
 
-int fat32_rmdir (const char *path)
+int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-    printf("RmDir: path: %s\n", path);
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Create: path: %s", path);
+
+    //separamos el nombre de la ruta a el
+    int8_t *path2 = calloc(strlen(path) + 1, 1);
+    strcpy((char *)path2, path);
+    int8_t *nombre_arch = (int8_t *)strrchr((char *)path2, '/');
+    nombre_arch[0] = '\0';
+    nombre_arch++;
+    if(strlen((char *)nombre_arch) > 13)
+    {
+        log_error(fs_tmp->log, "", "El nombre '%s' excede el limite de 13 caracteres "
+                                   "impuesto por el enunciado.", nombre_arch);
+        free(path2);
+        return -EINVAL;
+    }
+
+    int8_t *bloques = calloc(BLOCK_SIZE, 2);
+
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    //pedir bloque nuevo
+    file_attrs dir_attrs;
+    if(!strcmp((char *)path2, ""))
+        dir_attrs.first_cluster = 2;
+    else
+        fat32_get_file_from_path((uint8_t *)path2, &dir_attrs, fs_tmp, socket);
+
+    int32_t entry_index = fat32_first_dual_fentry(dir_attrs.first_cluster, fs_tmp, socket);
+
+    int32_t bloque_lfn = fat32_get_block_from_dentry(dir_attrs.first_cluster, entry_index, fs_tmp);
+    int32_t bloque_file= fat32_get_block_from_dentry(dir_attrs.first_cluster, entry_index + 1, fs_tmp);
+
+    fat32_getblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    //crear entrada de lfn
+    lfn_entry_t lfn_entry_new;
+    lfn_entry_new.seq_number = 0x41;
+    ((file_entry_t *)&lfn_entry_new)->file_attr = ATTR_LONG_FILE_NAME;
+
+    uint16_t utf16_name[14];
+    memset(utf16_name, 0xff, sizeof(utf16_name));
+    unicode_utf8_to_utf16_inbuffer((unsigned char*)nombre_arch, MAX(strlen((char*)nombre_arch) + 1, 13),
+                                   utf16_name, NULL);
+    memcpy(((lfn_entry_t *)&lfn_entry_new)->lfn_name1, utf16_name,      5 * sizeof(int16_t));
+    memcpy(((lfn_entry_t *)&lfn_entry_new)->lfn_name2, utf16_name + 5,  6 * sizeof(int16_t));
+    memcpy(((lfn_entry_t *)&lfn_entry_new)->lfn_name3, utf16_name + 11, 2 * sizeof(int16_t));
+
+    //crear entrada file
+    file_entry_t file_entry_new;
+    file_entry_new.file_attr = ATTR_ARCHIVE;
+    file_entry_new.first_cluster_hi=0;
+    file_entry_new.first_cluster_low=0;
+    file_entry_new.file_size=0;
+
+    int8_t dos_name[11];
+    memset(dos_name, 0x20, 11);
+    memcpy(dos_name, nombre_arch, MIN(8, strlen((char*)nombre_arch)));
+    memcpy(dos_name+8, nombre_arch + strlen((char*)nombre_arch) - 3, MIN(3, strlen((char*)nombre_arch)));
+
+    int8_t i=0;
+    for(i=0;i<11;i++) dos_name[i] = toupper(dos_name[i]);
+    if(dos_name[0] == 0xe5) dos_name[0] = 0x05;
+
+    memcpy(file_entry_new.dos_file_name, dos_name, 11);
+
+    //poner entradas en bloques
+    memcpy(bloques + (entry_index * sizeof(file_entry_t)), &lfn_entry_new, sizeof(file_entry_t));
+    if(bloque_file!=bloque_lfn)
+        memcpy(bloques + BLOCK_SIZE + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+    else
+        memcpy(bloques + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+
+    //pedir escritura bloque(s) nuevo
+    fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    free(bloques);
+    free(path2);
+    fat32_free_socket(socket, fs_tmp);
+
+    fat32_open(path, fi);
+
     return 0;
 }
 
 int fat32_mkdir (const char *path, mode_t mode)
 {
-    printf("MkDir: path: %s\n", path);
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Mkdir: path: %s", path);
+
+    //separamos el nombre de la ruta a el
+    int8_t *path2 = calloc(strlen(path) + 1, 1);
+    strcpy((char *)path2, path);
+    int8_t *nombre_arch = (int8_t *)strrchr((char *)path2, '/');
+    nombre_arch[0] = '\0';
+    nombre_arch++;
+    if(strlen((char *)nombre_arch) > 13)
+    {
+        log_error(fs_tmp->log, "", "El nombre '%s' excede el limite de 13 caracteres "
+                                   "impuesto por el enunciado.", nombre_arch);
+        free(path2);
+        return -EINVAL;
+    }
+
+    int8_t *bloques = calloc(BLOCK_SIZE, 2);
+
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    //pedir bloque nuevo
+    file_attrs dir_attrs;
+    if(!strcmp((char *)path2, ""))
+        dir_attrs.first_cluster = 2;
+    else
+        fat32_get_file_from_path((uint8_t *)path2, &dir_attrs, fs_tmp, socket);
+
+    int32_t entry_index = fat32_first_dual_fentry(dir_attrs.first_cluster, fs_tmp, socket);
+
+    int32_t bloque_lfn = fat32_get_block_from_dentry(dir_attrs.first_cluster, entry_index, fs_tmp);
+    int32_t bloque_file= fat32_get_block_from_dentry(dir_attrs.first_cluster, entry_index + 1, fs_tmp);
+
+    fat32_getblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    //crear entrada de lfn
+    lfn_entry_t lfn_entry_new;
+    lfn_entry_new.seq_number = 0x41;
+    ((file_entry_t *)&lfn_entry_new)->file_attr = ATTR_LONG_FILE_NAME;
+
+    uint16_t utf16_name[14];
+    memset(utf16_name, 0xff, sizeof(utf16_name));
+    unicode_utf8_to_utf16_inbuffer((unsigned char*)nombre_arch, MAX(strlen((char*)nombre_arch) + 1, 13),
+                                   utf16_name, NULL);
+    memcpy(((lfn_entry_t *)&lfn_entry_new)->lfn_name1, utf16_name,      5 * sizeof(int16_t));
+    memcpy(((lfn_entry_t *)&lfn_entry_new)->lfn_name2, utf16_name + 5,  6 * sizeof(int16_t));
+    memcpy(((lfn_entry_t *)&lfn_entry_new)->lfn_name3, utf16_name + 11, 2 * sizeof(int16_t));
+
+    //crear entrada file
+    file_entry_t file_entry_new;
+    file_entry_new.file_attr = ATTR_SUBDIRECTORY;
+
+    //Asiganmos un cluster al directorio
+    sem_wait(&fs_tmp->mux_fat);
+        int32_t free_cluster = fat32_first_free_cluster(fs_tmp);
+        fs_tmp->fat[free_cluster] = fs_tmp->eoc_marker;
+    sem_post(&fs_tmp->mux_fat);
+    int32_t bloque_fat = (fs_tmp->boot_sector.reserved_sectors + (free_cluster / (fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
+    fat32_writeblock(bloque_fat, 1, (fs_tmp->fat) + (bloque_fat - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)), NO_CACHE, fs_tmp, socket);
+
+    file_entry_new.first_cluster_hi = (free_cluster>>16 & 0xFFFF);
+    file_entry_new.first_cluster_low = free_cluster & 0xFFFF;
+    file_entry_new.file_size=0;
+
+    /* Agregamos el . y .. al cluster recien asignado */
+    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
+    int8_t cluster[cluster_size];
+
+    fat32_getcluster(free_cluster, cluster, NO_CACHE, fs_tmp, socket);
+
+    memset(cluster, '\0', cluster_size);
+
+    file_entry_t dot_entry[2];
+
+    memset(dot_entry[0].dos_file_name, 0x20, 11);
+    memcpy(dot_entry[0].dos_file_name, ".", 1);
+    dot_entry[0].file_attr=ATTR_SUBDIRECTORY;
+    dot_entry[0].first_cluster_hi = (free_cluster>>16 & 0xFFFF);
+    dot_entry[0].first_cluster_low = free_cluster & 0xFFFF;
+    dot_entry[0].file_size = 0;
+
+    memset(dot_entry[1].dos_file_name, 0x20, 11);
+    memcpy(dot_entry[1].dos_file_name, "..", 2);
+    dot_entry[1].file_attr=ATTR_SUBDIRECTORY;
+    dot_entry[1].first_cluster_hi = (dir_attrs.first_cluster >> 16 & 0xFFFF);
+    dot_entry[1].first_cluster_low = dir_attrs.first_cluster & 0xFFFF;
+    dot_entry[1].file_size = 0;
+
+    memcpy(cluster, dot_entry, 2*sizeof(file_entry_t));
+
+    fat32_writecluster(free_cluster, cluster, NO_CACHE, fs_tmp, socket);
+    /**/
+
+    int8_t dos_name[11];
+    memset(dos_name, 0x20, 11);
+    memcpy(dos_name, nombre_arch, MIN(8, strlen((char*)nombre_arch)));
+    memcpy(dos_name+8, nombre_arch + strlen((char*)nombre_arch) - 3, MIN(3, strlen((char*)nombre_arch)));
+
+    int8_t i=0;
+    for(i=0;i<11;i++) dos_name[i] = toupper(dos_name[i]);
+    if(dos_name[0] == 0xe5) dos_name[0] = 0x05;
+
+    memcpy(file_entry_new.dos_file_name, dos_name, 11);
+
+    //poner entradas en bloques
+    memcpy(bloques + (entry_index * sizeof(file_entry_t)), &lfn_entry_new, sizeof(file_entry_t));
+    if(bloque_file!=bloque_lfn)
+        memcpy(bloques + BLOCK_SIZE + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+    else
+        memcpy(bloques + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+
+    //pedir escritura bloque(s) nuevo
+    fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    free(bloques);
+    free(path2);
+    fat32_free_socket(socket, fs_tmp);
+
     return 0;
 }
 
-//Comprobaciones strlen(to) <= 13
+int fat32_unlink (const char *path)
+{
+    file_entry_t lfn_entry_old, file_entry_old;
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Unlink: path: %s", path);
+
+    struct fuse_file_info fi;
+    fat32_open(path, &fi);
+    fat32_ftruncate(path, 0, &fi);
+    fat32_release(path, &fi);
+
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    file_attrs reg_file_attrs;
+    int32_t cluster_contenedor = fat32_get_file_from_path((uint8_t *)path, &reg_file_attrs, fs_tmp, socket);
+
+    //separamos el nombre de la ruta a el
+    int8_t *path2 = calloc(strlen(path) + 1, 1);
+    strcpy((char *)path2, path);
+    int8_t *nombre_arch = (int8_t *)strrchr((char *)path2, '/');
+    nombre_arch[0] = '\0';
+    nombre_arch++;
+
+    //obtener bloque(s)
+    int32_t bloque_lfn = fat32_get_block_from_dentry(cluster_contenedor, reg_file_attrs.entry_index - 1, fs_tmp);
+    int32_t bloque_file= fat32_get_block_from_dentry(cluster_contenedor, reg_file_attrs.entry_index, fs_tmp);
+
+    int8_t *bloques = calloc(BLOCK_SIZE, 2);
+
+    fat32_getblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    //modificar bloque(s) viejo(s)
+    int32_t entry_offset   = (reg_file_attrs.entry_index - 1) % (fs_tmp->boot_sector.bytes_per_sector *
+                                    fs_tmp->boot_sector.sectors_per_cluster / sizeof(file_entry_t));
+    entry_offset = entry_offset % (SECTORS_PER_BLOCK * fs_tmp->boot_sector.bytes_per_sector / sizeof(file_entry_t));
+
+    ((lfn_entry_t*)&lfn_entry_old)->seq_number |= 0x80;
+    file_entry_old.dos_file_name[0] = 0xE5;
+
+    memcpy(bloques + (entry_offset * sizeof(file_entry_t)), &lfn_entry_old, sizeof(lfn_entry_old));
+    if(bloque_file!=bloque_lfn)
+        memcpy(bloques + BLOCK_SIZE + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
+    else
+        memcpy(bloques + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
+
+    //pedir escritura bloque viejo
+    fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    return 0;
+}
+
+int fat32_rmdir (const char *path)
+{
+    file_entry_t lfn_entry_old, file_entry_old;
+    struct fuse_context* context = fuse_get_context();
+    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
+    int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
+
+    char buff[10];
+    sprintf(buff,"%d",context->pid);
+    log_info(fs_tmp->log, buff, "Unlink: path: %s", path);
+
+    nipc_socket socket = fat32_get_socket(fs_tmp);
+
+    file_attrs reg_file_attrs;
+    int32_t cluster_actual = fat32_get_file_from_path((uint8_t *)path, &reg_file_attrs, fs_tmp, socket);
+
+    int8_t ret = fat32_get_entry(reg_file_attrs.entry_index - 1, cluster_actual, &lfn_entry_old, fs_tmp, socket);
+    if(ret<0) {
+        fat32_free_socket(socket, fs_tmp);
+        return ret;
+    }
+    ret = fat32_get_entry(reg_file_attrs.entry_index, cluster_actual, &file_entry_old, fs_tmp, socket);
+    if(ret<0) {
+        fat32_free_socket(socket, fs_tmp);
+        return ret;
+    }
+
+    //lo truncamos a 0
+    div_t aux_old = div(reg_file_attrs.file_size, cluster_size);
+    int32_t cluster_abm = -((aux_old.rem)?aux_old.quot+1:aux_old.quot);
+
+    while (cluster_abm < 0) {
+        fat32_remove_cluster(reg_file_attrs.first_cluster, fs_tmp, socket);
+        cluster_abm++;
+    }
+
+    //terminamos de truncarlo a 0
+    sem_wait(&fs_tmp->mux_fat);
+        fs_tmp->fat[reg_file_attrs.first_cluster] = 0;
+    sem_post(&fs_tmp->mux_fat);
+    int32_t bloque = ( fs_tmp->boot_sector.reserved_sectors + ( reg_file_attrs.first_cluster / ( fs_tmp->boot_sector.bytes_per_sector / sizeof(int32_t)))) / SECTORS_PER_BLOCK;
+
+    fat32_writeblock(bloque, 1, (fs_tmp->fat) + (bloque - (fs_tmp->boot_sector.reserved_sectors/SECTORS_PER_BLOCK)) * (BLOCK_SIZE/sizeof(int32_t)), NO_CACHE, fs_tmp, socket);
+
+
+    //obtener bloque(s) viejo(s)
+    int32_t bloque_lfn = fat32_get_block_from_dentry(cluster_actual, reg_file_attrs.entry_index - 1, fs_tmp);
+    int32_t bloque_file= fat32_get_block_from_dentry(cluster_actual, reg_file_attrs.entry_index, fs_tmp);
+
+    int8_t *bloques = calloc(BLOCK_SIZE, 2);
+
+    fat32_getblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_getblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+    //modificar bloque(s) viejo(s)
+    int32_t entry_offset   = (reg_file_attrs.entry_index - 1) % (fs_tmp->boot_sector.bytes_per_sector *
+                                    fs_tmp->boot_sector.sectors_per_cluster / sizeof(file_entry_t));
+    entry_offset = entry_offset % (SECTORS_PER_BLOCK * fs_tmp->boot_sector.bytes_per_sector / sizeof(file_entry_t));
+
+    ((lfn_entry_t*)&lfn_entry_old)->seq_number |= 0x80;
+    file_entry_old.dos_file_name[0] = 0xE5;
+
+    memcpy(bloques + (entry_offset * sizeof(file_entry_t)), &lfn_entry_old, sizeof(lfn_entry_old));
+    if(bloque_file!=bloque_lfn)
+        memcpy(bloques + BLOCK_SIZE + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
+    else
+        memcpy(bloques + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
+
+    //pedir escritura bloque viejo
+    fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
+    if (bloque_file != bloque_lfn)
+        fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
+
+
+
+
+
+
+    fat32_free_socket(socket, fs_tmp);
+    return 0;
+}
+
 int fat32_rename (const char *from, const char *to)
 {
     int8_t ret;
@@ -477,6 +872,7 @@ int fat32_rename (const char *from, const char *to)
         fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
 /* */
 
+    free(path2);
     free(bloques);
     fat32_free_socket(socket, fs_tmp);
     return 0;
@@ -514,8 +910,8 @@ static int fat32_getattr(const char *path, struct stat *stbuf)
     stbuf->st_uid = context->uid; /* user ID of owner */
     stbuf->st_gid = context->gid; /* group ID of owner */
     stbuf->st_size = ret_attrs.file_size; /* total size, in bytes */
-    stbuf->st_blksize = 2048 /*BLOCK_SIZE*/; /* blocksize for filesystem I/O */
-    stbuf->st_blocks = (ret_attrs.file_size / 2048 /*BLOCK_SIZE*/) + 1; /* number of blocks allocated */
+    stbuf->st_blksize = BLOCK_SIZE; /* blocksize for filesystem I/O */
+    stbuf->st_blocks = (ret_attrs.file_size / BLOCK_SIZE) + 1; /* number of blocks allocated */
 
     if (ret_attrs.file_type == ATTR_SUBDIRECTORY)
         stbuf->st_mode |= S_IFDIR;
@@ -589,58 +985,6 @@ static int fat32_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     }
 
     free(lista);
-    fat32_free_socket(socket, fs_tmp);
-    return 0;
-}
-
-static int fat32_open(const char *path, struct fuse_file_info *fi)
-{
-    struct fuse_context* context = fuse_get_context();
-    fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
-
-    char buff[10];
-    sprintf(buff,"%d",context->pid);
-    log_info(fs_tmp->log, buff, "Open: path: %s", path);
-
-    file_attrs ret_attrs;
-
-    nipc_socket socket = fat32_get_socket(fs_tmp);
-
-    int32_t container_cluster = fat32_get_file_from_path((const uint8_t *) path, &ret_attrs, fs_tmp, socket);
-    if(container_cluster<0) {
-        fat32_free_socket(socket, fs_tmp);
-        return container_cluster;
-    }
-
-    int32_t ret = fat32_get_free_file_entry(fs_tmp->open_files);
-    if(ret<0) {
-        fat32_free_socket(socket, fs_tmp);
-        return ret;
-    }
-
-    memcpy(fs_tmp->open_files[ret].path, path, strlen(path));
-    fat32_build_name(&ret_attrs, fs_tmp->open_files[ret].filename);
-    fs_tmp->open_files[ret].file_size = ret_attrs.file_size;
-    fs_tmp->open_files[ret].first_cluster = ret_attrs.first_cluster;
-    fs_tmp->open_files[ret].busy = TRUE;
-    fs_tmp->open_files[ret].container_cluster = container_cluster;
-    fs_tmp->open_files[ret].entry_index = ret_attrs.entry_index;
-
-    //Ahora vamos por la cache.
-    fs_tmp->open_files[ret].cache = calloc(fs_tmp->cache_size, sizeof(cache_t));
-    sem_init(&(fs_tmp->open_files[ret].sem_cache), 0, 1);
-
-    int i=0;
-    for(i=0;i < (fs_tmp->cache_size);i++)
-    {
-        fs_tmp->open_files[ret].cache[i].number = -1;
-        fs_tmp->open_files[ret].cache[i].modificado = 0;
-        fs_tmp->open_files[ret].cache[i].stamp = -1;
-    }
-
-    //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
-    fi->fh = ret;
-
     fat32_free_socket(socket, fs_tmp);
     return 0;
 }
