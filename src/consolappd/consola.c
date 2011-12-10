@@ -1,6 +1,6 @@
 #include "consola.h"
 
-int32_t pistas,sectores,sectxpis;
+int32_t pistas,sectores,sectxpis, calcSect;
 
 int main ()
 {
@@ -35,9 +35,10 @@ int main ()
 	}   while ( resultado == -1 );
 	
 	recv(cliente, infodisc, sizeof(infodisc),0);
-	pistas = atoi(strtok(infodisc,","));
-	sectores = atoi(strtok(NULL,"\0"));
-	sectxpis = sectores/pistas;
+	pistas = (atoi(strtok(infodisc,","))-1);
+	sectores = (atoi(strtok(NULL,"\0")) -(pistas+1));
+	sectxpis = sectores/(pistas+1);
+	calcSect = ((sectores/(pistas+1)) +1);
 
 	printf("Se ha conectado con el PPD \n");
 
@@ -69,6 +70,7 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 	//unsigned int cantEnv = 1;
 
 	memset(comando, '\0', sizeof(comando));
+	memset(resp, '\0', 1024);
 
 	printf("\nIngrese comando:\n");
 	fgets(comando, TAM_COMANDO, stdin);
@@ -139,9 +141,10 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 				{
 					sprintf(comando, "%s(%s)", funcion, parametros);
 					send(cliente,comando,strlen(comando),0);
-					usleep(500);
+					
 					for(j=0; j<cantparam; j++)
-					{
+					{	
+						usleep(500);
 						recv(cliente,resp,sizeof(resp),0);
 						funcTrace(resp);
 					}
@@ -180,23 +183,30 @@ void funcClean(char *resp)
 
 void funcTrace(char *resp)
 {
-	int32_t a, psect, ssect, pnextsect, snextsect, pposactual, sposactual, pposinit, sposinit, pposactual2;
-	char trace[200000], aux[20];
+	int32_t a, i=0, psect, ssect, pnextsect, snextsect, pposactual, sposactual, pposinit, sposinit, pposactual2, cant;
+	char trace[1024], * aux, * cola;
 	double tiempo;
 
-	a = 0;
-
-	memset(trace, '\0', 200000);
-
-	psect = atoi(strtok(resp, ","));
+ 	a = 0; 	
+	cola = (char *) malloc(500);
+	memset(cola, '\0', 500);
+	aux = (char *) malloc(30);
+	memset(trace, '\0', 1024);
+	memset(aux, '\0', 30);
+	
+	cola = strtok(resp, ")"); 
+	psect = atoi(strtok(NULL, ","));
 	ssect = atoi(strtok(NULL, ","));
 	pnextsect = atoi(strtok(NULL, ","));
 	snextsect = atoi(strtok(NULL, ","));
 	pposactual = atoi(strtok(NULL, ","));
 	sposactual = atoi(strtok(NULL, ","));
-	tiempo = atof(strtok(NULL, "\0"));
+	tiempo = atof(strtok(NULL, "\n "));
 	pposinit = pposactual;
 	sposinit = sposactual;
+		
+
+	cant = obtenerRecCant(psect, ssect, pposactual, sposactual);
 
 	if(pposactual != psect)
 	{
@@ -204,61 +214,148 @@ void funcTrace(char *resp)
 		if(pposactual > psect)
 		{
 			for( ;pposactual<=pistas ; pposactual++)				
-					{
-						memset(aux, '\0', 20);
+			{
+				memset(aux, '\0', 30);
+				if(cant>20)
+				{
+					if(i == 9 || i == cant)
+						sprintf(aux, "%d:%d ", pposactual,sposactual);
+					else	
 						sprintf(aux, "%d:%d, ", pposactual,sposactual);
+					if((i<10) || (i>(cant-10)))
+					{
 						strcat(trace, aux);
-
+						if (i==9)
+							strcat(trace, " ... ");
 					}
-					pposactual = 0;
-		}
-
-		for( ; pposactual<=psect; pposactual++)
+				i++;
+				}else
 				{
 					memset(aux, '\0', 20);
 					sprintf(aux, "%d:%d, ", pposactual,sposactual);
 					strcat(trace, aux);
-					pposactual2 = pposactual;
 				}
+
+			}
+			pposactual = 0;
+		}
+
+		for( ; pposactual<=psect; pposactual++)
+		{
+			memset(aux, '\0', 30);
+			if(cant>20)
+			{
+				if(i == 9 || i == cant)
+					sprintf(aux, "%d:%d ", pposactual,sposactual);
+				else	
+					sprintf(aux, "%d:%d, ", pposactual,sposactual);
+				if((i<10) || (i>(cant-10)))
+				{
+					strcat(trace, aux);
+					if (i==9)
+						strcat(trace, "... ");
+				}
+				i++;
+			}else
+			{
+				memset(aux, '\0', 20);
+				sprintf(aux, "%d:%d, ", pposactual,sposactual);
+				strcat(trace, aux);
+			}
+			pposactual2 = pposactual;
+		}
 
 
 	}
-
+	
 	if(sposactual != ssect)
 	{
 		if (a == 1)
 			sposactual++;
 		if(sposactual > ssect)
 		{
-			for( ;sposactual<=sectores ; sposactual++)				
+			for( ;sposactual<=sectxpis ; sposactual++)				
+			{
+				memset(aux, '\0', 30);
+				if(cant>20)
+				{
+					if(i == 9 || i == cant)
+						sprintf(aux, "%d:%d ", pposactual2,sposactual);
+					else
+						sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+					if((i<10) || (i>(cant-10)))
+					{
+						strcat(trace, aux);
+						if (i==9)
+							strcat(trace, " ... ");
+					}
+				i++;
+				}else
 				{
 					memset(aux, '\0', 20);
 					sprintf(aux, "%d:%d, ", pposactual2,sposactual);
 					strcat(trace, aux);
-
 				}
-				sposactual = 0;
+
+			}
+			sposactual = 0;
 		}
 
 		for( ; sposactual<=ssect; sposactual++)
-					{
-						memset(aux, '\0', 20);
-						sprintf(aux, "%d:%d, ", pposactual2,sposactual);
-						strcat(trace, aux);
-					}
+		{
+			memset(aux, '\0', 30);
+			if(cant>20)
+			{
+				if(i == 9 || i == cant)
+					sprintf(aux, "%d:%d ", pposactual2,sposactual);
+				else	
+					sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+				if((i<10) || (i>(cant-10)))
+				{
+					strcat(trace, aux);
+					if (i==9)
+						strcat(trace, " ... ");
+				}
+			i++;
+			}else
+			{
+				memset(aux, '\0', 20);
+				sprintf(aux, "%d:%d, ", pposactual2,sposactual);
+				strcat(trace, aux);
+			}
+			}
 	}
 
+	printf("Cola de Peticiones: %s\n", cola);
 	printf("Posición actual: %d:%d\n", pposinit, sposinit);
 	printf("Sector solicitado: %d:%d\n", psect, ssect);
 	printf("Sectores recorridos: %s\n", trace);
 	printf("Tiempo consumido: %g ms\n", tiempo);
 	printf("Próximo sector: %d:%d\n\n", pnextsect, snextsect);
-
+	
+	free(aux);
+	//free(cola);
 
 	return;
 }
 
 
+int32_t obtenerRecCant(int32_t psect,int32_t ssect,int32_t pposactual,int32_t sposactual)
+{	
+	int32_t cantrec = 0;
+	
+	if (psect < pposactual)
+		cantrec = cantrec +  pistas + psect - pposactual +1;
+	else
+		cantrec = cantrec + psect - pposactual;
+
+	if(ssect <  sposactual)
+		cantrec = cantrec + sectxpis + ssect - sposactual +1;
+	else
+		cantrec = cantrec + ssect - sposactual;
+
+	return cantrec;
+}
 //int errParamClean(/*parametros*/)
 //{
 
