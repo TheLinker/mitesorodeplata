@@ -7,7 +7,7 @@
 config_t vecConfig;
 int32_t dirArch, sectxpis, cantPedidos=0;
 void * diskMap;
-cola_t *headprt = NULL, *saltoptr = NULL;
+cola_t *headprt = NULL, *saltoptr = NULL, *largaptr = NULL;
 size_t len = 100;
 sem_t semEnc, semAten /*, semCab*/;
 log_t* logppd;
@@ -126,7 +126,7 @@ void escucharPedidos(nipc_socket *socket)
 			{
 				sem_wait(&semEnc);
 				//sem_wait(&semCab);
-				insertNStepScan(msj, &headprt, &saltoptr, cantPedidos, vecConfig.posactual, *socket);
+				insertNStepScan(msj,cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual, *socket);
 				sem_post(&semEnc);
 				//sem_post(&semCab);
 				sem_post(&semAten);
@@ -176,11 +176,11 @@ void atenderPedido()
 				//sem_post(&semCab);
 			}else
 			{
-				ped = desencolarNStepScan(&headprt, &saltoptr, cantPedidos);
+				ped = desencolarNStepScan(&headprt, &saltoptr, &largaptr, cantPedidos, vecConfig.posactual);
 				obtenerrecorrido(ped->sect, trace, vecConfig.posactual);
 				time= timemovdisco(ped->sect, vecConfig.posactual);
 				log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño:\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
-
+				cantPedidos --;
 				posCabeza = vecConfig.posactual;
 				sem_post(&semEnc);
 				//sem_post(&semCab);
@@ -203,7 +203,8 @@ void atenderPedido()
 				//sem_wait(&semCab);
 				sem_wait(&semEnc);
 				obtenercola(&headprt, &saltoptr, cola);
-				ped = desencolarNStepScan(&headprt, &saltoptr, cantPedidos);
+				ped = desencolarNStepScan(&headprt, &saltoptr, &largaptr, cantPedidos, vecConfig.posactual);
+				cantPedidos --;
 				posCabeza = vecConfig.posactual;			
 				sem_post(&semEnc);
 				//sem_post(&semCab);
@@ -496,7 +497,7 @@ void funcClean(char * parametros, int cliente)
 		{
 			sem_wait(&semEnc);
 			//sem_wait(&semCab);
-			insertNStepScan(pedido, &headprt, &saltoptr, cantPedidos, vecConfig.posactual,0);
+			insertNStepScan(pedido,cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,0);
 			sem_post(&semEnc);
 			//sem_post(&semCab);
 			sem_post(&semAten);
@@ -556,7 +557,7 @@ void funcTrace(char * parametros, int cliente)
 		if(0 == strcmp(vecConfig.algplan, "cscan"))
 			insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
 		else
-			insertNStepScan(pedido, &headprt, &saltoptr, cantPedidos, vecConfig.posactual,cliente);
+			insertNStepScan(pedido,cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,cliente);
 		
 	}
 	//sem_post(&semCab);	
