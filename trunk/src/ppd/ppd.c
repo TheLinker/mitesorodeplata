@@ -30,7 +30,7 @@ int main()
 	//pid = getpid();
 	vecConfig = getconfig("config.txt");
 	logppd = log_new(vecConfig.rutalog, "PPD", vecConfig.flaglog);
-	sectxpis = (vecConfig.sectores/vecConfig.pistas);
+	sectxpis= (vecConfig.sectores/vecConfig.pistas);
 	dirArch = abrirArchivoV(vecConfig.rutadisco);
 	diskMap = discoMap(vecConfig.sectores, dirArch);
 	cantSect = vecConfig.sectores;
@@ -106,7 +106,7 @@ int main()
 void escucharPedidos(nipc_socket *socket)
 {
 	nipc_packet msj;
-
+	sleep(1);
 	while(1)
 	{
 		if (0 > recv_socket(&msj, *socket));
@@ -162,7 +162,7 @@ void atenderPedido()
 				strcat(buffer, bufferaux);
 			}
 
-			trace =(char *) malloc(20000);
+			trace =(char *) malloc(2000);
 
 			if(0 == strcmp(vecConfig.algplan, "cscan"))
 			{

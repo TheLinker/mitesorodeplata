@@ -3,7 +3,7 @@
 
 extern config_t vecConfig;
 //extern sem_t semEnc;
-extern int sectxpis;
+extern int32_t sectxpis;
 
 ///////////////////////////
 ///      CSCAN          ///
@@ -175,6 +175,31 @@ void ordenarLista(cola_t** acotadaptr)
 
 void insertOrd (cola_t ** colaptr, cola_t * newptr)
 {
+	/*
+	cola_t* ordptr = 0;
+
+	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
+
+	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
+	{
+		if(NULL == (*colaptr))
+			newptr->ped.nextsect = -1;
+		else
+			newptr->ped.nextsect = (*colaptr)->ped.sect;
+		newptr->sig = (*colaptr);
+		(*colaptr) = newptr;
+	}else
+	{
+		ordptr = (*colaptr);
+		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
+			ordptr = ordptr->sig;
+		newptr->sig = ordptr->sig;
+		ordptr->sig = newptr;
+	}
+
+	return;*/
+
+
 	cola_t* ordptr = 0;
 
 	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
@@ -309,7 +334,7 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 	char aux[20];
 	int32_t a, psect, ssect, pposactual, sposactual, pposactual2, cant, i=0;
 
-	memset(trace, '\0', 20000);
+	memset(trace, '\0', 2000);
 	s = div(sect, sectxpis);
 	p = div(posCab, sectxpis);
 
@@ -326,9 +351,9 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 		a = 1;
 		if(pposactual > psect)
 		{
-			for( ;pposactual<=vecConfig.pistas ; pposactual++)				
+			for( ;pposactual<vecConfig.pistas ; pposactual++)				
 			{
-				memset(aux, '\0', 30);
+				memset(aux, '\0', 20);
 				if(cant>20)
 				{
 					if(i == 9 || i == cant)
@@ -355,7 +380,7 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 
 		for( ; pposactual<=psect; pposactual++)
 		{
-			memset(aux, '\0', 30);
+			memset(aux, '\0', 20);
 			if(cant>20)
 			{
 				if(i == 9 || i == cant)
@@ -387,9 +412,9 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 			sposactual++;
 		if(sposactual > ssect)
 		{
-			for( ;sposactual<=sectxpis ; sposactual++)				
+			for( ;sposactual<sectxpis ; sposactual++)				
 			{
-				memset(aux, '\0', 30);
+				memset(aux, '\0', 20);
 				if(cant>20)
 				{
 					if(i == 9 || i == cant)
@@ -416,7 +441,7 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 
 		for( ; sposactual<=ssect; sposactual++)
 		{
-			memset(aux, '\0', 30);
+			memset(aux, '\0', 20);
 			if(cant>20)
 			{
 				if(i == 9 || i == cant)
@@ -438,6 +463,7 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
 			}
 			}
 	}
+	return;
 }
 
 void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
@@ -466,6 +492,15 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
 				i++;
 				busqptr = (cola_t*) busqptr->sig;
 			}
+		}
+	}else if((*saltoprt) != NULL)
+	{
+			busqptr = (*saltoprt);
+		while((busqptr != NULL) && (i<20) )
+		{
+			cola[i] = busqptr->ped.sect;
+			i++;
+			busqptr = (cola_t*) busqptr->sig;
 		}
 	}
 }
