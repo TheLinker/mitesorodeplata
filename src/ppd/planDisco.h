@@ -64,4 +64,6 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int32_t * cola);
 
 int tamcola(cola_t ** headprt, cola_t ** saltoprt);
 
+int32_t obtenerRecCant(int32_t psect,int32_t ssect,int32_t pposactual,int32_t sposactual);
+
 #endif /* PLANDISCO_H_ */
