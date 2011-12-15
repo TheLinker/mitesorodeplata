@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 						if(mensaje.len != 4)
 						{
 							distribuir_pedido_escritura(&info_ppal,mensaje,aux_pfs->sock);
-							printf("Pedido de escritura del FS: %d - %s\n",mensaje.payload.sector,mensaje.payload.contenido);
+							printf("Pedido de escritura del FS(%d) - Sector: %d\n",aux_pfs->sock,mensaje.payload.sector);
 							log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
 							//printf("------------------------------\n");
 						}

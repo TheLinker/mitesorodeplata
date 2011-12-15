@@ -30,10 +30,10 @@ typedef struct _disco{
 	uint8_t          id[20];
 	nipc_socket      sock;
 	pthread_t        hilo;
+	sem_t            sem_disco;
 	int32_t          pedido_sincro;
 	int32_t          sector_sincro;
 	sectores_t      *ya_sincro_start;
-	sectores_t      *ya_sincro_end;
 	uint32_t         cantidad_pedidos;
 	pedido          *pedidos_start;
 	pedido          *pedidos_end;

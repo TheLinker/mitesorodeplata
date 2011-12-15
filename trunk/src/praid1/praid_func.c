@@ -27,10 +27,10 @@ void agregar_disco(datos **info_ppal,uint8_t *id_disco, nipc_socket sock_new)
 	nuevo_disco = (disco *)malloc(sizeof(disco));
 	memcpy(nuevo_disco->id,id_disco,strlen((char *)id_disco)+1);
 	nuevo_disco->sock=sock_new;
+	sem_init(&(nuevo_disco->sem_disco),0,1);
 	nuevo_disco->pedido_sincro = 0;
 	nuevo_disco->sector_sincro = (int32_t) -1;
 	nuevo_disco->ya_sincro_start = NULL;
-	nuevo_disco->ya_sincro_end = NULL;
 	nuevo_disco->cantidad_pedidos = 0;
 	nuevo_disco->pedidos_start = NULL;
 	nuevo_disco->pedidos_end = NULL;
@@ -197,7 +197,7 @@ uint8_t* distribuir_pedido_lectura(datos **info_ppal, nipc_packet mensaje,nipc_s
 	}
   
 	nipc_socket sock_disco;
-	sem_wait(&((*info_ppal)->semaforo));
+	//sem_wait(&((*info_ppal)->semaforo));
 	sock_disco =  menor_cantidad_pedidos((*info_ppal)->discos,mensaje.payload.sector);
 	//sock_disco =  uno_y_uno(info_ppal,mensaje.payload.sector);
 	
@@ -209,6 +209,7 @@ uint8_t* distribuir_pedido_lectura(datos **info_ppal, nipc_packet mensaje,nipc_s
 		aux = (*info_ppal)->discos;
 		while((aux != NULL) && (aux->sock != sock_disco))
 			aux = aux->sgte;
+		sem_wait(&((*info_ppal)->semaforo));
 		encolar(&aux,nuevo_pedido);
 		aux->cantidad_pedidos++;
 		sem_post(&((*info_ppal)->semaforo));
@@ -300,8 +301,9 @@ void *pedido_sincronizacion(datos **info_ppal)
 		{
 			mensaje.payload.sector = i;
 			usleep(1);
-			if(el_disco->encolados > 100)
-				usleep(10);
+			while(el_disco->encolados > 50)
+				usleep(50);
+			
 			if (el_disco->pedido_sincro != 2)
 				id_disco = distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
 			else
@@ -470,6 +472,7 @@ void *espera_respuestas(datos **info_ppal)
 			if(mensaje.type != nipc_handshake)
 			{
 				sem_wait(&((*info_ppal)->semaforo));
+				//sem_wait(&(el_disco->sem_disco));
 				aux_pedidos = el_disco->pedidos_start;
 				anterior=NULL;
 				while((aux_pedidos != NULL) && (aux_pedidos->type != mensaje.type || aux_pedidos->sector != mensaje.payload.sector))
@@ -508,8 +511,10 @@ void *espera_respuestas(datos **info_ppal)
 						nueva_sincro->type = mensaje.type;
 						nueva_sincro->sector = mensaje.payload.sector;
 						nueva_sincro->sgte = NULL;
+						//sem_wait(&(aux_disco->sem_disco));
 						encolar(&aux_disco,nueva_sincro);
 						aux_disco->cantidad_pedidos++;
+						//sem_post(&(aux_disco->sem_disco));
 						/** ENVIAR ESCRITURA A DISCO **/
 						if(send_socket(&mensaje,aux_pedidos->sock)<0)
 						{ // Aca viene el problema
@@ -715,6 +720,7 @@ void *espera_respuestas(datos **info_ppal)
 					}
 				}
 				sem_post(&((*info_ppal)->semaforo));
+				//sem_post(&(el_disco->sem_disco));
 			}
 		}
 		else
