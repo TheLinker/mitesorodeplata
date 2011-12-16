@@ -290,7 +290,7 @@ void *pedido_sincronizacion(datos **info_ppal)
 		el_disco = el_disco->sgte;
 	if (el_disco != NULL)
 	{
-		uint32_t i;
+		uint32_t i, control;
 		uint8_t *id_disco;
 		mensaje.type=1;
 		mensaje.len=4;
@@ -300,9 +300,22 @@ void *pedido_sincronizacion(datos **info_ppal)
 		for(i=0 ; i < (*info_ppal)->max_sector ; i++)
 		{
 			mensaje.payload.sector = i;
+			control = 0;
 			usleep(1);
-			while(el_disco->encolados > 50)
+			while(el_disco->encolados > 50 )
+			{
 				usleep(50);
+				control++;
+				if (control == 10000) // 10000:medio segundo  20000:un segundo
+				{
+					printf("------------------------------\n");
+					printf("Re-pedido de sincronizacion %s - %d\n",el_disco->id,el_disco->sector_sincro+1);
+					mensaje.payload.sector = (el_disco->sector_sincro+1);
+					distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
+					mensaje.payload.sector = i;
+					break;
+				}
+			}
 			
 			if (el_disco->pedido_sincro != 2)
 				id_disco = distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
@@ -605,6 +618,7 @@ void *espera_respuestas(datos **info_ppal)
 							/** es una respuesta de sincronizacion **/
 							if((el_disco->sector_sincro%20000)==0)
 							{
+								printf("------------------------------\n");
 								printf("Sincronizacion parcial: %d\n",el_disco->sector_sincro);
 								listar_discos((*info_ppal)->discos);
 							}
@@ -648,12 +662,6 @@ void *espera_respuestas(datos **info_ppal)
 				}
 				else
 				{
-					printf("------------------------------\n");
-					printf("------------------------------\n");
-					printf("todavia sigue el problema \n");
-					printf("------------------------------\n");
-					printf("------------------------------\n");
-					getchar();
 					/*
 					pedido      *aux_ped;
 					disco       *aux_disk;
@@ -715,7 +723,7 @@ void *espera_respuestas(datos **info_ppal)
 						else*/
 						//{
 							printf("disco: %s - sector no solicitado: %d - %d - %d \n",el_disco->id, mensaje.type, mensaje.len, mensaje.payload.sector);
-							getchar();
+							//getchar();
 						//}
 					}
 				}
