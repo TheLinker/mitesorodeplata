@@ -556,7 +556,7 @@ int32_t fat32_get_block_from_dentry(int32_t first_cluster, int32_t entry_index, 
 
     int32_t target_block = ( fs_tmp->system_area_size +
                      ((target_cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) +
-                     (entry_offset / (BLOCK_SIZE / 32) )) / SECTORS_PER_BLOCK;
+                     (entry_offset / (SECT_SIZE / 32) )) / SECTORS_PER_BLOCK;
     
     return target_block;
 
