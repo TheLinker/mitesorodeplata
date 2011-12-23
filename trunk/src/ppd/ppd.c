@@ -39,14 +39,14 @@ int main()
 	printf("%s\n", vecConfig.modoinit);
 
 
-	/*int pid = fork();
+	int pid = fork();
 
 	if (pid == 0)
 	{
-		if(-1 == execle("consolappd", "consolappd", NULL, NULL))
+		if(-1 == execle("bin/consolappd", "consolappd", NULL, NULL))
 			printf("Error al ejecutar la consola \n");
 			printf("NUMERO DE ERROR: %d \n", errno);
-	}else*/
+	}else
 	{
 		thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
 
@@ -96,7 +96,6 @@ int main()
 
 	thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL,(void *)  escucharPedidos,  socket);
 
-
 	pthread_join(thEscucharPedidos, NULL);
 
 
@@ -126,7 +125,7 @@ void escucharPedidos(nipc_socket *socket)
 			{
 				sem_wait(&semEnc);
 				//sem_wait(&semCab);
-				insertNStepScan(msj,cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual, *socket);
+				insertNStepScan(msj,&cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual, *socket);
 				sem_post(&semEnc);
 				//sem_post(&semCab);
 				sem_post(&semAten);
@@ -240,14 +239,10 @@ void atenderPedido()
 				default:
 					printf("Error comando PPD %d \n", ped->oper);
 					break;
-
 			}
-
-
 		free(ped);
 		free(trace);
 		}
-
 	}
 }
 
@@ -497,7 +492,8 @@ void funcClean(char * parametros, int cliente)
 		{
 			sem_wait(&semEnc);
 			//sem_wait(&semCab);
-			insertNStepScan(pedido,cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,0);
+			
+			insertNStepScan(pedido,&cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,0);
 			sem_post(&semEnc);
 			//sem_post(&semCab);
 			sem_post(&semAten);
@@ -557,8 +553,9 @@ void funcTrace(char * parametros, int cliente)
 		if(0 == strcmp(vecConfig.algplan, "cscan"))
 			insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
 		else
-			insertNStepScan(pedido,cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,cliente);
-		
+		{
+			insertNStepScan(pedido,&cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,cliente);
+		}
 	}
 	//sem_post(&semCab);	
 	for(h=0; h<cantparam; h++)
