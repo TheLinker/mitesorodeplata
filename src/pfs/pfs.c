@@ -226,7 +226,7 @@ int fat32_write (const char *path, const char *buf, size_t size, off_t offset, s
     data_to_write -= data_cluster;
 
     while(data_to_write) {
-        data_cluster = MAX(data_to_write, cluster_size);
+        data_cluster = MIN(data_to_write, cluster_size);
 
         cluster_actual = fat32_get_link_n_in_chain( cluster_actual, 1, fs_tmp);
 
@@ -450,11 +450,11 @@ int fat32_create (const char *path, mode_t mode, struct fuse_file_info *fi)
     memcpy(file_entry_new.dos_file_name, dos_name, 11);
 
     //poner entradas en bloques
-    memcpy(bloques + (entry_index * sizeof(file_entry_t)), &lfn_entry_new, sizeof(file_entry_t));
+    memcpy(bloques + ((entry_index * sizeof(file_entry_t)) % BLOCK_SIZE), &lfn_entry_new, sizeof(file_entry_t));
     if(bloque_file!=bloque_lfn)
-        memcpy(bloques + BLOCK_SIZE + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+        memcpy(bloques + BLOCK_SIZE + (((entry_index + 1) * sizeof(file_entry_t)) % BLOCK_SIZE), &file_entry_new, sizeof(file_entry_t));
     else
-        memcpy(bloques + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+        memcpy(bloques + (((entry_index + 1) * sizeof(file_entry_t)) % BLOCK_SIZE), &file_entry_new, sizeof(file_entry_t));
 
     //pedir escritura bloque(s) nuevo
     fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
@@ -583,11 +583,11 @@ int fat32_mkdir (const char *path, mode_t mode)
     memcpy(file_entry_new.dos_file_name, dos_name, 11);
 
     //poner entradas en bloques
-    memcpy(bloques + (entry_index * sizeof(file_entry_t)), &lfn_entry_new, sizeof(file_entry_t));
+    memcpy(bloques + ((entry_index * sizeof(file_entry_t)) % BLOCK_SIZE), &lfn_entry_new, sizeof(file_entry_t));
     if(bloque_file!=bloque_lfn)
-        memcpy(bloques + BLOCK_SIZE + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+        memcpy(bloques + BLOCK_SIZE + (((entry_index + 1) * sizeof(file_entry_t)) % BLOCK_SIZE), &file_entry_new, sizeof(file_entry_t));
     else
-        memcpy(bloques + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+        memcpy(bloques + (((entry_index + 1) * sizeof(file_entry_t)) % BLOCK_SIZE), &file_entry_new, sizeof(file_entry_t));
 
     //pedir escritura bloque(s) nuevo
     fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
@@ -646,11 +646,11 @@ int fat32_unlink (const char *path)
     ((lfn_entry_t*)&lfn_entry_old)->seq_number |= 0x80;
     file_entry_old.dos_file_name[0] = 0xE5;
 
-    memcpy(bloques + (entry_offset * sizeof(file_entry_t)), &lfn_entry_old, sizeof(lfn_entry_old));
+    memcpy(bloques + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE), &lfn_entry_old, sizeof(lfn_entry_old));
     if(bloque_file!=bloque_lfn)
-        memcpy(bloques + BLOCK_SIZE + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
+        memcpy(bloques + BLOCK_SIZE + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
     else
-        memcpy(bloques + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
+        memcpy(bloques + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
 
     //pedir escritura bloque viejo
     fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
@@ -723,21 +723,16 @@ int fat32_rmdir (const char *path)
     ((lfn_entry_t*)&lfn_entry_old)->seq_number |= 0x80;
     file_entry_old.dos_file_name[0] = 0xE5;
 
-    memcpy(bloques + (entry_offset * sizeof(file_entry_t)), &lfn_entry_old, sizeof(lfn_entry_old));
+    memcpy(bloques + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE), &lfn_entry_old, sizeof(lfn_entry_old));
     if(bloque_file!=bloque_lfn)
-        memcpy(bloques + BLOCK_SIZE + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
+        memcpy(bloques + BLOCK_SIZE + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
     else
-        memcpy(bloques + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
+        memcpy(bloques + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
 
     //pedir escritura bloque viejo
     fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
     if (bloque_file != bloque_lfn)
         fat32_writeblock(bloque_file, 1, bloques + BLOCK_SIZE, NO_CACHE, fs_tmp, socket);
-
-
-
-
-
 
     fat32_free_socket(socket, fs_tmp);
     return 0;
@@ -809,11 +804,11 @@ int fat32_rename (const char *from, const char *to)
     ((lfn_entry_t*)&lfn_entry_old)->seq_number |= 0x80;
     file_entry_old.dos_file_name[0] = 0xE5;
 
-    memcpy(bloques + (entry_offset * sizeof(file_entry_t)), &lfn_entry_old, sizeof(lfn_entry_old));
+    memcpy(bloques + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE), &lfn_entry_old, sizeof(lfn_entry_old));
     if(bloque_file!=bloque_lfn)
-        memcpy(bloques + BLOCK_SIZE + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
+        memcpy(bloques + BLOCK_SIZE + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE) + sizeof(lfn_entry_old), &file_entry_old, sizeof(lfn_entry_old));
     else
-        memcpy(bloques + (entry_offset * sizeof(file_entry_t)) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
+        memcpy(bloques + ((entry_offset * sizeof(file_entry_t)) % BLOCK_SIZE) + sizeof(lfn_entry_old), &file_entry_old, sizeof(file_entry_t));
 
     //pedir escritura bloque viejo
     fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
@@ -860,11 +855,11 @@ int fat32_rename (const char *from, const char *to)
 
     memcpy(file_entry_new.dos_file_name, dos_name, 11);
 
-    memcpy(bloques + (entry_index * sizeof(file_entry_t)), &lfn_entry_new, sizeof(file_entry_t));
+    memcpy(bloques + ((entry_index * sizeof(file_entry_t)) % BLOCK_SIZE), &lfn_entry_new, sizeof(file_entry_t));
     if(bloque_file!=bloque_lfn)
-        memcpy(bloques + BLOCK_SIZE + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+        memcpy(bloques + BLOCK_SIZE + (((entry_index + 1) * sizeof(file_entry_t)) % BLOCK_SIZE), &file_entry_new, sizeof(file_entry_t));
     else
-        memcpy(bloques + ((entry_index + 1) * sizeof(file_entry_t)), &file_entry_new, sizeof(file_entry_t));
+        memcpy(bloques + (((entry_index + 1) * sizeof(file_entry_t)) % BLOCK_SIZE), &file_entry_new, sizeof(file_entry_t));
 
     //pedir escritura bloque nuevo
     fat32_writeblock(bloque_lfn, 1, bloques, NO_CACHE, fs_tmp, socket);
