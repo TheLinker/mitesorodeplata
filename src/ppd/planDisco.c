@@ -63,7 +63,7 @@ void insertarEnColaLarga(cola_t **largaptr, cola_t *newptr)
 	//si la lista largaptr no tiene elementos, tomo newptr como su primer elemento
 	
 	aux = (* largaptr);
-	if(&largaptr == NULL)
+	if(aux == NULL)
 	{
 		(*largaptr) = newptr;
 	}
@@ -79,7 +79,7 @@ void insertarEnColaLarga(cola_t **largaptr, cola_t *newptr)
 
 }
 
-void insertNStepScan(nipc_packet msj, int cantPedidos, cola_t** headprt, cola_t** saltoptr, cola_t ** largaptr, int posCab, nipc_socket socket)
+void insertNStepScan(nipc_packet msj, int *cantPedidos, cola_t** headprt, cola_t** saltoptr, cola_t ** largaptr, int posCab, nipc_socket socket)
 {
 	cola_t *newptr = 0;
 	div_t pisec;
@@ -89,17 +89,17 @@ void insertNStepScan(nipc_packet msj, int cantPedidos, cola_t** headprt, cola_t*
 
 	pisec = div(newptr->ped.sect, sectxpis);
 	
-	if (cantPedidos < 10)
+	if (*cantPedidos < 10)
 	{
 		if(pisec.quot >= pista(posCab))
 		{
 			insertOrd(headprt, newptr);
-			cantPedidos++;
+			*cantPedidos +=1;
 		}
 		else
 		{
 			insertOrd(saltoptr, newptr);
-			cantPedidos++;
+			*cantPedidos +=1;
 		}
 
 	}
@@ -149,17 +149,15 @@ ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** lar
 	{
 		if (NULL != *headptr) 
 		{
-			pedidoSalida = (cola_t *)headptr;
+			pedidoSalida = (cola_t *) *headptr;
 			*headptr = (*headptr)->sig;
 		}else if (NULL != *saltoptr )
 		{	
-			pedidoSalida = (cola_t *)saltoptr;
+			pedidoSalida = (cola_t *) *saltoptr;
 			*saltoptr = (*saltoptr)->sig;
 		}
 	}
-
 	return pedidoSalida;
-
 }
 
 

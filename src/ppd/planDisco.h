@@ -27,7 +27,7 @@ typedef struct
 
 void insertOrdNStep (cola_t ** colaptr, cola_t * newptr);
 
-void insertNStepScan(nipc_packet msj, int cantPedidos, cola_t** headprt, cola_t** saltoptr, cola_t ** largaptr, int posCab, nipc_socket socket);
+void insertNStepScan(nipc_packet msj, int *cantPedidos, cola_t** headprt, cola_t** saltoptr, cola_t ** largaptr, int posCab, nipc_socket socket);
 
 void insertAlFinalNStep(cola_t** largaptr, cola_t * newptr);
 
