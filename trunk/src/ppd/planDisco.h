@@ -31,7 +31,7 @@ void insertNStepScan(nipc_packet msj, int *cantPedidos, cola_t** headprt, cola_t
 
 void insertAlFinalNStep(cola_t** largaptr, cola_t * newptr);
 
-ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t cantPedidos, int posCab);
+ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t ** cantPedidos, int posCab);
 
 
 ////////////////////////////////////////////////////////////
