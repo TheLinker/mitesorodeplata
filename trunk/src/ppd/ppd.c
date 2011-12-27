@@ -42,11 +42,11 @@ int main()
 
         if (pid == 0)
         {
-			if(-1 == execle("/home/utn_so/Desarrollo/Workspace/consolappd/Debug/consolappd", "consolappd", NULL, NULL))
-			{
-				printf("Error al ejecutar la consola \n");
-				printf("NUMERO DE ERROR: %d \n", errno);
-			}
+                        if(-1 == execle("/home/utn_so/Desarrollo/Workspace/consolappd/Debug/consolappd", "consolappd", NULL, NULL))
+                        {
+                                printf("Error al ejecutar la consola \n");
+                                printf("NUMERO DE ERROR: %d \n", errno);
+                        }
         }else
         {
                 thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
