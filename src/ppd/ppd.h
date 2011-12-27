@@ -35,32 +35,32 @@ void escucharPedidos(nipc_socket *sock);
 
 void atenderPedido(void);
 
-void leerSect(int sect, nipc_socket sock);
+void leerSect(int32_t sect, nipc_socket sock);
 
 void escribirSect(int, char [TAM_SECT], nipc_socket sock);
 
-int abrirArchivoV(char * pathArch);
+int32_t abrirArchivoV(char * pathArch);
 
-void * discoMap (int sectores, int dirArch);
+void * discoMap (int32_t sectores, int32_t dirArch);
 
 void escucharConsola(void);
 
-void atenderConsola(char comando[100], int cliente);
+void atenderConsola(char comando[100], int32_t cliente);
 
-void funcInfo(int cliente);
+void funcInfo(int32_t cliente);
 
-void funcClean(char *, int cliente);
+void funcClean(char *, int32_t cliente);
 
-void funcTrace(char *, int cliente);
+void funcTrace(char *, int32_t cliente);
 
-void traceSect(int sect, int32_t nextsect, int cliente, int32_t posCab, int32_t cola[20]);
+void traceSect(int32_t sect, int32_t nextsect, int32_t cliente, int32_t posCab, int32_t cola[20]);
 
-int my_itoa(int val, char* buf);
+int32_t my_itoa(int32_t val, char* buf);
 
 void errorparam(void);
 
 void conectarConPraid();
 
-int calcularSector(char structSect[25]);
+int32_t calcularSector(char structSect[25]);
 
 #endif /* PPD_H_ */

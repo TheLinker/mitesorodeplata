@@ -27,11 +27,11 @@ typedef struct
 
 void insertOrdNStep (cola_t ** colaptr, cola_t * newptr);
 
-void insertNStepScan(nipc_packet msj, int *cantPedidos, cola_t** headprt, cola_t** saltoptr, cola_t ** largaptr, int posCab, nipc_socket socket);
+void insertNStepScan(nipc_packet msj, int32_t *cantPedidos, cola_t** headptr, cola_t** saltoptr, cola_t ** largaptr, int32_t posCab, nipc_socket socket);
 
 void insertAlFinalNStep(cola_t** largaptr, cola_t * newptr);
 
-ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t ** cantPedidos, int posCab);
+ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t *cantPedidos, int32_t posCab);
 
 
 ////////////////////////////////////////////////////////////
@@ -48,21 +48,21 @@ cola_t * initPtr();
 
 cola_t * initSaltoPrt();
 
-int pista(int32_t);
+int32_t pista(int32_t);
 
 double timemovdisco(int32_t sect, int32_t posCab);
 
 double timesect (void);
 
-int sectpis(int32_t);
+int32_t sectpis(int32_t);
 
 void moverCab(int32_t sect);
 
 void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab);
 
-void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int32_t * cola);
+void obtenercola(cola_t ** headptr, cola_t ** saltoptr, int32_t * cola);
 
-int tamcola(cola_t ** headprt, cola_t ** saltoprt);
+int32_t tamcola(cola_t ** headptr, cola_t ** saltoptr);
 
 int32_t obtenerRecCant(int32_t psect,int32_t ssect,int32_t pposactual,int32_t sposactual);
 

@@ -4,71 +4,67 @@
 #include "../common/log.h"
 
 config_t vecConfig;
-int32_t dirArch, sectxpis, * cantPedidos=0;
+int32_t dirArch, sectxpis,cantPedidos=0;
 void * diskMap;
-cola_t *headprt = NULL, *saltoptr = NULL, *largaptr = NULL;
+cola_t *headptr = NULL, *saltoptr = NULL, *largaptr = NULL;
 size_t len = 100;
 sem_t semEnc, semAten /*, semCab*/;
 log_t* logppd;
 
-int main()
+int32_t main()
 {
-        pthread_t thConsola, thAtenderpedidos;
-        char* mensaje = NULL;
-        int32_t  thidConsola,thidAtenderpedidos, sectores;
-        div_t res;
+	pthread_t thConsola, thAtenderpedidos;
+	char* mensaje = NULL;
+	int32_t  thidConsola,thidAtenderpedidos, sectores;
+	div_t res;
 
-        sem_init(&semEnc,1,1);
-        //sem_init(&semCab,1,1);
-        sem_init(&semAten,1,0);
+	sem_init(&semEnc,1,1);
+	//sem_init(&semCab,1,1);
+	sem_init(&semAten,1,0);
 
-        res = div(vecConfig.sectores, 8);
-        if(0 != res.rem)
-                sectores = (vecConfig.sectores - res.rem) + 8;
+	res = div(vecConfig.sectores, 8);
+	if(0 != res.rem)
+		sectores = (vecConfig.sectores - res.rem) + 8;
 
-        //pid = getpid();
-        vecConfig = getconfig("config.txt");
-        logppd = log_new(vecConfig.rutalog, "PPD", vecConfig.flaglog);
-        sectxpis= (vecConfig.sectores/vecConfig.pistas);
-        dirArch = abrirArchivoV(vecConfig.rutadisco);
-        diskMap = discoMap(vecConfig.sectores, dirArch);
-        cantSect = vecConfig.sectores;
+	//pid = getpid();
+	vecConfig = getconfig("config.txt");
+	logppd = log_new(vecConfig.rutalog, "PPD", vecConfig.flaglog);
+	sectxpis= (vecConfig.sectores/vecConfig.pistas);
+	dirArch = abrirArchivoV(vecConfig.rutadisco);
+	diskMap = discoMap(vecConfig.sectores, dirArch);
+	cantSect = vecConfig.sectores;
 
+	printf("%s\n", vecConfig.modoinit);
+	int32_t pid = fork();
 
-        printf("%s\n", vecConfig.modoinit);
+	if (pid == 0)
+	{
+		if(-1 == execle("bin/consolappd", "consolappd", NULL, NULL))
+		{
+				printf("Error al ejecutar la consola \n");
+				printf("NUMERO DE ERROR: %d \n", errno);
+		}
+	}else
+	{
+		thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
 
+		thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, NULL);
 
-        int pid = fork();
-
-        if (pid == 0)
-        {
-                        if(-1 == execle("/home/utn_so/Desarrollo/Workspace/consolappd/Debug/consolappd", "consolappd", NULL, NULL))
-                        {
-                                printf("Error al ejecutar la consola \n");
-                                printf("NUMERO DE ERROR: %d \n", errno);
-                        }
-        }else
-        {
-                thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
-
-                thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, NULL);
-
-                if(!(strncmp(vecConfig.modoinit, "CONNECT",7)))
-                {
-                        printf("Conexion con praid\n");
-                        conectarConPraid();
-                }
-                else
-                        if(!(strncmp(vecConfig.modoinit, "LISTEN",6)))
-                        {
-                                printf("Conexion con Pfs\n");
-                                conectarConPFS(vecConfig);
-                        }
-                        else
-                                printf("Error de modo de inicialización\n");
-        }
-
-                return 1;
+		if(!(strncmp(vecConfig.modoinit, "CONNECT",7)))
+		{
+			printf("Conexion con praid\n");
+			conectarConPraid();
+		}
+		else
+			if(!(strncmp(vecConfig.modoinit, "LISTEN",6)))
+			{
+				printf("Conexion con Pfs\n");
+				conectarConPFS(vecConfig);
+			}
+			else
+				printf("Error de modo de inicialización\n");
+	}
+	return 1;
 }
 
  void conectarConPraid()  //ver tipos de datos
@@ -77,7 +73,7 @@ int main()
         nipc_socket *socket;
         nipc_socket sock_new;
         pthread_t thEscucharPedidos;
-        int  thidEscucharPedidos;
+        int32_t  thidEscucharPedidos;
 
         sock_new = create_socket();
         printf("socket: %d\n", sock_new);
@@ -86,7 +82,7 @@ int main()
         buffer.type = 0;
         buffer.len = 4 + 2;
         buffer.payload.sector = 0;
-        strcpy(buffer.payload.contenido, "l");
+        strcpy((char *)buffer.payload.contenido, "l");
         send_socket(&buffer ,sock_new);
         recv_socket(&buffer, sock_new);
         printf("%d\n", buffer.len);
@@ -96,44 +92,40 @@ int main()
         thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL,(void *)  escucharPedidos,  socket);
 
         pthread_join(thEscucharPedidos, NULL);
-
-
 }
 
 
 void escucharPedidos(nipc_socket *socket)
 {
-        nipc_packet msj;
-        sleep(1);
-        while(1)
-        {
-                if (0 > recv_socket(&msj, *socket));
-                {
-                        //if(0 == (msj.payload.sector % 5000))
-                        //printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
-                        //log_info(logppd, "Escuchar Pedidos", "Message info: Pedido escritura sector %d", msj.payload.sector);
-                        if(0 == strcmp(vecConfig.algplan, "cscan"))
-                        {
-                                sem_wait(&semEnc);
-                                //sem_wait(&semCab);
-                                insertCscan(msj, &headprt, &saltoptr, vecConfig.posactual, *socket);
-                                sem_post(&semEnc);
-                                //sem_post(&semCab);
-                                sem_post(&semAten);
-                        }else
-                        {
-                                sem_wait(&semEnc);
-                                //sem_wait(&semCab);
-                                insertNStepScan(msj,&cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual, *socket);
-                                sem_post(&semEnc);
-                                //sem_post(&semCab);
-                                sem_post(&semAten);
-
-                        }
-                }
-        }
-
-return;
+	nipc_packet msj;
+	sleep(1);
+	while(1)
+	{
+		if (0 > recv_socket(&msj, *socket));
+		{
+			//if(0 == (msj.payload.sector % 5000))
+			//printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
+			//log_info(logppd, "Escuchar Pedidos", "Message info: Pedido escritura sector %d", msj.payload.sector);
+			if(0 == strcmp(vecConfig.algplan, "cscan"))
+			{
+				sem_wait(&semEnc);
+				//sem_wait(&semCab);
+				insertCscan(msj, &headptr, &saltoptr, vecConfig.posactual, *socket);
+				sem_post(&semEnc);
+				//sem_post(&semCab);
+				sem_post(&semAten);
+			}else
+			{
+				sem_wait(&semEnc);
+				//sem_wait(&semCab);
+				insertNStepScan(msj,&cantPedidos, &headptr, &saltoptr, &largaptr, vecConfig.posactual, *socket);
+				sem_post(&semEnc);
+				//sem_post(&semCab);
+				sem_post(&semAten);
+			}
+		}
+	}
+	return;
 }
 
 void atenderPedido()
@@ -150,8 +142,8 @@ void atenderPedido()
                         sem_wait(&semAten);
                         //sem_wait(&semCab);
                         sem_wait(&semEnc);
-                        obtenercola(&headprt, &saltoptr, cola);
-                        tamcol = tamcola(&headprt, &saltoptr);
+                        obtenercola(&headptr, &saltoptr, cola);
+                        tamcol = tamcola(&headptr, &saltoptr);
                         memset(buffer, '\0', sizeof(buffer));
                         for(l=0;(l<sizeof(cola)) && (cola[l] != -1); l++)
                         {
@@ -164,7 +156,7 @@ void atenderPedido()
 
                         if(0 == strcmp(vecConfig.algplan, "cscan"))
                         {
-                                ped = desencolar(&headprt, &saltoptr);
+                                ped = desencolar(&headptr, &saltoptr);
                                 obtenerrecorrido(ped->sect, trace, vecConfig.posactual);
                                 time= timemovdisco(ped->sect, vecConfig.posactual);
                                 log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño:%d\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,tamcol ,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
@@ -174,11 +166,11 @@ void atenderPedido()
                                 //sem_post(&semCab);
                         }else
                         {
-                                ped = desencolarNStepScan(&headprt, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
+                                ped = desencolarNStepScan(&headptr, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
                                 obtenerrecorrido(ped->sect, trace, vecConfig.posactual);
                                 time= timemovdisco(ped->sect, vecConfig.posactual);
                                 log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño:\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
-                                *cantPedidos --;
+                                cantPedidos --;
                                 posCabeza = vecConfig.posactual;
                                 sem_post(&semEnc);
                                 //sem_post(&semCab);
@@ -190,8 +182,8 @@ void atenderPedido()
                                 sem_wait(&semAten);
                                 //sem_wait(&semCab);
                                 sem_wait(&semEnc);
-                                obtenercola(&headprt, &saltoptr, cola);
-                                ped = desencolar(&headprt, &saltoptr);
+                                obtenercola(&headptr, &saltoptr, cola);
+                                ped = desencolar(&headptr, &saltoptr);
                                 posCabeza = vecConfig.posactual;
                                 sem_post(&semEnc);
                                 //sem_post(&semCab);
@@ -200,9 +192,9 @@ void atenderPedido()
                                 sem_wait(&semAten);
                                 //sem_wait(&semCab);
                                 sem_wait(&semEnc);
-                                obtenercola(&headprt, &saltoptr, cola);
-                                ped = desencolarNStepScan(&headprt, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
-                                *cantPedidos --;
+                                obtenercola(&headptr, &saltoptr, cola);
+                                ped = desencolarNStepScan(&headptr, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
+                                cantPedidos --;
                                 posCabeza = vecConfig.posactual;
                                 sem_post(&semEnc);
                                 //sem_post(&semCab);
@@ -247,108 +239,103 @@ void atenderPedido()
 
 void escucharConsola()
 {
-        //while que escuche consola
-        char infodisc[30];
+	//while que escuche consola
+	char infodisc[30];
 
-        int servidor, cliente, lengthServidor, lengthCliente;
-        struct sockaddr_un direccionServidor;
-        struct sockaddr_un direccionCliente;
-        struct sockaddr* punteroServidor;
-        struct sockaddr* punteroCliente;
+	int32_t servidor, cliente, lengthServidor, lengthCliente;
+	struct sockaddr_un direccionServidor;
+	struct sockaddr_un direccionCliente;
+	struct sockaddr* punteroServidor;
+	struct sockaddr* punteroCliente;
 
-        signal ( SIGCHLD, SIG_IGN );
+	signal ( SIGCHLD, SIG_IGN );
 
-        punteroServidor = ( struct sockaddr* ) &direccionServidor;
-        lengthServidor = sizeof ( direccionServidor );
-        punteroCliente = ( struct sockaddr* ) &direccionCliente;
-        lengthCliente = sizeof ( direccionCliente );
-        servidor = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );
+	punteroServidor = ( struct sockaddr* ) &direccionServidor;
+	lengthServidor = sizeof ( direccionServidor );
+	punteroCliente = ( struct sockaddr* ) &direccionCliente;
+	lengthCliente = sizeof ( direccionCliente );
+	servidor = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );
 
-        direccionServidor.sun_family = AF_UNIX;    /* tipo de dominio */
+	direccionServidor.sun_family = AF_UNIX;    /* tipo de dominio */
 
-        unlink("/tmp/archsocketconsola");
+	unlink("/tmp/archsocketconsola");
 
-        strcpy ( direccionServidor.sun_path, "/tmp/archsocketconsola" );   /* nombre */
-        //unlink( "fichero" );
+	strcpy ( direccionServidor.sun_path, "/tmp/archsocketconsola" );   /* nombre */
+	//unlink( "fichero" );
 
-        if (bind ( servidor, punteroServidor, lengthServidor ) <0)   /* crea el fichero */
-        {
-       printf("ERROR BIND\n");
-       exit(1);
-        }
+	if (bind ( servidor, punteroServidor, lengthServidor ) <0)   /* crea el fichero */
+	{
+		printf("ERROR BIND\n");
+		exit(1);
+	}
 
-        puts ("\n Estoy a la espera \n");
+	puts ("\n Estoy a la espera \n");
 
-        if (listen ( servidor, 1 ) <0 )
-        {
-       printf("ERROR LISTEN\n");
-       exit(1);
-        }
+	if (listen ( servidor, 1 ) <0 )
+	{
+		printf("ERROR LISTEN\n");
+		exit(1);
+	}
 
-        do      //verifico que se quede esperando la conexion en caso de error
+	do      //verifico que se quede esperando la conexion en caso de error
+		cliente = accept ( servidor, NULL, NULL);
+	while (cliente == -1);
 
-                cliente = accept ( servidor, NULL, NULL);
+	memset(infodisc,'\0', 30);
+	sprintf(infodisc, "%d,%d", vecConfig.pistas, vecConfig.sectores);
+	send(cliente, infodisc, strlen(infodisc),0);
+	//puts ("\n Acepto la conexion \n");
 
-        while (cliente == -1);
-
-        memset(infodisc,'\0', 30);
-        sprintf(infodisc, "%d,%d", vecConfig.pistas, vecConfig.sectores);
-        send(cliente, infodisc, strlen(infodisc),0);
-        //puts ("\n Acepto la conexion \n");
-
-        while(1)
-        {
-
-                if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
-                {
-                        printf("error recibiendo\n");
-                        exit(0);
-                }
-
-                        atenderConsola(comando, cliente);
-        }
-
-        close( cliente );
-
+	//char comando[100];
+	while(1)
+	{
+		if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
+		{
+			printf("error recibiendo\n");
+			exit(0);
+		}
+		atenderConsola(comando, cliente);
+	}
+	close( cliente );
 }
 
-void atenderConsola(char comando[100], int cliente)
+void atenderConsola(char comando[100], int32_t cliente)
 {
-        char * funcion, * parametros;
+	char * funcion, * parametros;
 
-        funcion = strtok(comando,"(");
-        parametros = strtok (NULL, ")");
+	funcion = strtok(comando,"(");
+	parametros = strtok (NULL, ")");
 
-        if(0 == strcmp(funcion,"info"))
-                {
-                        funcInfo(cliente);
-                }
-                else
-                {
-                        if(0 == strcmp(funcion,"clean"))
-                        {
-                                funcClean(parametros, cliente);
-                        }
-                        else
-                        {
-                        if(0 == strcmp(funcion,"trace"))
-                        {
-                                funcTrace(parametros, cliente);
-                        }
-                        else
-                        {
-                                printf("Ha ingresado un comando invalido desde la consola\n");
-                        }
-                        }
+	if(0 == strcmp(funcion,"info"))
+	{
+			funcInfo(cliente);
+	}
+	else
+	{
+		if(0 == strcmp(funcion,"clean"))
+		{
+			funcClean(parametros, cliente);
+		}
+		else
+		{
+			if(0 == strcmp(funcion,"trace"))
+			{
+				funcTrace(parametros, cliente);
+			}
+			else
+			{
+				printf("Ha ingresado un comando invalido desde la consola\n");
+			}
+		}
 
-                }
+	}
 }
 
 
 //---------------Funciones PPD------------------//
 
 
-void leerSect(int sect, nipc_socket sock)
+void leerSect(int32_t sect, nipc_socket sock)
 {
         nipc_packet resp;
 
@@ -378,7 +365,7 @@ void leerSect(int sect, nipc_socket sock)
 }
 
 
-void escribirSect(int sect, char buffer[512], nipc_socket sock)
+void escribirSect(int32_t sect, char buffer[512], nipc_socket sock)
 {
         nipc_packet resp;
 
@@ -409,7 +396,7 @@ void escribirSect(int sect, char buffer[512], nipc_socket sock)
 
 }
 
-int abrirArchivoV(char * pathArch)                      //Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
+int32_t abrirArchivoV(char * pathArch)                      //Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
 {
         if (0 > (dirArch = open(pathArch, O_RDWR)))
         {
@@ -431,8 +418,9 @@ void * discoMap(int32_t sectores, int32_t dirArch)
         int32_t ret=0, tam;
         tam = (sectores * 512);
         diskMap = mmap(NULL, tam, PROT_READ | PROT_WRITE, MAP_SHARED, dirArch , 0);
-        if(ret = posix_madvise(diskMap, tam, POSIX_MADV_RANDOM))
-                        printf("El madvise ha fallado. Número de error: %d \n", ret);
+        ret = posix_madvise(diskMap, tam, POSIX_MADV_RANDOM);
+		if(ret)
+			printf("El madvise ha fallado. Número de error: %d \n", ret);
         //printf("%d %X\n", errno, dirMap[0]);
 
         return diskMap;
@@ -441,7 +429,7 @@ void * discoMap(int32_t sectores, int32_t dirArch)
 //---------------Funciones Consola------------------//
 
 
-void funcInfo(int cliente)
+void funcInfo(int32_t cliente)
 {
         char  bufferConsola[15];
 
@@ -455,10 +443,10 @@ void funcInfo(int cliente)
         return;
 }
 
-void funcClean(char * parametros, int cliente)
+void funcClean(char * parametros, int32_t cliente)
 {
         char * strprimSec, * strultSec, * bufferConsola;
-        int primSec, ultSec;
+        int32_t primSec, ultSec;
         nipc_packet pedido;
 
         bufferConsola = (char *) malloc(TAM_SECT);
@@ -482,7 +470,7 @@ void funcClean(char * parametros, int cliente)
                 {
                         sem_wait(&semEnc);
                         //sem_wait(&semCab);
-                        insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,0);
+                        insertCscan(pedido, &headptr, &saltoptr, vecConfig.posactual,0);
                         sem_post(&semEnc);
                         //sem_post(&semCab);
                         sem_post(&semAten);
@@ -491,7 +479,7 @@ void funcClean(char * parametros, int cliente)
                 {
                         sem_wait(&semEnc);
                         //sem_wait(&semCab);
-                        insertNStepScan(pedido,&cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,0);
+                        insertNStepScan(pedido,&cantPedidos, &headptr, &saltoptr, &largaptr, vecConfig.posactual,0);
                         sem_post(&semEnc);
                         //sem_post(&semCab);
                         sem_post(&semAten);
@@ -505,73 +493,71 @@ void funcClean(char * parametros, int cliente)
         return;
 }
 
-void funcTrace(char * parametros, int cliente)
+void funcTrace(char * parametros, int32_t cliente)
 {
-        int i, j, h, cantparam =0;
-        char cantparametros[100],lsectores[5][25];
-        memset(cantparametros, '\0', 100);
-        strncpy(cantparametros, parametros, 100);
+	int32_t i, j, h, cantparam =0;
+	char cantparametros[100],lsectores[5][25];
+	memset(cantparametros, '\0', 100);
+	strncpy(cantparametros, parametros, 100);
 
-        for(i=0; i<5; i++)
-        {
-                int k;
-                for (k = 0 ; k < 25 ; k++)
-                        lsectores[i][k] = '\0';
-        }
+	for(i=0; i<5; i++)
+	{
+		int32_t k;
+		for (k = 0 ; k < 25 ; k++)
+			lsectores[i][k] = '\0';
+	}
 
-        strtok(cantparametros , " ");
-        do
-        {
-                cantparam ++;
-        }
-        while( NULL != strtok(NULL , " "));
+	strtok(cantparametros , " ");
+	do
+	{
+		cantparam ++;
+	}
+	while( NULL != strtok(NULL , " "));
 
-        strcpy(lsectores[0], strtok(parametros, " "));
+	strcpy(lsectores[0], strtok(parametros, " "));
 
-        for(j=1; j<cantparam; j++ )
-        {
-                strcpy(lsectores[j], strtok(NULL, " "));
-        }
+	for(j=1; j<cantparam; j++ )
+	{
+		strcpy(lsectores[j], strtok(NULL, " "));
+	}
 
-        nipc_packet pedido;
+	nipc_packet pedido;
 
-        pedido.type = nipc_req_trace;
-        pedido.len = (sizeof(nipc_packet));
-        memset(pedido.payload.contenido, '\0', TAM_SECT);
+	pedido.type = nipc_req_trace;
+	pedido.len = (sizeof(nipc_packet));
+	memset(pedido.payload.contenido, '\0', TAM_SECT);
 
-        //encolar
+	//encolar
 
-        sem_wait(&semEnc);
-        for(h=0; h<cantparam; h++)
-        {
-                //setea el sector
-                pedido.payload.sector= calcularSector(lsectores[h]);
-                //encolar
-                log_info(logppd, "Escuchar Consola", "Message info: Pedido trace sector %d", pedido.payload.sector);
-                if(0 == strcmp(vecConfig.algplan, "cscan"))
-                        insertCscan(pedido, &headprt, &saltoptr, vecConfig.posactual,cliente);
-                else
-                {
-                        insertNStepScan(pedido,&cantPedidos, &headprt, &saltoptr, &largaptr, vecConfig.posactual,cliente);
-                }
-        }
-        //sem_post(&semCab);
-        for(h=0; h<cantparam; h++)
-                sem_post(&semAten);
-
-        sem_post(&semEnc);
-
-
-        return;
+	sem_wait(&semEnc);
+	for(h=0; h<cantparam; h++)
+	{
+		//setea el sector
+		pedido.payload.sector= calcularSector(lsectores[h]);
+		//encolar
+		log_info(logppd, "Escuchar Consola", "Message info: Pedido trace sector %d", pedido.payload.sector);
+		if(0 == strcmp(vecConfig.algplan, "cscan"))
+			insertCscan(pedido, &headptr, &saltoptr, vecConfig.posactual,cliente);
+		else
+		{
+			insertNStepScan(pedido,&cantPedidos, &headptr, &saltoptr, &largaptr, vecConfig.posactual,cliente);
+		}
+	}
+	//sem_post(&semCab);
+	for(h=0; h<cantparam; h++)
+		sem_post(&semAten);
+	sem_post(&semEnc);
+	return;
 }
-int calcularSector(char structSect[25])
+
+int32_t calcularSector(char structSect[25])
 {
-        int pist = atoi(strtok(structSect, ":"));
-        int sect = atoi(strtok(NULL, "\0"));
+        int32_t pist = atoi(strtok(structSect, ":"));
+        int32_t sect = atoi(strtok(NULL, "\0"));
         return ((pist * sectxpis) + sect);
 }
 
-void traceSect(int sect, int32_t nextsect, int cliente, int32_t posCab, int32_t cola[20])
+void traceSect(int32_t sect, int32_t nextsect, int32_t cliente, int32_t posCab, int32_t cola[20])
 {
         char * bufferConsola, *aux;
         float tiempo = 0;
@@ -588,8 +574,6 @@ void traceSect(int sect, int32_t nextsect, int cliente, int32_t posCab, int32_t 
         pposactual = pista(posCab);
         sposactual = sectpis (posCab);
         tiempo = timemovdisco(sect, posCab);
-
-
 
         for(p=0; (p<20) && (cola[p] != -1); p++)
         {

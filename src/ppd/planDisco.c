@@ -9,7 +9,7 @@ extern int32_t sectxpis;
 ///      CSCAN          ///
 ///////////////////////////
 
-void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCab, nipc_socket socket)
+void insertCscan(nipc_packet msj, cola_t** headptr, cola_t** saltoptr, int32_t posCab, nipc_socket socket)
 {
         cola_t *newptr = 0;
         div_t pisec;
@@ -20,7 +20,7 @@ void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCa
         pisec = div(newptr->ped.sect, sectxpis);
         if(pisec.quot >= pista(posCab))
         {
-                insertOrd(headprt, newptr);
+                insertOrd(headptr, newptr);
         }else
         {
                 insertOrd(saltoptr, newptr);
@@ -28,22 +28,22 @@ void insertCscan(nipc_packet msj, cola_t** headprt, cola_t** saltoptr, int posCa
         return;
 }
 
-ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
+ped_t * desencolar(cola_t ** headptr, cola_t ** saltoptr)
 {
         ped_t * pout = NULL;
 
-        if(NULL != *headprt)
+        if(NULL != *headptr)
         {
-                pout = *headprt;
-                *headprt = (cola_t*) (*headprt)->sig;
+                pout = (ped_t *) *headptr;
+                *headptr = (cola_t*) (*headptr)->sig;
         }else
         {
-                if(NULL != *saltoprt)
+                if(NULL != *saltoptr)
                 {
-                        *headprt = *saltoprt;
-                        *saltoprt = NULL;
-                        pout = *headprt;
-                        *headprt = (cola_t*) (*headprt)->sig;
+                        *headptr = *saltoptr;
+                        *saltoptr = NULL;
+                        pout = (ped_t *) *headptr;
+                        *headptr = (cola_t*) (*headptr)->sig;
                 }
         }
 
@@ -58,106 +58,115 @@ ped_t * desencolar(cola_t ** headprt, cola_t ** saltoprt)
 
 void insertarEnColaLarga(cola_t **largaptr, cola_t *newptr)
 {
-        cola_t * aux;
+	cola_t * aux;
 
-        //si la lista largaptr no tiene elementos, tomo newptr como su primer elemento
+	//si la lista largaptr no tiene elementos, tomo newptr como su primer elemento
 
-        aux = (* largaptr);
-        if(aux == NULL)
-        {
-                (*largaptr) = newptr;
-        }
-        else
-        {
-                while(aux->sig != NULL)
-                        aux = (cola_t *) aux->sig;
-
-                aux = (cola_t *) newptr;
-        }
-
-        return;
-
+	aux = (*largaptr);
+	if((*largaptr) == NULL)
+	{
+		(*largaptr) = newptr;
+	}
+	else
+	{
+		while(aux->sig != NULL)
+			aux = (cola_t *) aux->sig;
+		aux->sig = (struct cola_t *) newptr;
+	}
+	return;
 }
 
-void insertNStepScan(nipc_packet msj, int32_t *cantPedidos, cola_t** headprt, cola_t** saltoptr, cola_t ** largaptr, int posCab, nipc_socket socket)
+void insertNStepScan(nipc_packet msj, int32_t *cantPedidos, cola_t** headptr, cola_t** saltoptr, cola_t ** largaptr, int32_t posCab, nipc_socket socket)
 {
-        cola_t *newptr = 0;
-        div_t pisec;
+	cola_t *newptr = 0;
+	div_t pisec;
 
-        newptr = initPtr();
-        msjtocol(msj, newptr, socket);
+	newptr = initPtr();
+	msjtocol(msj, newptr, socket);
 
-        pisec = div(newptr->ped.sect, sectxpis);
+	pisec = div(newptr->ped.sect, sectxpis);
 
-        if (*cantPedidos < 3)
-        {
-                if(pisec.quot >= pista(posCab))
-                {
-                        insertOrd(headprt, newptr);
-                        *cantPedidos +=1;
-                }
-                else
-                {
-                        insertOrd(saltoptr, newptr);
-                        *cantPedidos +=1;
-                }
+	/*if (*cantPedidos < 3)
+	{
+		if(pisec.quot >= pista(posCab))
+		{
+				insertOrd(headptr, newptr);
+				*cantPedidos +=1;
+		}
+		else
+		{
+				insertOrd(saltoptr, newptr);
+				*cantPedidos +=1;
+		}
+	}
+	else*/
+		insertarEnColaLarga(largaptr, newptr);
 
-        }
-        else
-                insertarEnColaLarga(largaptr, newptr);
-
-        return;
+	return;
 }
 
-ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t ** cantPedidos, int32_t posCab)
+ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t *cantPedidos, int32_t posCab)
 {
+	ped_t * pedidoSalida = NULL;
+	cola_t * auxptr;
+	cola_t * aux, *auxfer;
 
-        ped_t * pedidoSalida = NULL;
-        cola_t * auxptr;
-        cola_t * aux;
+	int32_t i,p=0;//, l;
+	div_t pisec;
 
-        int32_t i,p=0, l;
-        div_t pisec;
-
-        if (*cantPedidos == 0)
-        {
-                auxptr = *largaptr;
-                //adelanto largaptr hasta la posicion 10, ahi hago null el siguiente de la posicion 10 y pongo largaptr en la posicion 11
-                for (i = 0 ; i < 10 && ((*largaptr)->sig != NULL)  ; i++)
-                {
-                        largaptr = (cola_t *)(*largaptr)->sig;
-                        p++;
-                }
-                aux = *largaptr;
-                largaptr = (cola_t *)(*largaptr)->sig;
-                (*aux).sig = NULL;
-
-                *cantPedidos = p;
-
-                for(;l<=p; l++)
-                {
-                        pisec = div(auxptr->ped.sect, sectxpis);
-
-                        if(pisec.quot >= pista(posCab))
-                                insertOrd(headptr, auxptr);
-                        else
-                                insertOrd(saltoptr, auxptr);
-                auxptr = (cola_t *) auxptr->sig;
-                }
-        }
-        else
-        {
-                if (NULL != *headptr)
-                {
-                        pedidoSalida = (cola_t *) *headptr;
-                        *headptr = (*headptr)->sig;
-                }else if (NULL != *saltoptr )
-                {
-                        pedidoSalida = (cola_t *) *saltoptr;
-                        *saltoptr = (*saltoptr)->sig;
-                }
-        }
-        return pedidoSalida;
+	if (*cantPedidos == 0)
+	{
+		if ((*largaptr) == NULL)
+		{
+			printf("Estamos al horno\n");
+		}
+		
+		auxptr = *largaptr;
+		//adelanto largaptr hasta la posicion 10, ahi hago null el siguiente de la posicion 10 y pongo largaptr en la posicion 11
+		for (i = 0 ; i < 10 && ((*largaptr) != NULL)  ; i++)
+		{
+			(*largaptr) = (cola_t *)(*largaptr)->sig;
+			p++;
+		}
+		aux = (*largaptr);
+		if ((*largaptr) != NULL)
+		{
+			(*largaptr) = (cola_t *)(*largaptr)->sig;
+			aux->sig = NULL;
+			p++;
+		}
+		
+		//*cantPedidos = p;
+		
+		//for(l=1;l<p; l++)
+		while(auxptr != NULL)
+		{  
+			pisec = div(auxptr->ped.sect, sectxpis);
+			auxfer = auxptr;
+			auxptr = (cola_t *) auxptr->sig;
+			auxfer->sig = NULL;
+			if(pisec.quot >= pista(posCab))
+				insertOrd(headptr, auxfer);
+			else
+				insertOrd(saltoptr, auxfer);
+			*cantPedidos +=1;
+		}
+	}
+	//else
+	{
+		if (NULL != *headptr)
+		{
+			pedidoSalida = (ped_t *) *headptr;
+			*headptr = (cola_t *)(*headptr)->sig;
+		}else if (NULL != *saltoptr )
+		{
+			*headptr = *saltoptr;
+			*saltoptr = NULL;
+			pedidoSalida = (ped_t *) *headptr;
+			*headptr = (cola_t *)(*headptr)->sig;
+		}
+	}
+	return pedidoSalida;
 }
 
 
@@ -168,79 +177,76 @@ ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** lar
 
 void insertOrd (cola_t ** colaptr, cola_t * newptr)
 {
-        /*
-        cola_t* ordptr = 0;
+	/*
+	cola_t* ordptr = 0;
 
-        //printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
+	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
 
-        if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
-        {
-                if(NULL == (*colaptr))
-                        newptr->ped.nextsect = -1;
-                else
-                        newptr->ped.nextsect = (*colaptr)->ped.sect;
-                newptr->sig = (*colaptr);
-                (*colaptr) = newptr;
-        }else
-        {
-                ordptr = (*colaptr);
-                while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
-                        ordptr = ordptr->sig;
-                newptr->sig = ordptr->sig;
-                ordptr->sig = newptr;
-        }
+	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
+	{
+		if(NULL == (*colaptr))
+			newptr->ped.nextsect = -1;
+		else
+			newptr->ped.nextsect = (*colaptr)->ped.sect;
+		newptr->sig = (*colaptr);
+		(*colaptr) = newptr;
+	}else
+	{
+		ordptr = (*colaptr);
+		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
+			ordptr = ordptr->sig;
+		newptr->sig = ordptr->sig;
+		ordptr->sig = newptr;
+	}
 
-        return;*/
+	return;*/
 
 
-        cola_t* ordptr = 0;
+	cola_t* ordptr = 0;
 
-        //printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
+	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
 
-        if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
-        {
-                if(NULL == (*colaptr))
-                        newptr->ped.nextsect = -1;
-                else
-                        newptr->ped.nextsect = (*colaptr)->ped.sect;
+	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
+	{
+		if(NULL == (*colaptr))
+			newptr->ped.nextsect = -1;
+		else
+			newptr->ped.nextsect = (*colaptr)->ped.sect;
 
-                newptr->sig = (*colaptr);
-                (*colaptr) = newptr;
-        }else
-        {
-                ordptr = (*colaptr);
-                while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
-                        ordptr = (cola_t*) ordptr->sig;
-                if(NULL != ordptr->sig)
-                {
-                        newptr->sig = ordptr->sig;
-                        ordptr->sig = newptr;
-                        ordptr->ped.nextsect = newptr->ped.sect;
-                        ordptr = (cola_t*) ordptr->sig;
-                        //newptr->ped.nextsect = ordptr->ped.sect;
-                        newptr->ped.nextsect = 12;
-                }else
-                {
-                        newptr->ped.nextsect = -1;
-                                        newptr->sig = ordptr->sig;
-                        ordptr->sig = newptr;
-                        ordptr->ped.nextsect = newptr->ped.sect;
-
-                }
-        }
-
-        return;
+		newptr->sig = (struct cola_t  *)(*colaptr);
+		(*colaptr) = newptr;
+	}else
+	{
+		ordptr = (*colaptr);
+		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
+			ordptr = (cola_t*) ordptr->sig;
+		if(NULL != ordptr->sig)
+		{
+			newptr->sig = ordptr->sig;
+			ordptr->sig = (struct cola_t  *) newptr;
+			ordptr->ped.nextsect = newptr->ped.sect;
+			ordptr = (cola_t*) ordptr->sig;
+			//newptr->ped.nextsect = ordptr->ped.sect;
+			newptr->ped.nextsect = 12;
+		}else
+		{
+			newptr->ped.nextsect = -1;
+			newptr->sig = ordptr->sig;
+			ordptr->sig = (struct cola_t  *)newptr;
+			//newptr->sig=NULL;//agregado por fer
+			ordptr->ped.nextsect = newptr->ped.sect;
+		}
+	}
+	return;
 }
-
 
 void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket)
 {
-        newptr->ped.sect = msj.payload.sector;
-        newptr->ped.oper = msj.type;
-        memcpy(newptr->ped.buffer, (char *) msj.payload.contenido, TAM_SECT);
-        newptr->ped.socket = socket;
-        newptr->ped.nextsect = -1;
-
+	newptr->ped.sect = msj.payload.sector;
+	newptr->ped.oper = msj.type;
+	memcpy(newptr->ped.buffer, (char *) msj.payload.contenido, TAM_SECT);
+	newptr->ped.socket = socket;
+	newptr->ped.nextsect = -1;
 }
 
 
@@ -268,7 +274,7 @@ cola_t * initPtr()
 // Funciones simulacion tiempo disco //
 ///////////////////////////////////////
 
-int pista(int sector)
+int32_t pista(int32_t sector)
 {
         div_t pista;
 
@@ -277,7 +283,7 @@ int pista(int sector)
         return pista.quot;
 }
 
-int sectpis(int sector)
+int32_t sectpis(int32_t sector)
 {
         div_t sect;
 
@@ -295,8 +301,8 @@ double timesect (void)
 
 double timemovdisco(int32_t sector, int32_t posCab)
 {
-        int pisrec = 0;
-        int sectrec = 0;
+        int32_t pisrec = 0;
+        int32_t sectrec = 0;
         double tiempo = 0;
 
         if (pista(sector) < pista(posCab))
@@ -459,7 +465,7 @@ void obtenerrecorrido(int32_t sect, char * trace, int32_t posCab)
         return;
 }
 
-void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
+void obtenercola(cola_t ** headptr, cola_t ** saltoptr, int32_t * cola)
 {
         cola_t * busqptr;
         int32_t i=0, j;
@@ -467,9 +473,9 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
         for(j=0;j<20;j++)
                 cola[j] = -1;
 
-        if((*headprt) != NULL)
+        if((*headptr) != NULL)
         {
-                busqptr = (*headprt);
+                busqptr = (*headptr);
                 while((busqptr != NULL) && (i<20) )
                 {
                         cola[i] = busqptr->ped.sect;
@@ -478,7 +484,7 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
                 }
                 if(i<20)
                 {
-                        busqptr = (* saltoprt);
+                        busqptr = (* saltoptr);
                         while((busqptr != NULL) && (i<20))
                         {
                                 cola[i] = busqptr->ped.sect;
@@ -486,9 +492,9 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
                                 busqptr = (cola_t*) busqptr->sig;
                         }
                 }
-        }else if((*saltoprt) != NULL)
+        }else if((*saltoptr) != NULL)
         {
-                        busqptr = (*saltoprt);
+                        busqptr = (*saltoptr);
                 while((busqptr != NULL) && (i<20) )
                 {
                         cola[i] = busqptr->ped.sect;
@@ -498,18 +504,18 @@ void obtenercola(cola_t ** headprt, cola_t ** saltoprt, int * cola)
         }
 }
 
-int tamcola(cola_t ** headprt, cola_t ** saltoprt)
+int32_t tamcola(cola_t ** headptr, cola_t ** saltoptr)
 {
         cola_t * busqptr;
         int32_t i=0;
 
-        busqptr = (* headprt);
+        busqptr = (* headptr);
         while(NULL != busqptr)
         {
                 i++;
                 busqptr = (cola_t *) busqptr->sig;
         }
-        busqptr = (* saltoprt);
+        busqptr = (* saltoptr);
         while(NULL != busqptr)
         {
                 i++;

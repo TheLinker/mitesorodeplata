@@ -9,7 +9,7 @@ struct hostent *server;
 
 void conectarConRAID(config_t vecConfig)
 {
-  port = atoi(vecConfig.puertopraid);
+  port = atoi((const char *)vecConfig.puertopraid);
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
