@@ -15,16 +15,10 @@ int32_t main()
 {
 	pthread_t thConsola, thAtenderpedidos;
 	char* mensaje = NULL;
-	int32_t  thidConsola,thidAtenderpedidos, sectores;
-	div_t res;
 
 	sem_init(&semEnc,1,1);
 	//sem_init(&semCab,1,1);
 	sem_init(&semAten,1,0);
-
-	res = div(vecConfig.sectores, 8);
-	if(0 != res.rem)
-		sectores = (vecConfig.sectores - res.rem) + 8;
 
 	//pid = getpid();
 	vecConfig = getconfig("config.txt");
@@ -46,9 +40,9 @@ int32_t main()
 		}
 	}else
 	{
-		thidConsola = pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
+		pthread_create( &thConsola, NULL, (void *) escucharConsola, (void*) mensaje);
 
-		thidAtenderpedidos = pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, NULL);
+		pthread_create( &thAtenderpedidos, NULL, (void *) atenderPedido, NULL);
 
 		if(!(strncmp(vecConfig.modoinit, "CONNECT",7)))
 		{
@@ -73,7 +67,6 @@ int32_t main()
         nipc_socket *socket;
         nipc_socket sock_new;
         pthread_t thEscucharPedidos;
-        int32_t  thidEscucharPedidos;
 
         sock_new = create_socket();
         printf("socket: %d\n", sock_new);
@@ -89,7 +82,7 @@ int32_t main()
         socket = malloc(sizeof(nipc_socket));
         *socket = sock_new;
 
-        thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL,(void *)  escucharPedidos,  socket);
+        pthread_create( &thEscucharPedidos, NULL,(void *)  escucharPedidos,  socket);
 
         pthread_join(thEscucharPedidos, NULL);
 }
@@ -242,18 +235,14 @@ void escucharConsola()
 	//while que escuche consola
 	char infodisc[30];
 
-	int32_t servidor, cliente, lengthServidor, lengthCliente;
+	int32_t servidor, cliente, lengthServidor;
 	struct sockaddr_un direccionServidor;
-	struct sockaddr_un direccionCliente;
 	struct sockaddr* punteroServidor;
-	struct sockaddr* punteroCliente;
 
 	signal ( SIGCHLD, SIG_IGN );
 
 	punteroServidor = ( struct sockaddr* ) &direccionServidor;
 	lengthServidor = sizeof ( direccionServidor );
-	punteroCliente = ( struct sockaddr* ) &direccionCliente;
-	lengthCliente = sizeof ( direccionCliente );
 	servidor = socket ( AF_UNIX, SOCK_STREAM, PROTOCOLO );
 
 	direccionServidor.sun_family = AF_UNIX;    /* tipo de dominio */
