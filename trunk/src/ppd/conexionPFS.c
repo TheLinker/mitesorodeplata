@@ -2,7 +2,7 @@
 #include "ppd.h"
 
 pthread_t thEscucharPedidos;
-int  thidEscucharPedidos;
+int32_t  thidEscucharPedidos;
 char* mensajet = NULL;
 
 void conectarConPFS(config_t vecConfig)
@@ -96,7 +96,7 @@ void conectarConPFS(config_t vecConfig)
 
 					 	printf("Nueva conexion PFS: %d\n",sock_new);
 						pfs *nuevo_pfs;
-						//int env;
+						//int32_t env;
 						nuevo_pfs = (pfs *)malloc(sizeof(pfs));
 						nuevo_pfs->sock=sock_new;
 						nuevo_pfs->sgte = info_ppal->lista_pfs;
@@ -112,7 +112,7 @@ void conectarConPFS(config_t vecConfig)
 						socket = malloc(sizeof(nipc_socket));
 						*socket = sock_new;
 
-						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, escucharPedidos, socket);
+						thidEscucharPedidos = pthread_create( &thEscucharPedidos, NULL, (void *)escucharPedidos, socket);
 
 					  }
 					  else
