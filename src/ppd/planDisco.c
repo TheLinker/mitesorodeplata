@@ -79,12 +79,12 @@ void insertarEnColaLarga(cola_t **largaptr, cola_t *newptr)
 void insertNStepScan(nipc_packet msj, int32_t *cantPedidos, cola_t** headptr, cola_t** saltoptr, cola_t ** largaptr, int32_t posCab, nipc_socket socket)
 {
 	cola_t *newptr = 0;
-	div_t pisec;
+	//div_t pisec;
 
 	newptr = initPtr();
 	msjtocol(msj, newptr, socket);
 
-	pisec = div(newptr->ped.sect, sectxpis);
+	//pisec = div(newptr->ped.sect, sectxpis);
 
 	/*if (*cantPedidos < 3)
 	{

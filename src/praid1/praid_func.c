@@ -291,7 +291,7 @@ void *pedido_sincronizacion(datos **info_ppal)
 	if (el_disco != NULL)
 	{
 		uint32_t i, control;
-		uint8_t *id_disco;
+		//uint8_t *id_disco;
 		mensaje.type=1;
 		mensaje.len=4;
 		//pedido *nuevo_pedido;
@@ -318,7 +318,7 @@ void *pedido_sincronizacion(datos **info_ppal)
 			}
 			
 			if (el_disco->pedido_sincro != 2)
-				id_disco = distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
+				/*id_disco = */distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
 			else
 				break;
 			/*//////////////

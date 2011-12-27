@@ -9,12 +9,12 @@ struct hostent *server;
 
 void conectarConRAID(config_t vecConfig)
 {
-  port = atoi((const char *)vecConfig.puertopraid);
+  port = vecConfig.puertopraid;
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
   if (sockfd < 0) 
-    error("ERROR opening socket");
+    perror("ERROR opening socket");
 
   server = gethostbyname(vecConfig.ippraid);
 
@@ -30,7 +30,7 @@ void conectarConRAID(config_t vecConfig)
   raid_addr.sin_port = htons(port);
 
   if (connect(sockfd,(struct sockaddr *) &raid_addr,sizeof(raid_addr)) < 0) 
-    error("ERROR connecting");
+    perror("ERROR connecting");
        
   close(sockfd);
 }
