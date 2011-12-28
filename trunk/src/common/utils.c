@@ -97,38 +97,33 @@ uint8_t** string_split2( uint8_t *str, uint8_t delimitor ){
     uint8_t **array;
     int elementsAmount = 0;
 
-    {
-        int cont;
-        for(cont=0; str[cont] != '\0'; cont++ ){
-            if( str[cont] == delimitor)    elementsAmount++;
-        }
-        elementsAmount++;
+    int cont;
+    for(cont=0; str[cont] != '\0'; cont++ ){
+        if( str[cont] == delimitor)    elementsAmount++;
     }
+    elementsAmount++;
 
-    {
-        array = calloc(elementsAmount+1, sizeof(uint8_t*) );
-    }
+    array = calloc(elementsAmount+1, sizeof(uint8_t*) );
 
-    {
-        int pibot, length, cont, elementIndex;
-        for(cont=0, pibot=0, length=0, elementIndex=0; elementIndex != elementsAmount ; cont++ ){
-            if( str[cont] == delimitor || str[cont] == '\0' ){
-                array[elementIndex] = malloc(length + 1);
-                if( length > 0 ){
-                    strncpy((char *)array[elementIndex], (char *)&str[pibot], length);
-                    array[elementIndex][length] = '\0';
-                } else {
-                    array[elementIndex][0] = '\0';
-                }
-                pibot = pibot + length + 1;
-                length = 0;
-                elementIndex++;
+    int pibot, length, elementIndex;
+    for(cont=0, pibot=0, length=0, elementIndex=0; elementIndex != elementsAmount ; cont++ ){
+        if( str[cont] == delimitor || str[cont] == '\0' ){
+            array[elementIndex] = malloc(length + 1);
+            if( length > 0 ){
+                strncpy((char *)array[elementIndex], (char *)&str[pibot], length);
+                array[elementIndex][length] = '\0';
             } else {
-                length++;
+                array[elementIndex][0] = '\0';
             }
+            pibot = pibot + length + 1;
+            length = 0;
+            elementIndex++;
+        } else {
+            length++;
         }
-        array[elementIndex] = NULL;
     }
+    array[elementIndex] = NULL;
+    
     return array;
 }
 

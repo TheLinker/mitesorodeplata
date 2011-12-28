@@ -135,6 +135,8 @@ void atenderPedido()
                         sem_wait(&semAten);
                         //sem_wait(&semCab);
                         sem_wait(&semEnc);
+                        if(0 != strcmp(vecConfig.algplan, "cscan"))
+                                llenarColas(&headptr, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
                         obtenercola(&headptr, &saltoptr, cola);
                         tamcol = tamcola(&headptr, &saltoptr);
                         memset(buffer, '\0', sizeof(buffer));
@@ -159,8 +161,7 @@ void atenderPedido()
                                 //sem_post(&semCab);
                         }else
                         {
-                                ped = desencolarNStepScan(&headptr, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
-                                obtenerrecorrido(ped->sect, trace, vecConfig.posactual);
+                                ped = desencolar(&headptr, &saltoptr);
                                 time= timemovdisco(ped->sect, vecConfig.posactual);
                                 log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\nCola de Pedidos:[%s] Tamaño:\nPosicion actual: %d:%d\nSector Solicitado: %d:%d\nSectores Recorridos: %s\nTiempo Consumido: %gms\nPróximo Sector: %d\n", buffer,pista(vecConfig.posactual), sectpis(vecConfig.posactual), pista(ped->sect), sectpis(ped->sect), trace, time, pista(cola[1]), sectpis(cola[1]));
                                 cantPedidos --;
@@ -168,6 +169,8 @@ void atenderPedido()
                                 sem_post(&semEnc);
                                 //sem_post(&semCab);
                         }
+
+                        free(trace);
                 }else
                 {
                         if(0 == strcmp(vecConfig.algplan, "cscan"))
@@ -185,8 +188,9 @@ void atenderPedido()
                                 sem_wait(&semAten);
                                 //sem_wait(&semCab);
                                 sem_wait(&semEnc);
+                                llenarColas(&headptr, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
                                 obtenercola(&headptr, &saltoptr, cola);
-                                ped = desencolarNStepScan(&headptr, &saltoptr, &largaptr, &cantPedidos, vecConfig.posactual);
+                                ped = desencolar(&headptr, &saltoptr);
                                 cantPedidos --;
                                 posCabeza = vecConfig.posactual;
                                 sem_post(&semEnc);
@@ -224,8 +228,7 @@ void atenderPedido()
                                         printf("Error comando PPD %d \n", ped->oper);
                                         break;
                         }
-                free(ped);
-                free(trace);
+                        free(ped);
                 }
         }
 }
