@@ -304,12 +304,12 @@ void *pedido_sincronizacion(datos **info_ppal)
 			usleep(1);
 			while(el_disco->encolados > 50 )
 			{
-				usleep(50);
+				usleep(500);
 				control++;
-				if (control == 10000) // 10000:medio segundo  20000:un segundo
+				if (control == 1000) // 1000:medio segundo  2000:un segundo
 				{
-					printf("------------------------------\n");
-					printf("Re-pedido de sincronizacion %s - %d\n",el_disco->id,el_disco->sector_sincro+1);
+					//printf("------------------------------\n");
+					//printf("Re-pedido de sincronizacion %s - %d\n",el_disco->id,el_disco->sector_sincro+1);
 					mensaje.payload.sector = (el_disco->sector_sincro+1);
 					distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
 					mensaje.payload.sector = i;
@@ -347,12 +347,11 @@ void *pedido_sincronizacion(datos **info_ppal)
 			else
 				break;
 			////////////////*/
-			if((i%20000)==0)
+			if((i%50000)==0)
 			{
 				printf("------------------------------\n");
 				printf("Pedido Sincronizacion parcial: %d\n",i);
 				listar_discos((*info_ppal)->discos);
-				//listar_pedidos_discos((*info_ppal)->discos);
 			}
 		}
 		if (el_disco->pedido_sincro == 0)
@@ -426,11 +425,11 @@ void *espera_respuestas(datos **info_ppal)
 	el_disco = (*info_ppal)->discos;
 	while(el_disco != NULL && el_disco->hilo != pthread_self())
 		el_disco = el_disco->sgte;
-	//recv_socket(&mensaje,el_disco->sock);
-	char chs[20];
-	strcpy(chs,"(1024,1,1024)");
-	printf("%s = ",chs);
-	uint32_t pistas = atoi(1 + strtok(chs,","));
+	recv_socket(&mensaje,el_disco->sock);
+	//char chs[20];
+	//strcpy(chs,"(1024,1,1024)");
+	printf("%s = ",mensaje.payload.contenido);
+	uint32_t pistas = atoi(1 + strtok((char *)mensaje.payload.contenido,","));
 	printf("%d x ",pistas);
 	uint32_t cabezas = atoi(strtok(NULL,","));
 	printf("%d x ",cabezas);
@@ -616,7 +615,7 @@ void *espera_respuestas(datos **info_ppal)
 						{
 							//log_info(log, (char *)el_disco->id, "Message info: control de llegada: %d ",mensaje.payload.sector);
 							/** es una respuesta de sincronizacion **/
-							if((el_disco->sector_sincro%20000)==0)
+							if((el_disco->sector_sincro%50000)==0)
 							{
 								printf("------------------------------\n");
 								printf("Sincronizacion parcial: %d\n",el_disco->sector_sincro);
