@@ -63,28 +63,32 @@ int32_t main()
 
  void conectarConPraid()  //ver tipos de datos
 {
-        nipc_packet buffer;
-        nipc_socket *socket;
-        nipc_socket sock_new;
-        pthread_t thEscucharPedidos;
+	nipc_packet buffer;
+	nipc_socket *socket;
+	nipc_socket sock_new;
+	pthread_t thEscucharPedidos;
 
-        sock_new = create_socket();
-        printf("socket: %d\n", sock_new);
-        nipc_connect_socket(sock_new, vecConfig.ippraid, vecConfig.puertopraid);
+	sock_new = create_socket();
+	printf("socket: %d\n", sock_new);
+	nipc_connect_socket(sock_new, vecConfig.ippraid, vecConfig.puertopraid);
 
-        buffer.type = 0;
-        buffer.len = 4 + 2;
-        buffer.payload.sector = 0;
-        strcpy((char *)buffer.payload.contenido, "l");
-        send_socket(&buffer ,sock_new);
-        recv_socket(&buffer, sock_new);
-        printf("%d\n", buffer.len);
-        socket = malloc(sizeof(nipc_socket));
-        *socket = sock_new;
+	srand(time(NULL));
+	buffer.type = 0;
+	//strcpy((char *)buffer.payload.contenido, "l");
+	sprintf((char *)buffer.payload.contenido,"Disco %d", rand()%100+1);
+	buffer.len = 4 + strlen((char *)buffer.payload.contenido);
+	buffer.payload.sector = 0;
+	send_socket(&buffer ,sock_new);
+	recv_socket(&buffer, sock_new);
+	printf("%d\n", buffer.len);
+	
+	
+	socket = malloc(sizeof(nipc_socket));
+	*socket = sock_new;
 
-        pthread_create( &thEscucharPedidos, NULL,(void *)  escucharPedidos,  socket);
+	pthread_create( &thEscucharPedidos, NULL,(void *)  escucharPedidos,  socket);
 
-        pthread_join(thEscucharPedidos, NULL);
+	pthread_join(thEscucharPedidos, NULL);
 }
 
 
@@ -92,6 +96,14 @@ void escucharPedidos(nipc_socket *socket)
 {
 	nipc_packet msj;
 	sleep(1);
+	
+	msj.type = 0;
+	strcpy((char *)msj.payload.contenido, vecConfig.chs);
+	msj.len = 4 + strlen((char *)msj.payload.contenido);
+	msj.payload.sector = 0;
+	send_socket(&msj ,*socket);
+		
+		
 	while(1)
 	{
 		if (0 > recv_socket(&msj, *socket));
@@ -327,20 +339,20 @@ void atenderConsola(char comando[100], int32_t cliente)
 //---------------Funciones PPD------------------//
 
 
-void leerSect(int32_t sect, nipc_socket sock)
+void leerSect(int sect, nipc_socket sock)
 {
         nipc_packet resp;
-
+		void * dirSect;
         if( (0 <= sect) && (cantSect >= sect))
         {
                 //if(0 == (sect % 5000))
                         //printf("----------------Entro a Leer------------------- \n");
                 //dirMap = paginaMap(sect, dirArch);
                 //res = div(sect, 8);
-                dirSect = diskMap + (sect *512);
-                memcpy(&buffer, dirSect, TAM_SECT);
+                dirSect = diskMap + (sect * 512);
+                memcpy(&buffer, dirSect,512);// TAM_SECT);
                 //if(0 != munmap(dirMap,TAM_PAG))
-                        //printf("Fallo la eliminacion del mapeo\n");
+                      //printf("Fallo la eliminacion del mapeo\n");
 
                 resp.type = 1;
                 resp.payload.sector = sect;

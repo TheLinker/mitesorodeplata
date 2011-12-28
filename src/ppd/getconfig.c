@@ -85,11 +85,13 @@ config_t getconfig(char * archivoConfig)
 			}
 		}
 
-
-			vecConfig.pistas = atoi(1 + strtok(vecConfig.chs, ","));
-			strtok(NULL, ",");
-			secxpis = atoi(strtok(NULL, ")"));
-			vecConfig.sectores = (vecConfig.pistas * secxpis);
+		char	chs_aux[20];
+		
+		strcpy(chs_aux,vecConfig.chs);
+		vecConfig.pistas = atoi(1 + strtok(chs_aux, ","));
+		strtok(NULL, ",");
+		secxpis = atoi(strtok(NULL, ")"));
+		vecConfig.sectores = (vecConfig.pistas * secxpis);
 
 	}
 
