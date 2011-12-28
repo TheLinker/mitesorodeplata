@@ -82,6 +82,11 @@ int32_t main()
 	recv_socket(&buffer, sock_new);
 	printf("%d\n", buffer.len);
 	
+	buffer.type = 4;
+	strcpy((char *)buffer.payload.contenido, vecConfig.chs);
+	buffer.len = 4 + strlen((char *)buffer.payload.contenido);
+	buffer.payload.sector = 0;
+	send_socket(&buffer ,sock_new);
 	
 	socket = malloc(sizeof(nipc_socket));
 	*socket = sock_new;
@@ -97,13 +102,6 @@ void escucharPedidos(nipc_socket *socket)
 	nipc_packet msj;
 	sleep(1);
 	
-	msj.type = 0;
-	strcpy((char *)msj.payload.contenido, vecConfig.chs);
-	msj.len = 4 + strlen((char *)msj.payload.contenido);
-	msj.payload.sector = 0;
-	send_socket(&msj ,*socket);
-		
-		
 	while(1)
 	{
 		if (0 > recv_socket(&msj, *socket));
