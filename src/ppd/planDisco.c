@@ -105,9 +105,8 @@ void insertNStepScan(nipc_packet msj, int32_t *cantPedidos, cola_t** headptr, co
 	return;
 }
 
-ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t *cantPedidos, int32_t posCab)
+void llenarColas(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int32_t *cantPedidos, int32_t posCab)
 {
-	ped_t * pedidoSalida = NULL;
 	cola_t * auxptr;
 	cola_t * aux, *auxfer;
 
@@ -152,21 +151,6 @@ ped_t * desencolarNStepScan(cola_t ** headptr, cola_t ** saltoptr, cola_t ** lar
 			*cantPedidos +=1;
 		}
 	}
-	//else
-	{
-		if (NULL != *headptr)
-		{
-			pedidoSalida = (ped_t *) *headptr;
-			*headptr = (cola_t *)(*headptr)->sig;
-		}else if (NULL != *saltoptr )
-		{
-			*headptr = *saltoptr;
-			*saltoptr = NULL;
-			pedidoSalida = (ped_t *) *headptr;
-			*headptr = (cola_t *)(*headptr)->sig;
-		}
-	}
-	return pedidoSalida;
 }
 
 
