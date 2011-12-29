@@ -189,7 +189,7 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 	cola_t* ordptr = 0;
 
 	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
-
+/*
 	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
 	{
 		if(NULL == (*colaptr))
@@ -219,6 +219,33 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 			ordptr->sig = (struct cola_t  *)newptr;
 			//newptr->sig=NULL;//agregado por fer
 			ordptr->ped.nextsect = newptr->ped.sect;
+		}
+	}*/
+	
+	if(NULL == (*colaptr))
+	{
+		newptr->ped.nextsect = -1;
+		(*colaptr) = newptr;
+	}
+	else
+	{
+		if(newptr->ped.sect < (*colaptr)->ped.sect)
+		{
+			newptr->ped.nextsect = (*colaptr)->ped.sect;
+			(*colaptr) = newptr;
+		}
+		else
+		{
+			ordptr = (*colaptr);
+			while((NULL != ordptr->sig) && (newptr->ped.sect > (ordptr->sig)->ped.sect))
+				ordptr = (cola_t*) ordptr->sig;
+			newptr->sig = ordptr->sig;
+			ordptr->sig = (struct cola_t  *) newptr;
+			ordptr->ped.nextsect = newptr->ped.sect;
+			if (ordptr->sig == NULL)
+				newptr->ped.nextsect = -1;
+			else
+				newptr->ped.nextsect = (ordptr->sig)->ped.sect;
 		}
 	}
 	return;
