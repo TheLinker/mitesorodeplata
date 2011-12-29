@@ -991,6 +991,7 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     fs_fat32_t *fs_tmp = (fs_fat32_t *) context->private_data;
     int32_t cluster_size = fs_tmp->boot_sector.sectors_per_cluster * fs_tmp->boot_sector.bytes_per_sector;
 
+    int8_t ret=0;
     char buff[10];
     sprintf(buff,"%d",context->pid);
     log_info(fs_tmp->log, buff, "Read: path: %s size: %d offset: %ld", path, size, offset);
@@ -1012,7 +1013,11 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     nipc_socket socket = fat32_get_socket(fs_tmp);
 
     int8_t *cluster_buffer = calloc(fs_tmp->boot_sector.bytes_per_sector, fs_tmp->boot_sector.sectors_per_cluster);
-    fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket);
+    if ((ret = fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket)) < 0) {
+        free(cluster_buffer);
+        fat32_free_socket(socket, fs_tmp);
+        return ret;
+    }
 
     int32_t size_to_read = cluster_size - offset;
     int32_t size_aldy_read = 0;
@@ -1025,7 +1030,11 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
     while((size > 0) && (fs_tmp->fat[cluster_actual] != fs_tmp->eoc_marker))
     {
         cluster_actual = fat32_get_link_n_in_chain(cluster_actual, 1, fs_tmp);
-        fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket);
+        if ((ret = fat32_getcluster(cluster_actual, cluster_buffer, fi->fh, fs_tmp, socket)) < 0) {
+            free(cluster_buffer);
+            fat32_free_socket(socket, fs_tmp);
+            return ret;
+        }
         size_to_read = MIN(cluster_size, size);
         memcpy(buf + size_aldy_read, cluster_buffer, size_to_read);
 

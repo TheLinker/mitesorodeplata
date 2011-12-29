@@ -181,8 +181,7 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t 
     //Si se llama desde un lugar sin cache
     if (fid == NO_CACHE || !fs_tmp->cache_size) {
         fat32_getsectors_pet(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, socket);
-        fat32_getsectors_rsp(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer, fs_tmp, socket);
-        return 0;
+        return fat32_getsectors_rsp(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer, fs_tmp, socket);
     } else {
         int i=0;
         int8_t block_cache[BLOCK_SIZE];
@@ -210,6 +209,7 @@ uint8_t fat32_getblock(uint32_t block, uint32_t cantidad, void *buffer, int32_t 
 
                 //obtengo uno de los bloques
                 rsp_block = fat32_getsectors_rsp2(block_cache, fs_tmp, socket) / SECTORS_PER_BLOCK;
+                if (rsp_block<0) return rsp_block;
 
                 //lo almaceno en la cache
                 fat32_save_in_cache(slot, rsp_block, block_cache, 0, cache);
@@ -241,8 +241,7 @@ uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, int32_
     //Si se llama desde un lugar sin cache
     if (fid == NO_CACHE || !fs_tmp->cache_size) {
         fat32_writesectors_pet(block * SECTORS_PER_BLOCK, cantidad * SECTORS_PER_BLOCK, buffer, fs_tmp, socket);
-        fat32_writesectors_rsp(cantidad * SECTORS_PER_BLOCK, fs_tmp, socket);
-        return 0;
+        return fat32_writesectors_rsp(cantidad * SECTORS_PER_BLOCK, fs_tmp, socket);
     } else {
         int i=0, rsp=0;
         cache_t *cache = fs_tmp->open_files[fid].cache;
@@ -258,7 +257,8 @@ uint8_t fat32_writeblock(uint32_t block, uint32_t cantidad, void *buffer, int32_
                 //si el bloque a reemplazar fue modificado, lo escribo.
                 if(cache[slot].modificado == 1)
                 {
-                    fat32_writeblock(cache[slot].number, 1, cache[slot].contenido, NO_CACHE, fs_tmp, socket);
+                    int8_t ret = fat32_writeblock(cache[slot].number, 1, cache[slot].contenido, NO_CACHE, fs_tmp, socket);
+                    if (ret<0) return ret;
                     cache[slot].modificado = 0;
                 }
 
@@ -297,11 +297,9 @@ uint8_t fat32_getcluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32_t
 
     block_number = (fs_tmp->system_area_size + (cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) / SECTORS_PER_BLOCK;
 
-    fat32_getblock(block_number,
-                   fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
-                   buffer, fid, fs_tmp, socket);
-
-    return 0;
+    return fat32_getblock(block_number,
+                          fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
+                          buffer, fid, fs_tmp, socket);
 }
 
 /**
@@ -330,11 +328,9 @@ uint8_t fat32_writecluster(uint32_t cluster, void *buffer, int32_t fid, fs_fat32
 
     block_number = (fs_tmp->system_area_size + (cluster - 2) * fs_tmp->boot_sector.sectors_per_cluster) / SECTORS_PER_BLOCK;
 
-    fat32_writeblock(block_number,
+    return fat32_writeblock(block_number,
                      fs_tmp->boot_sector.sectors_per_cluster / SECTORS_PER_BLOCK,
                      buffer, fid, fs_tmp, socket);
-
-    return 0;
 }
 
 
