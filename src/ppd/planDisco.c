@@ -36,6 +36,10 @@ ped_t * desencolar(cola_t ** headptr, cola_t ** saltoptr)
         {
                 pout = (ped_t *) *headptr;
                 *headptr = (cola_t*) (*headptr)->sig;
+		if(NULL == (*headptr) && NULL != (*saltoptr))
+		{
+			pout->nextsect = (*saltoptr)->ped.sect;
+		}
         }else
         {
                 if(NULL != *saltoptr)
@@ -161,66 +165,6 @@ void llenarColas(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int3
 
 void insertOrd (cola_t ** colaptr, cola_t * newptr)
 {
-	/*
-	cola_t* ordptr = 0;
-
-	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
-
-	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
-	{
-		if(NULL == (*colaptr))
-			newptr->ped.nextsect = -1;
-		else
-			newptr->ped.nextsect = (*colaptr)->ped.sect;
-		newptr->sig = (*colaptr);
-		(*colaptr) = newptr;
-	}else
-	{
-		ordptr = (*colaptr);
-		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
-			ordptr = ordptr->sig;
-		newptr->sig = ordptr->sig;
-		ordptr->sig = newptr;
-	}
-
-	return;*/
-
-	
-	/*cola_t* ordptr = 0;
-
-	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
-
-	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
-	{
-		if(NULL == (*colaptr))
-			newptr->ped.nextsect = -1;
-		else
-			newptr->ped.nextsect = (*colaptr)->ped.sect;
-
-		newptr->sig = (struct cola_t  *)(*colaptr);
-		(*colaptr) = newptr;
-	}else
-	{
-		ordptr = (*colaptr);
-		while((NULL != ordptr->sig) && (newptr->ped.sect > ordptr->ped.sect))
-			ordptr = (cola_t*) ordptr->sig;
-		if(NULL != ordptr->sig)
-		{
-			newptr->sig = ordptr->sig;
-			ordptr->sig = (struct cola_t  *) newptr;
-			ordptr->ped.nextsect = newptr->ped.sect;
-			ordptr = (cola_t*) ordptr->sig;
-			//newptr->ped.nextsect = ordptr->ped.sect;
-			newptr->ped.nextsect = 12;
-		}else
-		{
-			newptr->ped.nextsect = -1;
-			newptr->sig = ordptr->sig;
-			ordptr->sig = (struct cola_t  *)newptr;
-			//newptr->sig=NULL;//agregado por fer
-			ordptr->ped.nextsect = newptr->ped.sect;
-		}
-	}*/
 	cola_t* ordptr = 0;
 	cola_t* antptr = 0;
 	

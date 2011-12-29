@@ -33,7 +33,7 @@ int32_t main()
 
 	if (pid == 0)
 	{
-		if(-1 == execle("bin/consolappd", "consolappd", NULL, NULL))
+		if(-1 == execle("consolappd", "consolappd", NULL, NULL))
 		{
 				printf("Error al ejecutar la consola \n");
 				printf("NUMERO DE ERROR: %d \n", errno);
@@ -210,9 +210,6 @@ void atenderPedido()
 
                 if (ped != NULL)
                 {
-                        if((vecConfig.flaglog == 3) || (vecConfig.flaglog == 4))
-                        {
-                        }
                         //if(0 == (ped->sect % 5000))
                                 //printf("SECTOR PEDIDO %d \n", ped->sect);
 
