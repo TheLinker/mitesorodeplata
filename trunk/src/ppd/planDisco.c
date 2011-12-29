@@ -242,10 +242,10 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 			newptr->sig = ordptr->sig;
 			ordptr->sig = (struct cola_t  *) newptr;
 			ordptr->ped.nextsect = newptr->ped.sect;
-			if (ordptr->sig == NULL)
+			if (newptr->sig == NULL)
 				newptr->ped.nextsect = -1;
 			else
-				newptr->ped.nextsect = (ordptr->sig)->ped.sect;
+				newptr->ped.nextsect = (newptr->sig)->ped.sect;
 		}
 	}
 	return;
