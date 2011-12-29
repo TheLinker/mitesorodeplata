@@ -185,11 +185,11 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 
 	return;*/
 
-
-	cola_t* ordptr = 0;
+	
+	/*cola_t* ordptr = 0;
 
 	//printf("%d, %d, ENCOLA \n", newptr->ped.oper, newptr->ped.sect);
-/*
+
 	if(NULL == (*colaptr) || newptr->ped.sect < (*colaptr)->ped.sect)
 	{
 		if(NULL == (*colaptr))
@@ -221,6 +221,8 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 			ordptr->ped.nextsect = newptr->ped.sect;
 		}
 	}*/
+	cola_t* ordptr = 0;
+	cola_t* antptr = 0;
 	
 	if(NULL == (*colaptr))
 	{
@@ -232,20 +234,24 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 		if(newptr->ped.sect < (*colaptr)->ped.sect)
 		{
 			newptr->ped.nextsect = (*colaptr)->ped.sect;
+			newptr->sig = (struct cola_t*) (*colaptr);
 			(*colaptr) = newptr;
 		}
 		else
 		{
 			ordptr = (*colaptr);
-			while((NULL != ordptr->sig) && (newptr->ped.sect > (ordptr->sig)->ped.sect))
+			while((NULL != ordptr) && (newptr->ped.sect > ordptr->ped.sect))
+			{
+				antptr = ordptr;
 				ordptr = (cola_t*) ordptr->sig;
-			newptr->sig = ordptr->sig;
-			ordptr->sig = (struct cola_t  *) newptr;
-			ordptr->ped.nextsect = newptr->ped.sect;
-			if (newptr->sig == NULL)
-				newptr->ped.nextsect = -1;
+			}
+			newptr->sig = (struct cola_t*)ordptr;
+			antptr->sig = (struct cola_t  *) newptr;
+			antptr->ped.nextsect = newptr->ped.sect;
+			if (ordptr != NULL)
+				newptr->ped.nextsect = ordptr->ped.sect;
 			else
-				newptr->ped.nextsect = (newptr->sig)->ped.sect;
+				newptr->ped.nextsect = -1;
 		}
 	}
 	return;
