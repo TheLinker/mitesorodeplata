@@ -33,7 +33,7 @@ int32_t main()
 
 	if (pid == 0)
 	{
-		if(-1 == execle("consolappd", "consolappd", NULL, NULL))
+		if(-1 == execle("bin/consolappd", "consolappd", NULL, NULL))
 		{
 				printf("Error al ejecutar la consola \n");
 				printf("NUMERO DE ERROR: %d \n", errno);
@@ -106,8 +106,6 @@ void escucharPedidos(nipc_socket *socket)
 	{
 		if (0 > recv_socket(&msj, *socket));
 		{
-			//if(0 == (msj.payload.sector % 5000))
-			//printf("%d, %d, %d ENTRA AL INSERT \n", msj.type, msj.len, msj.payload.sector);
 			//log_info(logppd, "Escuchar Pedidos", "Message info: Pedido escritura sector %d", msj.payload.sector);
 			if(0 == strcmp(vecConfig.algplan, "cscan"))
 			{
@@ -210,12 +208,8 @@ void atenderPedido()
 
                 if (ped != NULL)
                 {
-                        //if(0 == (ped->sect % 5000))
-                                //printf("SECTOR PEDIDO %d \n", ped->sect);
-
                         switch(ped->oper)
                         {
-
                                 case nipc_req_read:
                                         sleep(vecConfig.tiempolec);
                                         leerSect(ped->sect, ped->socket);
@@ -340,8 +334,6 @@ void leerSect(int sect, nipc_socket sock)
 		void * dirSect;
         if( (0 <= sect) && (cantSect >= sect))
         {
-                //if(0 == (sect % 5000))
-                        //printf("----------------Entro a Leer------------------- \n");
                 //dirMap = paginaMap(sect, dirArch);
                 //res = div(sect, 8);
                 dirSect = diskMap + (sect * 512);
@@ -366,47 +358,42 @@ void leerSect(int sect, nipc_socket sock)
 
 void escribirSect(int32_t sect, char buffer[512], nipc_socket sock)
 {
-        nipc_packet resp;
+	nipc_packet resp;
+	if((0 <= sect) && (cantSect >= sect))
+	{
+		//dirMap = paginaMap(sect, dirArch);
+		//res = div(sect, 8);
+		dirSect = diskMap + (sect *512 );
+		memcpy(dirSect, buffer, TAM_SECT);
+		msync(dirSect, 512, MS_ASYNC);
+		//if(0 != munmap(dirMap,TAM_PAG))
+				//printf("Fallo la eliminacion del mapeo\n");
 
+		resp.type = 2;
+		resp.payload.sector = sect;
+		memset(resp.payload.contenido,'\0', TAM_SECT);
+		resp.len = 4;
 
-                if((0 <= sect) && (cantSect >= sect))
-                {
-                        //if(0 == (sect % 5000))
-                                //printf("----------------Entro a Escribir------------------- \n");
-                        //dirMap = paginaMap(sect, dirArch);
-                        //res = div(sect, 8);
-                        dirSect = diskMap + (sect *512 );
-                        memcpy(dirSect, buffer, TAM_SECT);
-                        msync(dirSect, 512, MS_ASYNC);
-                        //if(0 != munmap(dirMap,TAM_PAG))
-                                //printf("Fallo la eliminacion del mapeo\n");
-
-                        resp.type = 2;
-                        resp.payload.sector = sect;
-                        memset(resp.payload.contenido,'\0', TAM_SECT);
-                        resp.len = 4;
-
-                        send_socket(&resp, sock);
-                }
-                else
-                {
-                        printf("El sector no es valido\n");
-                }
-
+		send_socket(&resp, sock);
+	}
+	else
+	{
+		printf("El sector no es valido\n");
+	}
 }
 
-int32_t abrirArchivoV(char * pathArch)                      //Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
+int32_t abrirArchivoV(char * pathArch)   //Se le pasa el pathArch del config. Se mapea en esta funcion lo cual devuelve la direccion en memoria
 {
-        if (0 > (dirArch = open(pathArch, O_RDWR)))
-        {
-                printf("%s\n",pathArch);
-                printf("Error al abrir el archivo de mapeo %d \n ",errno);
-        }
-        else
-        {
-                        printf("El archivo se abrio correctamente\n");
-                        return dirArch;
-        }
+	if (0 > (dirArch = open(pathArch, O_RDWR)))
+	{
+		printf("%s\n",pathArch);
+		printf("Error al abrir el archivo de mapeo %d \n ",errno);
+	}
+	else
+	{
+		printf("El archivo se abrio correctamente\n");
+		return dirArch;
+	}
 return 0;
 }
 

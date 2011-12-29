@@ -2,7 +2,6 @@
 #include "ppd.h"
 
 extern config_t vecConfig;
-//extern sem_t semEnc;
 extern int32_t sectxpis;
 
 ///////////////////////////
@@ -30,30 +29,27 @@ void insertCscan(nipc_packet msj, cola_t** headptr, cola_t** saltoptr, int32_t p
 
 ped_t * desencolar(cola_t ** headptr, cola_t ** saltoptr)
 {
-        ped_t * pout = NULL;
+	ped_t * pout = NULL;
 
-        if(NULL != *headptr)
-        {
-                pout = (ped_t *) *headptr;
-                *headptr = (cola_t*) (*headptr)->sig;
+	if(NULL != *headptr)
+	{
+		pout = (ped_t *) *headptr;
+		*headptr = (cola_t*) (*headptr)->sig;
 		if(NULL == (*headptr) && NULL != (*saltoptr))
 		{
 			pout->nextsect = (*saltoptr)->ped.sect;
 		}
-        }else
-        {
-                if(NULL != *saltoptr)
-                {
-                        *headptr = *saltoptr;
-                        *saltoptr = NULL;
-                        pout = (ped_t *) *headptr;
-                        *headptr = (cola_t*) (*headptr)->sig;
-                }
-        }
-
-        //printf("%d, %d DESENCOLA", pout->oper, pout->sect);
-
-        return pout;
+	}else
+	{
+		if(NULL != *saltoptr)
+		{
+			*headptr = *saltoptr;
+			*saltoptr = NULL;
+			pout = (ped_t *) *headptr;
+			*headptr = (cola_t*) (*headptr)->sig;
+		}
+	}
+	return pout;
 }
 
 //////////////////////////
@@ -83,28 +79,11 @@ void insertarEnColaLarga(cola_t **largaptr, cola_t *newptr)
 void insertNStepScan(nipc_packet msj, int32_t *cantPedidos, cola_t** headptr, cola_t** saltoptr, cola_t ** largaptr, int32_t posCab, nipc_socket socket)
 {
 	cola_t *newptr = 0;
-	//div_t pisec;
 
 	newptr = initPtr();
 	msjtocol(msj, newptr, socket);
 
-	//pisec = div(newptr->ped.sect, sectxpis);
-
-	/*if (*cantPedidos < 3)
-	{
-		if(pisec.quot >= pista(posCab))
-		{
-				insertOrd(headptr, newptr);
-				*cantPedidos +=1;
-		}
-		else
-		{
-				insertOrd(saltoptr, newptr);
-				*cantPedidos +=1;
-		}
-	}
-	else*/
-		insertarEnColaLarga(largaptr, newptr);
+	insertarEnColaLarga(largaptr, newptr);
 
 	return;
 }
@@ -139,9 +118,6 @@ void llenarColas(cola_t ** headptr, cola_t ** saltoptr, cola_t ** largaptr, int3
 			p++;
 		}
 		
-		//*cantPedidos = p;
-		
-		//for(l=1;l<p; l++)
 		while(auxptr != NULL)
 		{  
 			pisec = div(auxptr->ped.sect, sectxpis);
@@ -237,48 +213,43 @@ cola_t * initPtr()
 
 int32_t pista(int32_t sector)
 {
-        div_t pista;
-
-        pista = div(sector, sectxpis);
-
-        return pista.quot;
+	div_t pista;
+	pista = div(sector, sectxpis);
+	return pista.quot;
 }
 
 int32_t sectpis(int32_t sector)
 {
-        div_t sect;
-
-        sect = div(sector, sectxpis);
-
-        return sect.rem;
+	div_t sect;
+	sect = div(sector, sectxpis);
+	return sect.rem;
 }
 
 double timesect (void)
 {
-        return ((double)sectxpis / vecConfig.rpm);
+	return ((double)sectxpis / vecConfig.rpm);
 }
 
 
 
 double timemovdisco(int32_t sector, int32_t posCab)
 {
-        int32_t pisrec = 0;
-        int32_t sectrec = 0;
-        double tiempo = 0;
+	int32_t pisrec = 0;
+	int32_t sectrec = 0;
+	double tiempo = 0;
 
-        if (pista(sector) < pista(posCab))
-                pisrec =  vecConfig.pistas + pista(sector) - pista(posCab);
-        else
-                pisrec = pista(sector) - pista(posCab);
+	if (pista(sector) < pista(posCab))
+		pisrec =  vecConfig.pistas + pista(sector) - pista(posCab);
+	else
+		pisrec = pista(sector) - pista(posCab);
 
-        if(sectpis(sector) < sectpis(posCab))
-                sectrec = sectxpis + sectpis(sector) - sectpis(posCab);
-        else
-                sectrec = sectpis(sector) - sectpis(posCab);
+	if(sectpis(sector) < sectpis(posCab))
+		sectrec = sectxpis + sectpis(sector) - sectpis(posCab);
+	else
+		sectrec = sectpis(sector) - sectpis(posCab);
 
-        tiempo = sectrec * timesect() + pisrec * vecConfig.tiempoentrepistas;
-
-        return tiempo;
+	tiempo = sectrec * timesect() + pisrec * vecConfig.tiempoentrepistas;
+	return tiempo;
 }
 
 void moverCab(int32_t sect)
