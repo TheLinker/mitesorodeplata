@@ -371,6 +371,13 @@ static int fat32_open(const char *path, struct fuse_file_info *fi)
     //seteamos el file handler del file_info como el indice en la tabla de archivos abiertos
     fi->fh = ret;
 
+    if((fi->flags & O_TRUNC) && ((fi->flags & O_RDWR) || (fi->flags & O_WRONLY))) {
+        log_info(fs_tmp->log, buff, "Open: truncando a 0");
+        fat32_free_socket(socket, fs_tmp);
+        return fat32_ftruncate(path, 0, fi);
+    }
+
+
     fat32_free_socket(socket, fs_tmp);
     return 0;
 }
@@ -1050,6 +1057,8 @@ static int fat32_read(const char *path, char *buf, size_t size, off_t offset,
 
 static void *fat32_init(struct fuse_conn_info *conn)
 {
+    conn->want |= FUSE_CAP_ATOMIC_O_TRUNC;
+
     fs_fat32_t *fs_tmp = calloc(sizeof(fs_fat32_t), 1);
     fs_tmp->boot_sector.bytes_per_sector = SECT_SIZE;
 
