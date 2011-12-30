@@ -160,13 +160,13 @@ void insertOrd (cola_t ** colaptr, cola_t * newptr)
 		else
 		{
 			ordptr = (*colaptr);
-			while((NULL != ordptr) && (newptr->ped.sect > ordptr->ped.sect))
+			while((NULL != ordptr) && (newptr->ped.sect >= ordptr->ped.sect))
 			{
 				antptr = ordptr;
 				ordptr = (cola_t*) ordptr->sig;
 			}
 			newptr->sig = (struct cola_t*)ordptr;
-			antptr->sig = (struct cola_t  *) newptr;
+			antptr->sig = (struct cola_t*)newptr;
 			antptr->ped.nextsect = newptr->ped.sect;
 			if (ordptr != NULL)
 				newptr->ped.nextsect = ordptr->ped.sect;
@@ -189,22 +189,22 @@ void msjtocol(nipc_packet msj, cola_t * newptr, nipc_socket socket)
 
 cola_t * initPtr()
 {
-        cola_t * newptr = NULL;
+	cola_t * newptr = NULL;
 
-        newptr = (cola_t *) malloc (sizeof(cola_t));
-           if(newptr==NULL)
-            {
-                printf("Memoria RAM Llena");
-                exit(0);
-            }else
-            {
-                memset(newptr->ped.buffer, '\0', TAM_SECT);
-                newptr->ped.oper = 0;
-                newptr->ped.sect = 0;
-                newptr->sig = NULL;
-            }
+	newptr = (cola_t *) malloc (sizeof(cola_t));
+	if(newptr==NULL)
+	{
+		printf("Memoria RAM Llena");
+		exit(0);
+	}else
+	{
+		memset(newptr->ped.buffer, '\0', TAM_SECT);
+		newptr->ped.oper = 0;
+		newptr->ped.sect = 0;
+		newptr->sig = NULL;
+	}
 
-         return newptr;
+	  return newptr;
 }
 
 ///////////////////////////////////////

@@ -41,25 +41,10 @@ int main ()
 	calcSect = ((sectores/(pistas+1)) +1);
 
 	printf("Se ha conectado con el PPD \n");
-
+	
 	while (1)
 		atenderComando(cliente);
-
-
-	//close ( cliente );  //hay que cerrarlo el socket en este momento????????
 }
-/*--------------------------------------------------------------------------------*/
-
-//	while(1)
-	//{
-		//if(0 == atenderComando(/* estructura nipc ,  el tengo q pasarle el socket por el q se comunican */))
-		//{
-			//conectarPpd();
-		//}
-	//}
-	//return 0;
-//}
-
 
 int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de bytes enviados o recibidos*/
 {
@@ -72,7 +57,7 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 	memset(comando, '\0', sizeof(comando));
 	memset(resp, '\0', 1024);
 
-	printf("\nIngrese comando:\n");
+	printf("\nIngrese comando: ");
 	fgets(comando, TAM_COMANDO, stdin);
 	comando[strlen(comando) - 1] = 0;
 
@@ -101,41 +86,32 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 
 		if(strcmp(funcion, "clean") == 0)
 		{
-			if(NULL == parametros) //Control de parametros
+			if(NULL != parametros) //Control de parametros
 			{
-				//errParam();
-				//return cantEnv;
+				sprintf(comando, "%s(%s)", funcion, parametros);
+				send(cliente,comando,strlen(comando),0); //LO CAMBIE
+				recv(cliente,resp,sizeof(resp),0); //LO CAMBIE
+				
+				funcClean(resp);
 			}
-
-			//if (0 == errParamClean(parametros)){
-			sprintf(comando, "%s(%s)", funcion, parametros);
-			//if(!(cantEnv = enviar(comando)))
-				//return cantEnv;
-			send(cliente,comando,strlen(comando),0); //LO CAMBIE
-			//send(cliente,resp,strlen(resp),0); original
-			recv(cliente,resp,sizeof(resp),0); //LO CAMBIE
-
-			funcClean(resp);
-				//}else
-			//printf("El ingreso de parametros a sido invalido");
+			else
+				printf("El ingreso de parametros a sido invalido\n");
 
 		}else
 
 		if(strcmp(funcion, "trace") == 0)
 		{
-
-			memset(cantparametros, '\0', 100);
-			strncpy(cantparametros, parametros, 100);
-
-			if (NULL != cantparametros)
+			if (parametros != NULL)
 			{
+				memset(cantparametros, '\0', 100);
+				strncpy(cantparametros, parametros, 100);
+				
 				strtok(cantparametros , " ");
 				do
 				{
 					cantparam ++;
 				}
 				while( NULL != strtok(NULL , " "));
-
 
 				if(6 > cantparam)
 				{
@@ -146,15 +122,17 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 					{	
 						usleep(500);
 						recv(cliente,resp,sizeof(resp),0);
-						funcTrace(resp);
+						if (strcmp(resp,"ERROR")!=0)
+							funcTrace(resp);
+						else
+							printf("Los parametros son incorrectos\n");
+						  
 					}
 				}else
-					printf("La función trace espera como maximo 5 sectores\n");
+				printf("La función trace espera como maximo 5 sectores\n");
 
 			}else
-
 			printf("La función trace espera una lista de sectores\n");
-
 		} else
 		printf("Has ingresado un comando no reconocido: %s\n", comando);
 	}
@@ -170,8 +148,7 @@ void conectarPpd(void)
 
 void funcInfo(char *resp)
 {
-	printf("La posicion actual de la cabeza es: %s", resp);
-
+	printf("La posicion actual de la cabeza es: %s\n", resp);
 	return;
 }
 
@@ -213,7 +190,7 @@ void funcTrace(char *resp)
 		a = 1;
 		if(pposactual > psect)
 		{
-			for( ;pposactual<=pistas ; pposactual++)				
+			for( ;pposactual<=pistas ; pposactual++)
 			{
 				memset(aux, '\0', 30);
 				if(cant>20)
