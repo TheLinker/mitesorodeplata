@@ -60,7 +60,9 @@ int atenderComando(int cliente)/*Se llama por cada comando. Devuelve cant de byt
 	printf("\nIngrese comando: ");
 	fgets(comando, TAM_COMANDO, stdin);
 	comando[strlen(comando) - 1] = 0;
-
+	if(strcmp(comando,"")==0)
+		send(cliente,comando,strlen(comando),0);
+	
 	funcion = strtok(comando, " ");
 	parametros = strtok(NULL, "\0");
 
