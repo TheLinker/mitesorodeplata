@@ -177,6 +177,7 @@ void atenderPedido()
             }else
             {
                 ped = desencolar(&headptr, &saltoptr);
+				obtenerrecorrido(ped->sect, trace, vecConfig.posactual);
                 time= timemovdisco(ped->sect, vecConfig.posactual);
                 log_info(logppd, "Atender Pedidos", "Message info: Procesamiento de pedido\n" "Cola de Pedidos:[%s] Tamaño:\n"
                                                     "Posicion actual: %d:%d\n" "Sector Solicitado: %d:%d\n"
