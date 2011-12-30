@@ -100,11 +100,11 @@ int32_t main()
 void escucharPedidos(nipc_socket *socket)
 {
 	nipc_packet msj;
-	//sleep(1);
+	sleep(1);
 	
 	while(1)
 	{
-		if (0 > recv_socket(&msj, *socket));
+		if (0 < recv_socket(&msj, *socket))
 		{
 			//log_info(logppd, "Escuchar Pedidos", "Message info: Pedido escritura sector %d", msj.payload.sector);
 			if(0 == strcmp(vecConfig.algplan, "cscan"))
@@ -125,6 +125,8 @@ void escucharPedidos(nipc_socket *socket)
 				sem_post(&semAten);
 			}
 		}
+		else
+		  return;
 	}
 	return;
 }
@@ -221,12 +223,12 @@ void atenderPedido()
             switch(ped->oper)
             {
                 case nipc_req_read:
-                    sleep(vecConfig.tiempolec);
+                    usleep(vecConfig.tiempolec);
                     leerSect(ped->sect, ped->socket);
                     moverCab(ped->sect);
                     break;
                 case nipc_req_write:
-                    sleep(vecConfig.tiempoesc);
+                    usleep(vecConfig.tiempoesc);
                     escribirSect(ped->sect, ped->buffer, ped->socket);
                     moverCab(ped->sect);
                     break;
@@ -234,7 +236,6 @@ void atenderPedido()
                     traceSect(ped->sect, ped->nextsect,(int) ped->socket, posCabeza, cola);
                     moverCab(ped->sect);
                     break;
-
                 default:
                     printf("Error comando PPD %d \n", ped->oper);
                     break;
@@ -289,15 +290,17 @@ void escucharConsola()
 	send(cliente, infodisc, strlen(infodisc),0);
 	//puts ("\n Acepto la conexion \n");
 
-	//char comando[100];
+	int32_t bandera=0;
 	while(1)
 	{
-		if(recv(cliente,comando,sizeof(comando),0) == -1) // recibimos lo que nos envia el cliente
+		bandera = recv(cliente,comando,sizeof(comando),0);
+		if(bandera < 0) // recibimos lo que nos envia el cliente
 		{
 			printf("error recibiendo\n");
 			exit(0);
 		}
-		atenderConsola(comando, cliente);
+		else
+			atenderConsola(comando, cliente);
 	}
 	close( cliente );
 }
@@ -309,6 +312,7 @@ void atenderConsola(char comando[100], int32_t cliente)
 	funcion = strtok(comando,"(");
 	parametros = strtok (NULL, ")");
 
+	
 	if(0 == strcmp(funcion,"info"))
 	{
 			funcInfo(cliente);
@@ -445,16 +449,14 @@ void funcInfo(int32_t cliente)
         //sem_wait(&semCab);
         sprintf(bufferConsola, "%d", vecConfig.posactual);
         //sem_post(&semCab);
-        printf("%s\n", bufferConsola);
         send(cliente,bufferConsola, sizeof(bufferConsola),0);
-        printf("%s\n", bufferConsola);
         return;
 }
 
 void funcClean(char * parametros, int32_t cliente)
 {
     char * strprimSec, * strultSec, * bufferConsola;
-    int32_t primSec, ultSec;
+    int32_t primSec, ultSec=0;
     nipc_packet pedido;
 
     bufferConsola = (char *) malloc(TAM_SECT);
@@ -462,7 +464,15 @@ void funcClean(char * parametros, int32_t cliente)
     strprimSec = strtok(parametros, ":");
     strultSec = strtok(NULL, "\0");
     primSec = atoi(strprimSec);
-    ultSec = atoi(strultSec);
+    if (strultSec != NULL)
+		ultSec = atoi(strultSec);
+	else
+	{
+		strcpy(bufferConsola, "Los parametros son incorrectos\n");
+		send(cliente,bufferConsola,strlen(bufferConsola),0);
+		free(bufferConsola);
+		return;
+	}
     pedido.type = nipc_req_write;
     memset(pedido.payload.contenido, '\0', TAM_SECT);
     pedido.len = (sizeof(nipc_packet));
@@ -495,7 +505,7 @@ void funcClean(char * parametros, int32_t cliente)
         }
     }
 
-    strcpy(bufferConsola, "Se han encolado correctamente los sectores para ser limpeados");
+    strcpy(bufferConsola, "Se han encolado correctamente los sectores para ser limpeados\n");
     send(cliente,bufferConsola,strlen(bufferConsola),0);
     free(bufferConsola);
     return;
@@ -541,7 +551,14 @@ void funcTrace(char * parametros, int32_t cliente)
 	for(h=0; h<cantparam; h++)
 	{
 		//setea el sector
-		pedido.payload.sector= calcularSector(lsectores[h]);
+		int32_t control = calcularSector(lsectores[h]);
+		if (control < 0)
+		{
+			send(cliente,"ERROR",strlen("ERROR"),0);
+			sem_post(&semEnc);
+			return;
+		}
+		pedido.payload.sector = control;
 		//encolar
 		log_info(logppd, "Escuchar Consola", "Message info: Pedido trace sector %d", pedido.payload.sector);
 		if(0 == strcmp(vecConfig.algplan, "cscan"))
@@ -560,9 +577,18 @@ void funcTrace(char * parametros, int32_t cliente)
 
 int32_t calcularSector(char structSect[25])
 {
-    int32_t pist = atoi(strtok(structSect, ":"));
-    int32_t sect = atoi(strtok(NULL, "\0"));
-    return ((pist * sectxpis) + sect);
+	int32_t pist = 0;
+	int32_t sect = 0;
+	pist = atoi(strtok(structSect, ":"));
+	char * sect_str=strtok(NULL, "\0");
+	if(sect_str != NULL)
+	{
+		sect = atoi(sect_str);
+		return ((pist * sectxpis) + sect);
+	}
+	else
+		return -1;
+	
 }
 
 void traceSect(int32_t sect, int32_t nextsect, int32_t cliente, int32_t posCab, int32_t cola[20])
@@ -595,7 +621,7 @@ void traceSect(int32_t sect, int32_t nextsect, int32_t cliente, int32_t posCab, 
     sprintf(aux, "%d,%d,%d,%d,%d,%d,%g\n", psect, ssect, pnextsect, snextsect, pposactual, sposactual, tiempo);
     strcat(bufferConsola, aux);
 
-    //sleep(1);
+    sleep(1);
     send(cliente, bufferConsola, strlen(bufferConsola),0);
     free(aux);
     free(bufferConsola);

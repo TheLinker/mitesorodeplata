@@ -94,7 +94,7 @@ void conectarConPFS(config_t vecConfig)
 					{
 						nipc_packet buffer;
 
-					 	printf("Nueva conexion PFS: %d\n",sock_new);
+					 	//printf("Nueva conexion PFS: %d\n",sock_new);
 						pfs *nuevo_pfs;
 						//int32_t env;
 						nuevo_pfs = (pfs *)malloc(sizeof(pfs));

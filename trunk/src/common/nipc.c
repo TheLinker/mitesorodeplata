@@ -141,8 +141,7 @@ int32_t recv_socket(nipc_packet *packet, nipc_socket sock)
     }
 
     //lo que estaba aca es irrelevante si simplemente pasamos el paquete como buffer
-
-//    printf("Control de mensaje recibido: %d - %d - %d - %s\n",packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
+	//printf("Control de mensaje recibido del %d: %d - %d - %d - %s\n",sock,packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
     return leido;
 }
 
@@ -188,6 +187,7 @@ int32_t send_socket(nipc_packet *packet, nipc_socket sock)
 		return -1;
 	}
     }
+    //printf("Control de mensaje enviado del %d: %d - %d - %d - %s\n",sock,packet->type,packet->len,packet->payload.sector,packet->payload.contenido);
     return Escrito;
 }
 
