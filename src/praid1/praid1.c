@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 							uint8_t *id_disco;
 							id_disco = distribuir_pedido_lectura(&info_ppal,mensaje,aux_pfs->sock);
 							log_info(log, "Principal", "Message info: Pedido lectura sector %d en disco %s", mensaje.payload.sector,id_disco);
-							printf("Pedido de lectura del FS(%d) - Sector: %d en PPD: %s\n",aux_pfs->sock,mensaje.payload.sector,id_disco);
+							//printf("Pedido de lectura del FS(%d) - Sector: %d en PPD: %s\n",aux_pfs->sock,mensaje.payload.sector,id_disco);
 							//printf("------------------------------\n");
 						}
 						else
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 						if(mensaje.len != 4)
 						{
 							distribuir_pedido_escritura(&info_ppal,mensaje,aux_pfs->sock);
-							printf("Pedido de escritura del FS(%d) - Sector: %d\n",aux_pfs->sock,mensaje.payload.sector);
+							//printf("Pedido de escritura del FS(%d) - Sector: %d\n",aux_pfs->sock,mensaje.payload.sector);
 							log_info(log, "Principal", "Message info: Pedido escritura sector %d", mensaje.payload.sector);
 							//printf("------------------------------\n");
 						}

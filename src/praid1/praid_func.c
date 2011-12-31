@@ -301,19 +301,20 @@ void *pedido_sincronizacion(datos **info_ppal)
 		{
 			mensaje.payload.sector = i;
 			control = 0;
-			usleep(1);
+			usleep(50);
 			while(el_disco->encolados > 50 )
 			{
 				usleep(500);
 				control++;
-				if (control == 1000) // 1000:medio segundo  2000:un segundo
+				if (control == 2000) // 1000:medio segundo  2make000:un segundo
 				{
 					//printf("------------------------------\n");
 					//printf("Re-pedido de sincronizacion %s - %d\n",el_disco->id,el_disco->sector_sincro+1);
 					mensaje.payload.sector = (el_disco->sector_sincro+1);
 					distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
 					mensaje.payload.sector = i;
-					break;
+					control=0;
+					//break;
 				}
 			}
 			
@@ -321,32 +322,7 @@ void *pedido_sincronizacion(datos **info_ppal)
 				/*id_disco = */distribuir_pedido_lectura(info_ppal , mensaje , el_disco->sock);
 			else
 				break;
-			/*//////////////
-			nuevo_pedido = (pedido *)malloc(sizeof(pedido));
-			nuevo_pedido->sock = el_disco->sock;
-			nuevo_pedido->type = 1;
-			nuevo_pedido->sector = i;
-			nuevo_pedido->sgte = NULL;
-			sem_wait(&((*info_ppal)->semaforo));
-			disco *aux;
-			aux = (*info_ppal)->discos;
-			while((aux != NULL) && (aux->sock != ppd_master))
-				aux = aux->sgte;
-			encolar(&aux,&nuevo_pedido);
-			aux->cantidad_pedidos++;
-			sem_post(&((*info_ppal)->semaforo));
-			if (el_disco->pedido_sincro != 2)
-			{
-				if(send_socket(&mensaje,aux->sock)<=0)
-				{
-					printf("error envio pedido sincronizacion lectura %d\n",el_disco->sock );
-					el_disco->pedido_sincro = 2;
-					break;
-				}
-			}
-			else
-				break;
-			////////////////*/
+			
 			if((i%50000)==0)
 			{
 				printf("------------------------------\n");
@@ -373,7 +349,7 @@ void *registrar_sincro(disco *el_disco, nipc_packet *mensaje)
 {
 	if((el_disco->sector_sincro + 1) > mensaje->payload.sector)
 	{  /** ya estaba sincronizado este sector **/
-		printf("Sector YA ESTABA SINCRONIZADO en disco: %s - %d\n",el_disco->id,el_disco->sock);
+		//printf("Sector YA ESTABA SINCRONIZADO en disco: %s - %d\n",el_disco->id,el_disco->sock);
 	}
 	if((el_disco->sector_sincro + 1) == mensaje->payload.sector)
 	{  /** se incrementa en 1 sector_sincro y se revisa la cola para ver si hay otros **/
@@ -721,7 +697,7 @@ void *espera_respuestas(datos **info_ppal)
 						}
 						else*/
 						//{
-							printf("disco: %s - sector no solicitado: %d - %d - %d \n",el_disco->id, mensaje.type, mensaje.len, mensaje.payload.sector);
+							//printf("disco: %s - sector no solicitado: %d - %d - %d \n",el_disco->id, mensaje.type, mensaje.len, mensaje.payload.sector);
 							//getchar();
 						//}
 					}
